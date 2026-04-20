@@ -751,6 +751,45 @@ function mkRoleItem(icon, title, desc) {
 }
 
 
+
+function startListeners(db) {
+  if (!db || !window._fbOps) return;
+  var col = window._fbOps.collection;
+  var q   = window._fbOps.query;
+  var ord = window._fbOps.orderBy;
+  var ons = window._fbOps.onSnapshot;
+
+  ons(q(col(db,'materiales'), ord('nombre')), function(snap) {
+    STATE.items = snap.docs.map(function(d) {
+      var data = d.data();
+      return Object.assign({id: d.id}, data, {
+        fechaIngreso: data.fechaIngreso && data.fechaIngreso.toDate ? data.fechaIngreso.toDate() : new Date()
+      });
+    });
+    renderAll();
+  });
+
+  ons(q(col(db,'movimientos'), ord('fecha','desc')), function(snap) {
+    STATE.movements = snap.docs.map(function(d) {
+      var data = d.data();
+      return Object.assign({id: d.id}, data, {
+        fecha: data.fecha && data.fecha.toDate ? data.fecha.toDate() : new Date()
+      });
+    });
+    renderAll();
+  });
+
+  ons(q(col(db,'pedidos'), ord('fecha','desc')), function(snap) {
+    STATE.requests = snap.docs.map(function(d) {
+      var data = d.data();
+      return Object.assign({id: d.id}, data, {
+        fecha: data.fecha && data.fecha.toDate ? data.fecha.toDate() : new Date()
+      });
+    });
+    renderAll();
+  });
+}
+
 function doLogout() {
   STATE.user=null;
   document.getElementById('app').classList.remove('show');
