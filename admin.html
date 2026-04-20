@@ -413,7 +413,7 @@ textarea.fc{resize:vertical;min-height:70px}
         </div>
       </div>
       <div class="panel"><div class="tw">
-        <table><thead><tr><th>Fecha</th><th>Tipo</th><th>Material</th><th>Cant.</th><th>Departamento</th><th>Entregado por</th><th>Recibido por</th><th>Nota</th></tr></thead>
+        <table><thead><tr><th>Fecha</th><th>Tipo</th><th>Material</th><th>Cant.</th><th>Departamento</th><th>Entregado por</th><th>Recibido por</th></tr></thead>
         <tbody id="histTbl"></tbody></table>
       </div></div>
     </div>
@@ -620,6 +620,18 @@ const STATE = {
 };
 
 // ── HELPERS ──────────────────────────────────────────────────
+
+function limpiarNota(nota, recibe) {
+  if (!nota) return '';
+  // If nota contains a Firebase ID (long string no spaces after "pedido ")
+  // Replace it with the district name
+  var match = nota.match(/^Entrega pedido\s+([A-Za-z0-9]{15,})$/);
+  if (match) {
+    return recibe ? 'Pedido entregado — ' + recibe : 'Pedido entregado';
+  }
+  return nota;
+}
+
 function fmtD(d) {
   if (!d) return '—';
   const s = (Date.now()-new Date(d))/1000;
@@ -1023,7 +1035,6 @@ function renderHist() {
       '<td>'+dBadge(x.departamento)+'</td>'+
       '<td style="color:var(--t2)">'+(x.responsable||'')+'</td>'+
       '<td style="color:var(--t2)">'+(x.recibe||'')+'</td>'+
-      '<td style="color:var(--t2);font-size:12px">'+(x.nota||'')+'</td>'+
       '</tr>';
   }).join(''):'<tr><td colspan="8" class="empty" style="text-align:center">Sin movimientos</td></tr>';
 }
@@ -1303,7 +1314,7 @@ function exportarExcel() {
   if (!movs.length) { toast('Sin movimientos para exportar','warn'); return; }
 
   // Build data array
-  var data = [['Fecha','Tipo','Material','Cantidad','Departamento','Entregado por','Recibido por','Nota']];
+  var data = [['Fecha','Tipo','Material','Cantidad','Departamento','Entregado por','Recibido por']];
   movs.forEach(function(m) {
     data.push([
       fmtD(m.fecha),
@@ -1313,7 +1324,7 @@ function exportarExcel() {
       m.departamento || '',
       m.responsable || '',
       m.recibe || '',
-      m.nota || ''
+      limpiarNota(m.nota, m.recibe) || ''
     ]);
   });
 
@@ -1336,7 +1347,7 @@ function generarXLSX(data) {
 
     // ── HOJA 1: HISTORIAL ──────────────────────────────────
     var ws = XLSX.utils.aoa_to_sheet(data);
-    ws['!cols'] = [{wch:16},{wch:12},{wch:30},{wch:10},{wch:20},{wch:20},{wch:20},{wch:35}];
+    ws['!cols'] = [{wch:16},{wch:12},{wch:30},{wch:10},{wch:22},{wch:22},{wch:22}];
 
     // Style all cells
     var range = XLSX.utils.decode_range(ws['!ref']);
@@ -1491,7 +1502,7 @@ function exportarPDF() {
       '<td>'+(m.departamento||'')+'</td>' +
       '<td>'+(m.responsable||'')+'</td>' +
       '<td>'+(m.recibe||'')+'</td>' +
-      '<td style="font-size:11px">'+(m.nota||'')+'</td>' +
+      '<td style="font-size:11px">'+limpiarNota(m.nota, m.recibe)+'</td>' +
     '</tr>';
   }).join('');
 
@@ -1543,7 +1554,7 @@ function exportarPDF() {
     '<h2>📦 Inventario actual</h2>' +
     '<table><thead><tr><th>Material</th><th>Departamento</th><th>Cantidad</th><th>Mínimo</th><th>Estado</th><th>Días en bodega</th></tr></thead><tbody>'+invRows+'</tbody></table>' +
     '<h2>📊 Historial de movimientos</h2>' +
-    '<table><thead><tr><th>Fecha</th><th>Tipo</th><th>Material</th><th>Cant.</th><th>Departamento</th><th>Entregado por</th><th>Recibido por</th><th>Nota</th></tr></thead><tbody>'+histRows+'</tbody></table>' +
+    '<table><thead><tr><th>Fecha</th><th>Tipo</th><th>Material</th><th>Cant.</th><th>Departamento</th><th>Entregado por</th><th>Recibido por</th></tr></thead><tbody>'+histRows+'</tbody></table>' +
     '<h2>📋 Solicitudes de distritos</h2>' +
     '<table><thead><tr><th>Fecha</th><th>Pastor</th><th>Distrito</th><th>Estado</th><th>Materiales</th><th>Gestionado por</th></tr></thead><tbody>'+solRows+'</tbody></table>' +
     '<div class="footer">AsoBodex — Asociación del Noreste Colombiano © '+new Date().getFullYear()+'</div>' +
