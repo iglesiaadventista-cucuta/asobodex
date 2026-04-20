@@ -887,46 +887,57 @@ function renderDesp() {
 }
 
 function renderSols() {
-  const estado=document.getElementById('fReqEstado')?.value||'';
-  let reqs=STATE.requests;
-  if(estado) reqs=reqs.filter(r=>r.estado===estado);
-  
+  var estado = document.getElementById('fReqEstado') ? document.getElementById('fReqEstado').value : '';
+  var reqs = STATE.requests;
+  if(estado) reqs = reqs.filter(function(r){ return r.estado===estado; });
+
   if(!reqs.length) {
-    document.getElementById('solsContainer').innerHTML='<div class="empty" style="padding:48px">Sin solicitudes registradas</div>';
+    document.getElementById('solsContainer').innerHTML = '<div class="empty" style="padding:48px">Sin solicitudes registradas</div>';
     return;
   }
 
-  document.getElementById('solsContainer').innerHTML=reqs.map(r=>{
-    const ini=(r.pastor||'?').split(' ').map(x=>x[0]).join('').slice(0,2).toUpperCase();
-    const isAdmin=STATE.user?.role==='admin';
-    const canApprove=isAdmin&&r.estado==='pendiente';
-    const canDeliver=isAdmin&&r.estado==='aprobado';
-    return `<div class="rcard">
-      <div style="display:flex;align-items:flex-start;gap:12px;margin-bottom:10px">
-        <div class="rav">${ini}</div>
-        <div style="flex:1">
-          <div style="font-size:13px;font-weight:700">${r.pastor}</div>
-          <div style="font-size:11px;color:var(--teal);font-weight:600">${r.distrito}</div>
-          <div style="font-size:11px;color:var(--t2);margin-top:1px">${r.email||''} ${r.tel?'· '+r.tel:''}</div>
-        </div>
-        <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
-          ${badgeEstado(r.estado)}
-          <div style="font-size:10px;color:var(--t3)">${fmtD(r.fecha)}</div>
-        </div>
-      </div>
-      <div style="margin-bottom:8px">
-        '+((r.items||[]).map(function(i){return '<span class="rtag">'+i.nombre+' x'+i.cantidad+(i.iglesia?' ('+i.iglesia+')':'')+'</span>';}).join(''))+('
-        ${r.otros?`<span class="rtag" style="border-color:var(--gold);color:var(--gold)">Otro: ${r.otros}</span>`:''}
-      </div>
-      ${r.fotoRequerida?'<div class="mat-note">📸 Este pedido requiere foto del talonario anterior</div>':''}
-      <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
-        ${canApprove?`<button class="btn bgrn bsm" onclick="accionSol('${r.id}','aprobado')">✓ Aprobar</button><button class="btn bred bsm" onclick="accionSol('${r.id}','rechazado')">✗ Rechazar</button>`:''},
-        ${canDeliver?`<button class="btn bpri bsm" onclick="accionSol('${r.id}','entregado')">📦 Marcar entregado</button>`:''},
-        <button class="btn bsm" onclick="verDetalleSol('${r.id}')">Ver detalle</button>
-      </div>
-    </div>`;
+  var isAdmin = STATE.user && (STATE.user.role==='admin');
+
+  document.getElementById('solsContainer').innerHTML = reqs.map(function(r) {
+    var ini = (r.pastor||'?').split(' ').map(function(x){ return x[0]; }).join('').slice(0,2).toUpperCase();
+    var canApprove = isAdmin && r.estado==='pendiente';
+    var canDeliver = isAdmin && r.estado==='aprobado';
+
+    var itemsHtml = (r.items||[]).map(function(i) {
+      return '<span class="rtag">'+i.nombre+' x'+i.cantidad+(i.iglesia?' ('+i.iglesia+')':'')+'</span>';
+    }).join('');
+
+    var otrosHtml = r.otros ? '<span class="rtag" style="border-color:var(--gold);color:var(--gold)">Otro: '+r.otros+'</span>' : '';
+    var fotoHtml  = r.fotoRequerida ? '<div class="mat-note" style="margin:8px 0;padding:8px 12px;background:rgba(231,76,60,.1);border-radius:6px;font-size:12px;color:var(--red)">📸 Este pedido requiere foto del libro de diáconos</div>' : '';
+
+    var approveHtml = canApprove ?
+      '<button class="btn bgrn bsm" onclick="accionSol(''+r.id+'','aprobado')">✓ Aprobar</button>'+
+      '<button class="btn bred bsm" onclick="accionSol(''+r.id+'','rechazado')">✗ Rechazar</button>' : '';
+    var deliverHtml = canDeliver ?
+      '<button class="btn bpri bsm" onclick="accionSol(''+r.id+'','entregado')">📦 Marcar entregado</button>' : '';
+
+    return '<div class="rcard">'+
+      '<div style="display:flex;align-items:flex-start;gap:12px;margin-bottom:10px">'+
+        '<div class="rav">'+ini+'</div>'+
+        '<div style="flex:1">'+
+          '<div style="font-size:13px;font-weight:700">'+r.pastor+'</div>'+
+          '<div style="font-size:11px;color:var(--teal);font-weight:600">'+r.distrito+'</div>'+
+        '</div>'+
+        '<div style="display:flex;align-items:center;gap:8px;flex-shrink:0">'+
+          badgeEstado(r.estado)+
+          '<div style="font-size:10px;color:var(--t3)">'+fmtD(r.fecha)+'</div>'+
+        '</div>'+
+      '</div>'+
+      '<div style="margin-bottom:8px">'+itemsHtml+otrosHtml+'</div>'+
+      fotoHtml+
+      '<div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">'+
+        approveHtml+deliverHtml+
+        '<button class="btn bsm" onclick="verDetalleSol(''+r.id+'')">Ver detalle</button>'+
+      '</div>'+
+    '</div>';
   }).join('');
 }
+
 
 function renderHist() {
   const t=document.getElementById('fHTipo')?.value||'';
