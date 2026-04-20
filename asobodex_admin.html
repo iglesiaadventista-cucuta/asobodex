@@ -715,80 +715,41 @@ function loginOk(u) {
   buildPedidoForm();
 }
 function mostrarBienvenida(u) {
-  const isMaster = u.role === 'admin';
-  const contenido = isMaster ? `
-    <div style="text-align:center;margin-bottom:20px">
-      <div style="font-size:40px;margin-bottom:8px">👑</div>
-      <div style="font-size:18px;font-weight:700;color:var(--teal)">Bienvenido, Administrador</div>
-      <div style="font-size:12px;color:var(--t2);margin-top:4px">Tienes acceso completo al sistema</div>
-    </div>
-    <div style="display:flex;flex-direction:column;gap:8px;font-size:13px">
-      <div style="background:var(--navy3);border:1px solid var(--bd);border-radius:var(--r);padding:10px 14px;display:flex;gap:10px;align-items:center">
-        <span style="font-size:18px">📊</span><div><strong>Dashboard</strong> — Vista general del inventario, alertas de stock bajo y material viejo (+4 meses)</div>
-      </div>
-      <div style="background:var(--navy3);border:1px solid var(--bd);border-radius:var(--r);padding:10px 14px;display:flex;gap:10px;align-items:center">
-        <span style="font-size:18px">📦</span><div><strong>Inventario</strong> — Ver, editar y eliminar materiales. Filtrar por departamento</div>
-      </div>
-      <div style="background:var(--navy3);border:1px solid var(--bd);border-radius:var(--r);padding:10px 14px;display:flex;gap:10px;align-items:center">
-        <span style="font-size:18px">➕</span><div><strong>Registrar</strong> — Agregar nuevos materiales que llegan a la bodega</div>
-      </div>
-      <div style="background:var(--navy3);border:1px solid var(--bd);border-radius:var(--r);padding:10px 14px;display:flex;gap:10px;align-items:center">
-        <span style="font-size:18px">📤</span><div><strong>Despachar</strong> — Entregar material y descontar del inventario automáticamente</div>
-      </div>
-      <div style="background:var(--navy3);border:1px solid var(--bd);border-radius:var(--r);padding:10px 14px;display:flex;gap:10px;align-items:center">
-        <span style="font-size:18px">📋</span><div><strong>Solicitudes</strong> — Ver pedidos de los distritos. Aprobar, rechazar o marcar como entregado</div>
-      </div>
-      <div style="background:var(--navy3);border:1px solid var(--bd);border-radius:var(--r);padding:10px 14px;display:flex;gap:10px;align-items:center">
-        <span style="font-size:18px">🕐</span><div><strong>Historial</strong> — Todos los movimientos. Exportar en Excel o PDF</div>
-      </div>
-    </div>` : `
-    <div style="text-align:center;margin-bottom:20px">
-      <div style="font-size:40px;margin-bottom:8px">👁</div>
-      <div style="font-size:18px;font-weight:700;color:var(--t2)">Bienvenido, Usuario</div>
-      <div style="font-size:12px;color:var(--t2);margin-top:4px">Acceso de solo lectura</div>
-    </div>
-    <div style="display:flex;flex-direction:column;gap:8px;font-size:13px">
-      <div style="background:var(--navy3);border:1px solid var(--bd);border-radius:var(--r);padding:10px 14px;display:flex;gap:10px;align-items:center">
-        <span style="font-size:18px">📊</span><div><strong>Dashboard</strong> — Ver el inventario actual, alertas y movimientos recientes</div>
-      </div>
-      <div style="background:var(--navy3);border:1px solid var(--bd);border-radius:var(--r);padding:10px 14px;display:flex;gap:10px;align-items:center">
-        <span style="font-size:18px">📦</span><div><strong>Inventario</strong> — Consultar cantidades y estado de cada material por departamento</div>
-      </div>
-      <div style="background:var(--navy3);border:1px solid var(--bd);border-radius:var(--r);padding:10px 14px;display:flex;gap:10px;align-items:center">
-        <span style="font-size:18px">📋</span><div><strong>Solicitudes</strong> — Ver el estado de los pedidos de los distritos</div>
-      </div>
-      <div style="background:var(--amber-d);border:1px solid rgba(245,166,35,.3);border-radius:var(--r);padding:10px 14px;font-size:12px;color:var(--amber)">
-        ⚠️ No puedes registrar, editar ni despachar material. Solo visualización.
-      </div>
-    </div>`;
+  var isMaster = u.role === 'admin';
+  var contenido = '';
+  if (isMaster) {
+    contenido = '<div style="text-align:center;margin-bottom:20px"><div style="font-size:40px;margin-bottom:8px">👑</div>' +
+      '<div style="font-size:18px;font-weight:700;color:var(--teal)">Bienvenido, Administrador</div>' +
+      '<div style="font-size:12px;color:var(--t2);margin-top:4px">Tienes acceso completo al sistema</div></div>' +
+      '<div style="display:flex;flex-direction:column;gap:8px;font-size:13px">' +
+      mkRoleItem('📊','Dashboard','Vista general del inventario y alertas') +
+      mkRoleItem('📦','Inventario','Ver, editar y eliminar materiales. Filtrar por departamento') +
+      mkRoleItem('➕','Registrar','Agregar nuevos materiales que llegan a la bodega') +
+      mkRoleItem('📤','Despachar','Entregar material y agregar stock al inventario') +
+      mkRoleItem('📋','Solicitudes','Ver pedidos de los distritos. Aprobar, rechazar o marcar entregado') +
+      mkRoleItem('🕐','Historial','Todos los movimientos. Exportar en Excel o PDF') +
+      '</div>';
+  } else {
+    contenido = '<div style="text-align:center;margin-bottom:20px"><div style="font-size:40px;margin-bottom:8px">👁</div>' +
+      '<div style="font-size:18px;font-weight:700;color:var(--t2)">Bienvenido, Usuario</div>' +
+      '<div style="font-size:12px;color:var(--t2);margin-top:4px">Acceso de solo lectura</div></div>' +
+      '<div style="display:flex;flex-direction:column;gap:8px;font-size:13px">' +
+      mkRoleItem('📊','Dashboard','Ver inventario actual, alertas y movimientos recientes') +
+      mkRoleItem('📦','Inventario','Consultar cantidades y estado de cada material') +
+      mkRoleItem('📋','Solicitudes','Ver el estado de los pedidos de los distritos') +
+      '</div>' +
+      '<div style="background:var(--amber-d);border:1px solid rgba(210,153,34,.3);border-radius:var(--r);padding:10px 14px;font-size:12px;color:var(--amber);margin-top:12px">Solo visualizacion - no puedes registrar ni despachar material</div>';
+  }
   document.getElementById('bienvenidaBody').innerHTML = contenido;
   openM('mBienvenida');
 }
 
-function fillDemo(email) {
-  document.getElementById('lEmail').value = email;
-  document.getElementById('lPass').focus();
+function mkRoleItem(icon, title, desc) {
+  return '<div style="background:var(--navy3);border:1px solid var(--bd);border-radius:var(--r);padding:10px 14px;display:flex;gap:10px;align-items:center">' +
+    '<span style="font-size:18px">' + icon + '</span>' +
+    '<div><strong>' + title + '</strong> — ' + desc + '</div></div>';
 }
 
-function startListeners(db) {
-  if (!db) return;
-  const { collection, query, orderBy, onSnapshot } = window._fbOps;
-  onSnapshot(query(collection(db,'materiales'), orderBy('nombre')), snap => {
-    STATE.items = snap.docs.map(d => ({ id: d.id, ...d.data(),
-      fechaIngreso: d.data().fechaIngreso?.toDate?.() || new Date() }));
-    renderAll();
-  });
-  onSnapshot(query(collection(db,'movimientos'), orderBy('fecha','desc')), snap => {
-    STATE.movements = snap.docs.map(d => ({ id: d.id, ...d.data(),
-      fecha: d.data().fecha?.toDate?.() || new Date() }));
-    renderAll();
-  });
-  onSnapshot(query(collection(db,'pedidos'), orderBy('fecha','desc')), snap => {
-    STATE.requests = snap.docs.map(d => ({ id: d.id, ...d.data(),
-      fecha: d.data().fecha?.toDate?.() || new Date() }));
-    renderAll();
-  });
-}
 
 function doLogout() {
   STATE.user=null;
@@ -855,87 +816,151 @@ function renderDash() {
 }
 
 function renderInv() {
-  const dept=document.getElementById('fDept')?.value||'';
-  const q=(document.getElementById('fQ')?.value||'').toLowerCase();
-  const isA=STATE.user?.role==='admin';
-  let items=STATE.items;
-  if(dept) items=items.filter(i=>i.departamento===dept);
-  if(q) items=items.filter(i=>i.nombre.toLowerCase().includes(q));
-  document.getElementById('invTbl').innerHTML=items.length?items.map(i=>{
-    const dias=diasEnBodega(i.fechaIngreso);
-    const oldTag=dias>=120?`<span class="old-badge">⏰ ${dias}d</span>`:'';
-    return `<tr>
-      <td><div style="font-weight:600">${i.nombre}</div></td>
-      <td>${dBadge(i.departamento)}</td>
-      <td>${qBar(i)}</td>
-      <td style="color:var(--t2);font-family:monospace">${i.minimo}</td>
-      <td style="font-size:12px;color:var(--t2)">${new Date(i.fechaIngreso).toLocaleDateString('es-CO')}</td>
-      <td>${oldTag || `<span style="font-size:12px;color:var(--t2)">${dias}d</span>`}</td>
-      <td>${sBadge(i)}</td>
-      ${isA?`<td><div style="display:flex;gap:6px"><button class="btn bic bsm" onclick="openEdit('${i.id}')">✏️</button><button class="btn bic bsm bred" onclick="delItem('${i.id}')">🗑</button></div></td>`:''}</tr>`;
-  }).join(''):'<tr><td colspan="8" class="empty" style="text-align:center">Sin materiales registrados</td></tr>';
+  var dept = document.getElementById('fDept') ? document.getElementById('fDept').value : '';
+  var q = document.getElementById('fQ') ? document.getElementById('fQ').value.toLowerCase() : '';
+  var isA = STATE.user && (STATE.user.role==='admin');
+  var items = STATE.items.slice();
+  if (dept) items = items.filter(function(i){ return i.departamento===dept; });
+  if (q) items = items.filter(function(i){ return i.nombre.toLowerCase().indexOf(q)>=0; });
+
+  if (!items.length) {
+    document.getElementById('invTbl').innerHTML = '<tr><td colspan="8" class="empty" style="text-align:center">Sin materiales registrados</td></tr>';
+    return;
+  }
+
+  var html = '';
+  for (var idx=0; idx<items.length; idx++) {
+    var i = items[idx];
+    var dias = diasEnBodega(i.fechaIngreso);
+    var oldTag = dias>=120 ? '<span class="old-badge">+'+dias+'d</span>' : '<span style="font-size:12px;color:var(--t2)">'+dias+'d</span>';
+    var editBtns = isA ? '<td><div style="display:flex;gap:6px"><button class="btn bic bsm" onclick="openEdit(''+i.id+'')">✏️</button><button class="btn bic bsm bred" onclick="delItem(''+i.id+'')">🗑</button></div></td>' : '';
+    html += '<tr>' +
+      '<td><div style="font-weight:600">' + i.nombre + '</div></td>' +
+      '<td>' + dBadge(i.departamento) + '</td>' +
+      '<td>' + qBar(i) + '</td>' +
+      '<td style="color:var(--t2);font-family:monospace">' + i.minimo + '</td>' +
+      '<td style="font-size:12px;color:var(--t2)">' + (i.fechaIngreso ? new Date(i.fechaIngreso).toLocaleDateString('es-CO') : '—') + '</td>' +
+      '<td>' + oldTag + '</td>' +
+      '<td>' + sBadge(i) + '</td>' +
+      editBtns +
+    '</tr>';
+  }
+  document.getElementById('invTbl').innerHTML = html;
 }
+
 
 function renderDesp() {
   const d=STATE.movements.filter(m=>m.tipo==='despacho').slice(0,8);
-  document.getElementById('recDisp').innerHTML=d.length?d.map(m=>
-    `<div class="log"><div class="ldot" style="background:var(--teal)"></div>
-    <div class="ltxt"><strong>${m.material}</strong> · ${m.cantidad} und
-    <div class="lsub">→ ${m.recibe||m.departamento} · ${m.responsable}</div></div>
-    <div class="ltime">${fmtD(m.fecha)}</div></div>`
-  ).join(''):'<div class="empty">Sin despachos registrados</div>';
+  document.getElementById('recDisp').innerHTML=d.length?d.map(function(m){
+    return '<div class="log"><div class="ldot" style="background:var(--teal)"></div>'+
+      '<div class="ltxt"><strong>'+(m.material||'')+'</strong> · '+(m.cantidad||'')+' und'+
+      '<div class="lsub">→ '+(m.recibe||m.departamento||'')+' · '+(m.responsable||'')+'</div></div>'+
+      '<div class="ltime">'+fmtD(m.fecha)+'</div></div>';
+  }).join(''):'<div class="empty">Sin despachos registrados</div>';
 }
 
 function renderSols() {
   var estado = document.getElementById('fReqEstado') ? document.getElementById('fReqEstado').value : '';
   var reqs = STATE.requests;
-  if(estado) reqs = reqs.filter(function(r){ return r.estado===estado; });
+  if (estado) reqs = reqs.filter(function(r) { return r.estado === estado; });
 
-  if(!reqs.length) {
+  if (!reqs.length) {
     document.getElementById('solsContainer').innerHTML = '<div class="empty" style="padding:48px">Sin solicitudes registradas</div>';
     return;
   }
 
-  var isAdmin = STATE.user && (STATE.user.role==='admin');
+  var isAdmin = STATE.user && STATE.user.role === 'admin';
+  var html = '';
 
-  document.getElementById('solsContainer').innerHTML = reqs.map(function(r) {
-    var ini = (r.pastor||'?').split(' ').map(function(x){ return x[0]; }).join('').slice(0,2).toUpperCase();
-    var canApprove = isAdmin && r.estado==='pendiente';
-    var canDeliver = isAdmin && r.estado==='aprobado';
+  for (var ri = 0; ri < reqs.length; ri++) {
+    var r = reqs[ri];
+    var ini = (r.pastor || '?').split(' ').map(function(x) { return x[0]; }).join('').slice(0, 2).toUpperCase();
+    var canApprove = isAdmin && r.estado === 'pendiente';
+    var canDeliver = isAdmin && r.estado === 'aprobado';
 
-    var itemsHtml = (r.items||[]).map(function(i) {
-      return '<span class="rtag">'+i.nombre+' x'+i.cantidad+(i.iglesia?' ('+i.iglesia+')':'')+'</span>';
-    }).join('');
+    var itemsHtml = '';
+    var items = r.items || [];
+    for (var ii = 0; ii < items.length; ii++) {
+      var item = items[ii];
+      itemsHtml += '<span class="rtag">' + (item.nombre||'') + ' x' + (item.cantidad||'') + (item.iglesia ? ' (' + item.iglesia + ')' : '') + '</span>';
+    }
+    if (r.otros) itemsHtml += '<span class="rtag" style="border-color:var(--gold);color:var(--gold)">Otro: ' + r.otros + '</span>';
 
-    var otrosHtml = r.otros ? '<span class="rtag" style="border-color:var(--gold);color:var(--gold)">Otro: '+r.otros+'</span>' : '';
-    var fotoHtml  = r.fotoRequerida ? '<div class="mat-note" style="margin:8px 0;padding:8px 12px;background:rgba(231,76,60,.1);border-radius:6px;font-size:12px;color:var(--red)">📸 Este pedido requiere foto del libro de diáconos</div>' : '';
+    var fotoHtml = r.fotoRequerida ? '<div style="margin:8px 0;padding:8px 12px;background:rgba(231,76,60,.1);border-radius:6px;font-size:12px;color:var(--red)">Requiere foto del libro de diacono</div>' : '';
 
-    var approveHtml = canApprove ?
-      '<button class="btn bgrn bsm" onclick="accionSol(''+r.id+'','aprobado')">✓ Aprobar</button>'+
-      '<button class="btn bred bsm" onclick="accionSol(''+r.id+'','rechazado')">✗ Rechazar</button>' : '';
-    var deliverHtml = canDeliver ?
-      '<button class="btn bpri bsm" onclick="accionSol(''+r.id+'','entregado')">📦 Marcar entregado</button>' : '';
+    var btns = '<button class="btn bsm" onclick="verDetalleSol(this)" data-id="' + r.id + '">Ver detalle</button>';
+    if (canApprove) {
+      btns = '<button class="btn bgrn bsm" onclick="accionSolBtn(this,'aprobado')" data-id="' + r.id + '">Aprobar</button>' +
+             '<button class="btn bred bsm" onclick="accionSolBtn(this,'rechazado')" data-id="' + r.id + '">Rechazar</button>' + btns;
+    }
+    if (canDeliver) {
+      btns = '<button class="btn bpri bsm" onclick="accionSolBtn(this,'entregado')" data-id="' + r.id + '">Marcar entregado</button>' + btns;
+    }
 
-    return '<div class="rcard">'+
-      '<div style="display:flex;align-items:flex-start;gap:12px;margin-bottom:10px">'+
-        '<div class="rav">'+ini+'</div>'+
-        '<div style="flex:1">'+
-          '<div style="font-size:13px;font-weight:700">'+r.pastor+'</div>'+
-          '<div style="font-size:11px;color:var(--teal);font-weight:600">'+r.distrito+'</div>'+
-        '</div>'+
-        '<div style="display:flex;align-items:center;gap:8px;flex-shrink:0">'+
-          badgeEstado(r.estado)+
-          '<div style="font-size:10px;color:var(--t3)">'+fmtD(r.fecha)+'</div>'+
-        '</div>'+
-      '</div>'+
-      '<div style="margin-bottom:8px">'+itemsHtml+otrosHtml+'</div>'+
-      fotoHtml+
-      '<div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">'+
-        approveHtml+deliverHtml+
-        '<button class="btn bsm" onclick="verDetalleSol(''+r.id+'')">Ver detalle</button>'+
-      '</div>'+
+    html += '<div class="rcard">' +
+      '<div style="display:flex;align-items:flex-start;gap:12px;margin-bottom:10px">' +
+        '<div class="rav">' + ini + '</div>' +
+        '<div style="flex:1">' +
+          '<div style="font-size:13px;font-weight:700">' + (r.pastor||'') + '</div>' +
+          '<div style="font-size:11px;color:var(--teal);font-weight:600">' + (r.distrito||'') + '</div>' +
+        '</div>' +
+        '<div style="display:flex;align-items:center;gap:8px;flex-shrink:0">' +
+          badgeEstado(r.estado) +
+          '<div style="font-size:10px;color:var(--t3)">' + fmtD(r.fecha) + '</div>' +
+        '</div>' +
+      '</div>' +
+      '<div style="margin-bottom:8px">' + itemsHtml + '</div>' +
+      fotoHtml +
+      '<div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">' + btns + '</div>' +
     '</div>';
-  }).join('');
+  }
+
+  document.getElementById('solsContainer').innerHTML = html;
+}
+
+function accionSolBtn(btn, estado) {
+  var id = btn.getAttribute('data-id');
+  accionSol(id, estado);
+}
+
+function verDetalleSol(btn) {
+  var id = btn.getAttribute ? btn.getAttribute('data-id') : btn;
+  var r = STATE.requests.find(function(x) { return x.id === id; });
+  if (!r) return;
+
+  var itemsHtml = '';
+  var items = r.items || [];
+  for (var i = 0; i < items.length; i++) {
+    var it = items[i];
+    itemsHtml += '<div style="display:flex;justify-content:space-between;padding:8px 12px;background:var(--navy3);border-radius:var(--r);margin-bottom:6px">' +
+      '<div><div style="font-size:13px;font-weight:600">' + (it.nombre||'') + '</div>' +
+      (it.iglesia ? '<div style="font-size:11px;color:var(--teal)">Iglesia: ' + it.iglesia + '</div>' : '') + '</div>' +
+      '<div style="font-size:18px;font-weight:700;color:var(--teal)">' + (it.cantidad||'') + '</div></div>';
+  }
+
+  document.getElementById('mSolTitle').textContent = 'Pedido — ' + (r.distrito||'');
+  document.getElementById('mSolBody').innerHTML =
+    '<div style="background:var(--navy3);border-radius:var(--r);padding:12px 14px;margin-bottom:14px;font-size:13px">' +
+      '<div style="margin-bottom:4px"><span style="color:var(--t2)">Pastor:</span> <strong>' + (r.pastor||'') + '</strong></div>' +
+      '<div><span style="color:var(--t2)">Distrito:</span> <strong style="color:var(--teal)">' + (r.distrito||'') + '</strong></div>' +
+      '<div style="margin-top:4px"><span style="color:var(--t2)">Fecha:</span> ' + fmtD(r.fecha) + '</div>' +
+    '</div>' +
+    '<div style="font-size:11px;font-weight:600;color:var(--t2);text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px">Materiales</div>' +
+    itemsHtml +
+    (r.otros ? '<div style="padding:8px 12px;background:rgba(245,166,35,.1);border-radius:var(--r);font-size:12px;color:var(--amber);margin-top:6px">Otro: ' + r.otros + '</div>' : '') +
+    (r.fotoRequerida ? '<div style="margin-top:10px;padding:10px;background:rgba(231,76,60,.1);border-radius:var(--r);font-size:12px;color:var(--red)">Requiere foto del libro de diacono antes de entregar</div>' : '');
+
+  var isAdmin = STATE.user && STATE.user.role === 'admin';
+  var footHtml = '<button class="btn" onclick="closeM('mVerSol')">Cerrar</button>';
+  if (isAdmin && r.estado === 'pendiente') {
+    footHtml = '<button class="btn bgrn" onclick="accionSol('' + r.id + '','aprobado');closeM('mVerSol')">Aprobar</button>' +
+               '<button class="btn bred" onclick="accionSol('' + r.id + '','rechazado');closeM('mVerSol')">Rechazar</button>' + footHtml;
+  }
+  if (isAdmin && r.estado === 'aprobado') {
+    footHtml = '<button class="btn bpri" onclick="accionSol('' + r.id + '','entregado');closeM('mVerSol')">Marcar entregado</button>' + footHtml;
+  }
+  document.getElementById('mSolFoot').innerHTML = footHtml;
+  openM('mVerSol');
 }
 
 
@@ -971,31 +996,35 @@ function renderPedidos() {
 }
 
 function buildPedidoForm() {
-  const cont=document.getElementById('materialesPedido');
-  cont.innerHTML=MATERIALES_PEDIDO.map(m=>{
-    const rangeInfo = m.maximo ? `mín. ${m.minimo} — máx. ${m.maximo}` : `mín. ${m.minimo}`;
-    return `<div class="mat-item" id="matItem_${m.id}">
-      <div class="mat-header">
-        <div>
-          <div class="mat-name">${m.nombre}</div>
-          <div class="mat-rules">${rangeInfo}</div>
-        </div>
-        <label class="check-row" style="margin:0">
-          <input type="checkbox" id="chk_${m.id}" onchange="toggleMat('${m.id}')"> Incluir
-        </label>
-      </div>
-      <div id="matFields_${m.id}" style="display:none">
-        <div class="f2">
-          <div class="fg" style="margin-bottom:6px"><label>Cantidad</label>
-            <input type="number" class="fc" id="qty_${m.id}" min="${m.minimo}" ${m.maximo?`max="${m.maximo}"`:''}" placeholder="${m.minimo}">
-          </div>
-          ${m.tipo==='iglesia'?`<div class="fg" style="margin-bottom:6px"><label>Nombre de la iglesia</label><input type="text" class="fc" id="igl_${m.id}" placeholder="Nombre de la iglesia..."></div>`:'<div></div>'}
-        </div>
-        ${m.nota?`<div class="mat-note">${m.nota}</div>`:''}
-      </div>
-    </div>`;
-  }).join('');
+  var cont = document.getElementById('materialesPedido');
+  if (!cont) return;
+  var html = '';
+  for (var mi=0; mi<MATERIALES_PEDIDO.length; mi++) {
+    var m = MATERIALES_PEDIDO[mi];
+    var rangeInfo = m.maximo ? 'min. '+m.minimo+' — max. '+m.maximo : 'min. '+m.minimo;
+    var notaHtml = m.nota ? '<div class="mat-note">'+m.nota+'</div>' : '';
+    var extraHtml = (m.tipo==='iglesia' || m.tipo==='diacono') ?
+      '<div style="margin-top:10px"><label style="font-size:11px;font-weight:600;color:var(--t2);text-transform:uppercase;letter-spacing:.06em;display:block;margin-bottom:5px">Nombre de la iglesia</label>' +
+      '<input type="text" class="fc" id="igl_'+m.id+'" placeholder="Ej: Iglesia Central" onclick="event.stopPropagation()"></div>' : '';
+    html += '<div class="mat-item" id="matItem_'+m.id+'">' +
+      '<div class="mat-header">' +
+        '<div><div class="mat-name">'+m.nombre+'</div><div class="mat-rules">'+rangeInfo+'</div></div>' +
+        '<label style="display:flex;align-items:center;gap:8px;margin:0;cursor:pointer">'+
+          '<input type="checkbox" id="chk_'+m.id+'" onchange="toggleMat(''+m.id+'')"> Incluir</label>' +
+      '</div>' +
+      '<div id="matFields_'+m.id+'" style="display:none">' +
+        notaHtml +
+        '<div class="f2">' +
+          '<div class="fg" style="margin-bottom:6px"><label>Cantidad</label>' +
+            '<input type="number" class="fc" id="qty_'+m.id+'" min="'+m.minimo+'"' + (m.maximo?' max="'+m.maximo+'"':'') + ' placeholder="'+m.minimo+'"></div>' +
+          (m.tipo==='iglesia' || m.tipo==='diacono' ? extraHtml : '<div></div>') +
+        '</div>' +
+      '</div>' +
+    '</div>';
+  }
+  cont.innerHTML = html;
 }
+
 
 window.toggleMat = (id) => {
   const chk=document.getElementById('chk_'+id);
@@ -1187,33 +1216,6 @@ function accionSol(id, estado) {
   renderAll();
 }
 
-function verDetalleSol(id) {
-  const r=STATE.requests.find(x=>x.id===id); if(!r) return;
-  document.getElementById('mSolTitle').textContent='📋 Pedido — '+r.distrito;
-  document.getElementById('mSolBody').innerHTML=`
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px;font-size:12px">
-      <div><span style="color:var(--t2)">Pastor:</span> <strong>${r.pastor}</strong></div>
-      <div><span style="color:var(--t2)">Distrito:</span> <strong>${r.distrito}</strong></div>
-      <div><span style="color:var(--t2)">Correo:</span> ${r.email||'—'}</div>
-      <div><span style="color:var(--t2)">Tel:</span> ${r.tel||'—'}</div>
-      <div><span style="color:var(--t2)">Fecha:</span> ${fmtD(r.fecha)}</div>
-      <div><span style="color:var(--t2)">Estado:</span> ${badgeEstado(r.estado)}</div>
-    </div>
-    <div class="divider">Materiales solicitados</div>
-    <div style="margin-bottom:12px">
-      '+((r.items||[]).map(function(i){return '<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:var(--navy3);border-radius:var(--r);margin-bottom:6px"><div><div style="font-size:13px;font-weight:600">'+i.nombre+'</div>'+(i.iglesia?'<div style="font-size:11px;color:var(--teal)">Iglesia: '+i.iglesia+'</div>':'')+'</div><div style="font-size:20px;font-weight:700;color:var(--teal)">'+i.cantidad+'</div></div>';}).join(''))+('
-      ${r.otros?`<div style="padding:8px;background:var(--gold-light);border-radius:var(--r);margin-top:8px;font-size:12px;color:var(--amber)">Otro: ${r.otros}</div>`:''}
-    </div>
-    ${r.fotoRequerida?'<div class="mat-note">📸 Este pedido requiere foto del talonario anterior antes de entregarlo</div>':''}
-  `;
-  const isAdmin=STATE.user?.role==='admin';
-  document.getElementById('mSolFoot').innerHTML=`
-    ${isAdmin&&r.estado==='pendiente'?`<button class="btn bgrn" onclick="accionSol('${r.id}','aprobado');closeM('mVerSol');renderAll()">✓ Aprobar</button><button class="btn bred" onclick="accionSol('${r.id}','rechazado');closeM('mVerSol');renderAll()">✗ Rechazar</button>`:''},
-    ${isAdmin&&r.estado==='aprobado'?`<button class="btn bpri" onclick="accionSol('${r.id}','entregado');closeM('mVerSol');renderAll()">📦 Marcar entregado</button>`:''},
-    <button class="btn" onclick="closeM('mVerSol')">Cerrar</button>
-  `;
-  openM('mVerSol');
-}
 
 // EXPORTAR
 function exportarExcel() {
