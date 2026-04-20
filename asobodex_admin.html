@@ -1205,34 +1205,42 @@ function verDetalleSol(id) {
 
 // EXPORTAR
 function exportarExcel() {
-  const movs=STATE.movements;
-  let csv='Fecha,Tipo,Material,Cantidad,Departamento,Entregado por,Recibido por,Nota\n';
-  movs.forEach(m=>{
-    csv+=`"${fmtD(m.fecha)}","${m.tipo}","${m.material}","${m.cantidad}","${m.departamento||''}","${m.responsable||''}","${m.recibe||''}","${m.nota||''}"\n`;
+  var movs = STATE.movements;
+  var csv = 'Fecha,Tipo,Material,Cantidad,Departamento,Entregado por,Recibido por,Nota\n';
+  movs.forEach(function(m) {
+    csv += '"'+fmtD(m.fecha)+'","'+(m.tipo||'')+'","'+(m.material||'')+'","'+(m.cantidad||'')+'","'+(m.departamento||'')+'","'+(m.responsable||'')+'","'+(m.recibe||'')+'","'+(m.nota||'')+'"\n';
   });
-  const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
-  const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
-  a.download='asobodex_historial_'+new Date().toLocaleDateString('es-CO').replace(/\//g,'-')+'.csv';
-  a.click(); toast('✓ Archivo CSV descargado');
+  var blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'asobodex_historial_'+new Date().toLocaleDateString('es-CO').replace(/\//g,'-')+'.csv';
+  a.click();
+  toast('Archivo CSV descargado');
 }
 
+
 function exportarPDF() {
-  const movs=STATE.movements;
-  let contenido='<html><head><title>Historial AsoBodex</title>';
-  contenido+='<style>body{font-family:Arial,sans-serif;font-size:12px;padding:20px}h1{color:#3A8FA3;margin-bottom:4px}p{color:#666;margin-bottom:16px}table{width:100%;border-collapse:collapse}th{background:#3A8FA3;color:#fff;padding:8px;text-align:left;font-size:11px}td{padding:7px 8px;border-bottom:1px solid #eee}tr:nth-child(even){background:#f8f9fa}</style><script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
-</head><body>';
-  contenido+='<h1>AsoBodex — Historial de Movimientos</h1>';
-  contenido+='<p>Generado: '+new Date().toLocaleString('es-CO')+'</p>';
-  contenido+='<table><thead><tr><th>Fecha</th><th>Tipo</th><th>Material</th><th>Cant.</th><th>Departamento</th><th>Entregado por</th><th>Recibido por</th><th>Nota</th></tr></thead><tbody>';
-  movs.forEach(m=>{
-    contenido+=`<tr><td>${fmtD(m.fecha)}</td><td>${m.tipo}</td><td>${m.material}</td><td>${m.cantidad}</td><td>${m.departamento||''}</td><td>${m.responsable||''}</td><td>${m.recibe||''}</td><td>${m.nota||''}</td></tr>`;
-  });
-  contenido+='</tbody></table></body></html>';
-  const w=window.open('','_blank');
-  w.document.write(contenido); w.document.close();
-  setTimeout(()=>w.print(),500);
-  toast('✓ Abriendo PDF para imprimir...');
+  var movs = STATE.movements;
+  var w = window.open('','_blank');
+  var rows = movs.map(function(m) {
+    return '<tr><td>'+fmtD(m.fecha)+'</td><td>'+m.tipo+'</td><td>'+(m.material||'')+'</td><td>'+(m.cantidad||'')+'</td><td>'+(m.departamento||'')+'</td><td>'+(m.responsable||'')+'</td><td>'+(m.recibe||'')+'</td><td>'+(m.nota||'')+'</td></tr>';
+  }).join('');
+  var html = '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Historial AsoBodex</title>' +
+    '<style>body{font-family:Arial,sans-serif;font-size:12px;padding:20px}' +
+    'h1{color:#3A8FA3}table{width:100%;border-collapse:collapse}' +
+    'th{background:#3A8FA3;color:#fff;padding:8px;text-align:left}' +
+    'td{padding:7px 8px;border-bottom:1px solid #eee}' +
+    'tr:nth-child(even){background:#f8f9fa}</style></head><body>' +
+    '<h1>AsoBodex — Historial de Movimientos</h1>' +
+    '<p>Generado: '+new Date().toLocaleString('es-CO')+'</p>' +
+    '<table><thead><tr><th>Fecha</th><th>Tipo</th><th>Material</th><th>Cant.</th><th>Departamento</th><th>Entregado por</th><th>Recibido por</th><th>Nota</th></tr></thead>' +
+    '<tbody>'+rows+'</tbody></table></body></html>';
+  w.document.write(html);
+  w.document.close();
+  setTimeout(function(){ w.print(); }, 500);
+  toast('Abriendo PDF para imprimir...');
 }
+
 
 window.addEventListener('load',()=>{
   document.getElementById('loginWrap').classList.remove('hidden');
