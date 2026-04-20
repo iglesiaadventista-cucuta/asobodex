@@ -1247,6 +1247,7 @@ async function accionSol(id, estado) {
 
   // Guardar en Firebase
   if (window._db && window._fbOps) {
+    try {
     var docRef = window._fbOps.doc(window._db, 'pedidos', id);
     var updateData = {
       estado: estado,
@@ -1254,6 +1255,8 @@ async function accionSol(id, estado) {
       fechaGestion: window._serverTimestamp ? window._serverTimestamp() : new Date()
     };
     await window._fbOps.updateDoc(docRef, updateData);
+    console.log('Firebase updated: pedido', id, '->', estado);
+    toast(estado==='aprobado'?'Aprobado':'Rechazado');
 
     // Si es entregado, descontar inventario en Firebase
     if (estado === 'entregado') {
@@ -1268,7 +1271,7 @@ async function accionSol(id, estado) {
             departamento:'Pedido distrito',
             responsable: STATE.user ? STATE.user.nombre : 'Admin',
             recibe: r.distrito,
-            nota: 'Entrega pedido ' + id,
+            nota: 'Pedido entregado — Distrito ' + r.distrito,
             fecha: window._serverTimestamp ? window._serverTimestamp() : new Date()
           });
         }
@@ -1278,11 +1281,18 @@ async function accionSol(id, estado) {
     } else {
       toast(estado==='aprobado' ? 'Solicitud aprobada' : 'Solicitud rechazada');
     }
+    } catch(firebaseErr) {
+      console.error('Firebase update failed:', firebaseErr);
+      toast('Error al guardar: ' + firebaseErr.message, 'err');
+      // Update local state as fallback
+      r.estado = estado;
+      renderAll();
+    }
   } else {
     // Fallback local
     r.estado = estado;
     renderAll();
-    toast(estado==='aprobado' ? 'Aprobado (sin conexion)' : estado==='rechazado' ? 'Rechazado' : 'Entregado');
+    toast(estado==='aprobado' ? 'Aprobado' : estado==='rechazado' ? 'Rechazado' : 'Entregado');
   }
 }
 
@@ -1290,16 +1300,31 @@ async function accionSol(id, estado) {
 // EXPORTAR
 function exportarExcel() {
   var movs = STATE.movements;
-  var csv = 'Fecha,Tipo,Material,Cantidad,Departamento,Entregado por,Recibido por,Nota\n';
+  // UTF-8 BOM + semicolon separator for proper Excel display in Spanish
+  var BOM = '\uFEFF';
+  var sep = ';';
+  var csv = BOM + 'Fecha' + sep + 'Tipo' + sep + 'Material' + sep + 'Cantidad' + sep + 'Departamento' + sep + 'Entregado por' + sep + 'Recibido por' + sep + 'Nota' + '\n';
   movs.forEach(function(m) {
-    csv += '"'+fmtD(m.fecha)+'","'+(m.tipo||'')+'","'+(m.material||'')+'","'+(m.cantidad||'')+'","'+(m.departamento||'')+'","'+(m.responsable||'')+'","'+(m.recibe||'')+'","'+(m.nota||'')+'"\n';
+    var row = [
+      fmtD(m.fecha),
+      m.tipo || '',
+      m.material || '',
+      m.cantidad || '',
+      m.departamento || '',
+      m.responsable || '',
+      m.recibe || '',
+      (m.nota || '').replace(/;/g, ',')
+    ].map(function(v) { return '"' + String(v).replace(/"/g, '""') + '"'; }).join(sep);
+    csv += row + '\n';
   });
   var blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
   var a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = 'asobodex_historial_'+new Date().toLocaleDateString('es-CO').replace(/\//g,'-')+'.csv';
+  a.download = 'AsoBodex_Historial_' + new Date().toLocaleDateString('es-CO').replace(/\//g,'-') + '.csv';
+  document.body.appendChild(a);
   a.click();
-  toast('Archivo CSV descargado');
+  document.body.removeChild(a);
+  toast('Excel descargado correctamente');
 }
 
 
