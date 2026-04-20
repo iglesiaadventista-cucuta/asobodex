@@ -387,42 +387,77 @@ function irPaso3() {
   irPaso(3);
 }
 
-function enviar() {
+
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyC2KXXgFWh8M4Oel3u1h8GFgKdEwSe0yoM",
+  authDomain: "asobodex.firebaseapp.com",
+  projectId: "asobodex",
+  storageBucket: "asobodex.firebasestorage.app",
+  messagingSenderId: "581532768335",
+  appId: "1:581532768335:web:7b5bc61dda482c2d98b23a"
+};
+
+async function enviar() {
   const btn = document.getElementById('btnEnv');
   btn.disabled = true; btn.textContent = 'Enviando...';
 
   const nombre = document.getElementById('pNombre').value.trim();
-  const dist = document.getElementById('pDistrito').value;
-  const sel = getSeleccionados();
-  const otros = document.getElementById('pOtros').value.trim();
+  const dist   = document.getElementById('pDistrito').value;
+  const sel    = getSeleccionados();
+  const otros  = document.getElementById('pOtros').value.trim();
 
-  const items = sel.map(m => ({
-    id: m.id,
-    nombre: m.nombre,
-    cantidad: parseInt(document.getElementById('qty_'+m.id)?.value)||m.min,
-    iglesia: document.getElementById('igl_'+m.id)?.value.trim()||''
-  }));
+  const items = sel.map(function(m) {
+    return {
+      id:       m.id,
+      nombre:   m.nombre,
+      cantidad: parseInt(document.getElementById('qty_'+m.id) ? document.getElementById('qty_'+m.id).value : m.min) || m.min,
+      iglesia:  (document.getElementById('igl_'+m.id) ? document.getElementById('igl_'+m.id).value.trim() : '')
+    };
+  });
 
-  const ref = 'ABX-'+dist.slice(0,3).toUpperCase()+'-'+Date.now().toString().slice(-5);
-  const pedido = {ref, pastor:nombre, distrito:dist, items, otros, estado:'pendiente', fecha:new Date().toISOString()};
+  const ref    = 'ABX-'+dist.slice(0,3).toUpperCase()+'-'+Date.now().toString().slice(-5);
+  const fotoReq = sel.some(function(m){ return m.tipo==='diacono'; });
+  const pedido = {
+    ref, pastor:nombre, distrito:dist, items, otros,
+    fotoRequerida: fotoReq, estado:'pendiente',
+    fecha: new Date().toISOString()
+  };
 
-  // Guardar en localStorage (compartido con admin en mismo dispositivo, o Firebase cuando se active)
   try {
-    const todos = JSON.parse(localStorage.getItem('abx_pedidos')||'[]');
-    todos.unshift(pedido);
-    localStorage.setItem('abx_pedidos', JSON.stringify(todos.slice(0,200)));
-    set48h(dist);
-  // Enviar notificacion por correo al administrador
-  enviarNotificacionEmail(nombre, dist, items, otros);
-  } catch(e) {}
+    // Guardar en Firebase para que el admin lo vea en tiempo real
+    const { initializeApp }   = await import("https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js");
+    const { getFirestore, collection, addDoc, serverTimestamp } = await import("https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js");
+    const fbapp = initializeApp(FIREBASE_CONFIG);
+    const db    = getFirestore(fbapp);
+    await addDoc(collection(db, 'pedidos'), {
+      ref, pastor:nombre, distrito:dist, items, otros,
+      fotoRequerida: fotoReq, estado:'pendiente',
+      fecha: serverTimestamp()
+    });
+    console.log('Pedido guardado en Firebase');
+  } catch(e) {
+    console.warn('Firebase error:', e.message);
+    // Fallback: guardar local
+    try {
+      const todos = JSON.parse(localStorage.getItem('abx_pedidos')||'[]');
+      todos.unshift(pedido);
+      localStorage.setItem('abx_pedidos', JSON.stringify(todos.slice(0,200)));
+    } catch(e2) {}
+  }
 
-  setTimeout(() => {
-    ['p1','p2','p3'].forEach(id=>document.getElementById(id).style.display='none');
+  // Bloqueo 48h y notificacion email
+  set48h(dist);
+  enviarNotificacionEmail(nombre, dist, items, otros);
+
+  // Mostrar pantalla de éxito
+  setTimeout(function() {
+    ['p1','p2','p3'].forEach(function(id){ document.getElementById(id).style.display='none'; });
     document.getElementById('sucRef').textContent = 'Referencia: '+ref;
     document.getElementById('successScreen').style.display = 'block';
-    document.querySelectorAll('.step').forEach(s=>{s.classList.remove('active','done')});
+    document.querySelectorAll('.step').forEach(function(s){ s.classList.remove('active','done'); });
   }, 600);
 }
+
 
 function irPaso(n) {
   ['p1','p2','p3'].forEach((id,i)=>document.getElementById(id).style.display=i+1===n?'block':'none');
