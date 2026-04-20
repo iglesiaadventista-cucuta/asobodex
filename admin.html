@@ -1300,31 +1300,88 @@ async function accionSol(id, estado) {
 // EXPORTAR
 function exportarExcel() {
   var movs = STATE.movements;
-  // UTF-8 BOM + semicolon separator for proper Excel display in Spanish
-  var BOM = '\uFEFF';
-  var sep = ';';
-  var csv = BOM + 'Fecha' + sep + 'Tipo' + sep + 'Material' + sep + 'Cantidad' + sep + 'Departamento' + sep + 'Entregado por' + sep + 'Recibido por' + sep + 'Nota' + '\n';
+  if (!movs.length) { toast('Sin movimientos para exportar','warn'); return; }
+
+  // Build data array
+  var data = [['Fecha','Tipo','Material','Cantidad','Departamento','Entregado por','Recibido por','Nota']];
   movs.forEach(function(m) {
-    var row = [
+    data.push([
       fmtD(m.fecha),
       m.tipo || '',
       m.material || '',
-      m.cantidad || '',
+      m.cantidad || 0,
       m.departamento || '',
       m.responsable || '',
       m.recibe || '',
-      (m.nota || '').replace(/;/g, ',')
-    ].map(function(v) { return '"' + String(v).replace(/"/g, '""') + '"'; }).join(sep);
-    csv += row + '\n';
+      m.nota || ''
+    ]);
   });
-  var blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
-  var a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = 'AsoBodex_Historial_' + new Date().toLocaleDateString('es-CO').replace(/\//g,'-') + '.csv';
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  toast('Excel descargado correctamente');
+
+  // Use SheetJS to create real .xlsx
+  var script = document.getElementById('sheetjs-script');
+  if (!script) {
+    script = document.createElement('script');
+    script.id = 'sheetjs-script';
+    script.src = 'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js';
+    script.onload = function() { generarXLSX(data); };
+    document.head.appendChild(script);
+  } else {
+    generarXLSX(data);
+  }
+}
+
+function generarXLSX(data) {
+  try {
+    var wb = XLSX.utils.book_new();
+    var ws = XLSX.utils.aoa_to_sheet(data);
+
+    // Column widths
+    ws['!cols'] = [
+      {wch:14},{wch:10},{wch:28},{wch:10},{wch:18},{wch:18},{wch:18},{wch:30}
+    ];
+
+    // Style header row
+    var headerRange = XLSX.utils.decode_range(ws['!ref']);
+    for (var c = headerRange.s.c; c <= headerRange.e.c; c++) {
+      var cellAddr = XLSX.utils.encode_cell({r:0, c:c});
+      if (ws[cellAddr]) {
+        ws[cellAddr].s = {
+          font: {bold:true, color:{rgb:'FFFFFF'}},
+          fill: {fgColor:{rgb:'3A8FA3'}},
+          alignment: {horizontal:'center'}
+        };
+      }
+    }
+
+    XLSX.utils.book_append_sheet(wb, ws, 'Historial');
+
+    // Add solicitudes sheet
+    var reqs = STATE.requests;
+    if (reqs.length) {
+      var dataReqs = [['Fecha','Pastor','Distrito','Estado','Materiales','Gestionado por']];
+      reqs.forEach(function(r) {
+        var mats = (r.items||[]).map(function(i){ return i.nombre+' x'+i.cantidad; }).join(', ');
+        dataReqs.push([
+          fmtD(r.fecha),
+          r.pastor || '',
+          r.distrito || '',
+          r.estado || '',
+          mats,
+          r.gestionadoPor || ''
+        ]);
+      });
+      var ws2 = XLSX.utils.aoa_to_sheet(dataReqs);
+      ws2['!cols'] = [{wch:14},{wch:20},{wch:20},{wch:12},{wch:50},{wch:18}];
+      XLSX.utils.book_append_sheet(wb, ws2, 'Solicitudes');
+    }
+
+    var fecha = new Date().toLocaleDateString('es-CO').replace(/\//g,'-');
+    XLSX.writeFile(wb, 'AsoBodex_Reporte_' + fecha + '.xlsx');
+    toast('Excel descargado correctamente');
+  } catch(e) {
+    toast('Error: ' + e.message, 'err');
+    console.error(e);
+  }
 }
 
 
