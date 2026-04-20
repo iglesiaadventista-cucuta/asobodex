@@ -87,6 +87,7 @@ textarea.fc{resize:vertical;min-height:70px}
 #toast.warn{border-color:var(--amber)}
 @media(max-width:480px){.step span:not(.step-num){display:none}}
 </style>
+<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
 </head>
 <body>
 
@@ -202,6 +203,37 @@ textarea.fc{resize:vertical;min-height:70px}
 
 <script>
 const DISTRITOS = ["CUCUTA CENTRAL", "RENACER", "SION", "ATALAYA", "ZULIA", "VI\u00d1A DEL SE\u00d1OR", "CUCUTA OCCIDENTE", "ARBOLEDAS", "LIBERTAD", "GETSEMANI", "EDEN", "PATIOS", "CHINACOTA", "PAMPLONA", "OCA\u00d1A CENTRAL", "OCA\u00d1A NORTE", "TIBU", "EL TARRA", "PUERTO CARRE\u00d1O", "VICHADA", "CENTRAL ARAUCA", "BETANIA", "PANAMA", "CENTRAL SARAVENA", "REDENCION", "PALESTINA", "BETHEL", "MARANATHA", "CUBARA", "FORTUL", "NUEVO CARANAL", "ARAUQUITA", "LA ESMERALDA", "TAME CENTRAL", "TAME ORIENTAL", "PUERTO JORDAN", "LA HERMOSA"];
+
+// EmailJS config
+const EJS_SERVICE  = 'service_98e1riy';
+const EJS_TEMPLATE = 'template_5mmoie8';
+const EJS_KEY      = '34IfEv9d2SCicaYWz';
+const MASTER_EMAIL = 'er9198891@gmail.com';
+
+// Initialize EmailJS
+document.addEventListener('DOMContentLoaded', function() {
+  if (window.emailjs) emailjs.init(EJS_KEY);
+});
+
+function enviarNotificacionEmail(pastor, distrito, items, otros) {
+  if (!window.emailjs) return;
+  var materiales = items.map(function(i) {
+    return '• ' + i.nombre + ': ' + i.cantidad + (i.iglesia ? ' (Iglesia: ' + i.iglesia + ')' : '');
+  }).join('\n');
+  if (otros) materiales += '\n• Otro: ' + otros;
+  emailjs.send(EJS_SERVICE, EJS_TEMPLATE, {
+    pastor:     pastor,
+    distrito:   distrito,
+    fecha:      new Date().toLocaleString('es-CO'),
+    materiales: materiales,
+    to_email:   MASTER_EMAIL
+  }, EJS_KEY).then(function() {
+    console.log('Notificacion enviada');
+  }).catch(function(e) {
+    console.warn('EmailJS error:', e);
+  });
+}
+
 
 const MATS = [
   {id:'m1', nombre:'Talonario de Diáconos', tipo:'diacono', min:1, max:null,
@@ -380,6 +412,8 @@ function enviar() {
     todos.unshift(pedido);
     localStorage.setItem('abx_pedidos', JSON.stringify(todos.slice(0,200)));
     set48h(dist);
+  // Enviar notificacion por correo al administrador
+  enviarNotificacionEmail(nombre, dist, items, otros);
   } catch(e) {}
 
   setTimeout(() => {

@@ -186,6 +186,7 @@ textarea.fc{resize:vertical;min-height:70px}
   .uchip .un,.uchip .ur{display:none}
 }
 </style>
+<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
 </head>
 <body>
 
@@ -537,6 +538,27 @@ const ROLES = {
   'S4jmj7qLOGMaPbiXlYLhXHBxnZ92': { nombre:'Administrador', role:'admin' },
   'ZT0PekdEkRgZVF8Yp7YJ56TKMhW2': { nombre:'Solo Lectura',  role:'reader' }
 };
+
+// EmailJS — notificaciones al master
+const EJS = { service:'service_98e1riy', template:'template_5mmoie8', key:'34IfEv9d2SCicaYWz', email:'er9198891@gmail.com' };
+function initEmailJS() { if(window.emailjs) emailjs.init(EJS.key); }
+function notificarEmail(tipo, data) {
+  if(!window.emailjs) return;
+  var msgs = {
+    despacho: 'Despacho: ' + data.cantidad + ' x ' + data.material + ' → ' + data.departamento + ' (Entregado por: ' + data.responsable + ')',
+    stock_bajo: '⚠️ Stock bajo: ' + data.material + ' solo quedan ' + data.cantidad + ' unidades',
+    pedido_aprobado: 'Pedido aprobado para distrito: ' + data.distrito,
+    pedido_entregado: 'Pedido entregado a: ' + data.distrito
+  };
+  emailjs.send(EJS.service, EJS.template, {
+    pastor: 'Sistema AsoBodex',
+    distrito: data.distrito || data.departamento || '—',
+    fecha: new Date().toLocaleString('es-CO'),
+    materiales: msgs[tipo] || tipo,
+    to_email: EJS.email
+  }, EJS.key).catch(function(){});
+}
+window.addEventListener('load', initEmailJS);
 
 // ── USUARIOS ─────────────────────────────────────────────────
 const USERS = [
@@ -1045,6 +1067,8 @@ function doDespacho() {
   item.cantidad-=cant;
   STATE.movements.unshift({id:'mv'+Date.now(),tipo:'despacho',material:item.nombre,cantidad:cant,departamento:dept,responsable:resp,recibe,nota,fecha:new Date()});
   toast('✓ Despacho registrado — inventario actualizado');
+  notificarEmail('despacho', {material:item.nombre, cantidad:cant, departamento:dept, responsable:resp});
+  if((item.cantidad-cant) < 50) notificarEmail('stock_bajo', {material:item.nombre, cantidad:item.cantidad-cant, departamento:dept});
   ['dItem','dCant','dDept','dResp','dRecibe','dNota'].forEach(x=>document.getElementById(x).value='');
   document.getElementById('dAvail').textContent='—';
   renderAll();
@@ -1195,7 +1219,8 @@ function exportarExcel() {
 function exportarPDF() {
   const movs=STATE.movements;
   let contenido='<html><head><title>Historial AsoBodex</title>';
-  contenido+='<style>body{font-family:Arial,sans-serif;font-size:12px;padding:20px}h1{color:#3A8FA3;margin-bottom:4px}p{color:#666;margin-bottom:16px}table{width:100%;border-collapse:collapse}th{background:#3A8FA3;color:#fff;padding:8px;text-align:left;font-size:11px}td{padding:7px 8px;border-bottom:1px solid #eee}tr:nth-child(even){background:#f8f9fa}</style></head><body>';
+  contenido+='<style>body{font-family:Arial,sans-serif;font-size:12px;padding:20px}h1{color:#3A8FA3;margin-bottom:4px}p{color:#666;margin-bottom:16px}table{width:100%;border-collapse:collapse}th{background:#3A8FA3;color:#fff;padding:8px;text-align:left;font-size:11px}td{padding:7px 8px;border-bottom:1px solid #eee}tr:nth-child(even){background:#f8f9fa}</style><script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+</head><body>';
   contenido+='<h1>AsoBodex — Historial de Movimientos</h1>';
   contenido+='<p>Generado: '+new Date().toLocaleString('es-CO')+'</p>';
   contenido+='<table><thead><tr><th>Fecha</th><th>Tipo</th><th>Material</th><th>Cant.</th><th>Departamento</th><th>Entregado por</th><th>Recibido por</th><th>Nota</th></tr></thead><tbody>';
