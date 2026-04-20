@@ -1241,25 +1241,49 @@ function enviarPedido() {
   showView('solicitudes');
 }
 
-function accionSol(id, estado) {
-  const r=STATE.requests.find(x=>x.id===id); if(!r) return;
-  r.estado=estado;
-  r.gestionadoPor=STATE.user?.nombre||'Admin';
-  r.fechaGestion=new Date();
-  if(estado==='entregado'){
-    // Descontar del inventario automáticamente
-    (r.items||[]).forEach(item=>{
-      const mat=STATE.items.find(m=>m.nombre.toLowerCase()===item.nombre.toLowerCase());
-      if(mat&&mat.cantidad>=item.cantidad){
-        mat.cantidad-=item.cantidad;
-        STATE.movements.unshift({id:'mv'+Date.now(),tipo:'despacho',material:mat.nombre,cantidad:item.cantidad,departamento:'Pedido distrito',responsable:STATE.user?.nombre||'Admin',recibe:r.distrito,nota:'Entrega pedido #'+id,fecha:new Date()});
+async function accionSol(id, estado) {
+  var r = STATE.requests.find(function(x){ return x.id===id; });
+  if (!r) return;
+
+  // Guardar en Firebase
+  if (window._db && window._fbOps) {
+    var docRef = window._fbOps.doc(window._db, 'pedidos', id);
+    var updateData = {
+      estado: estado,
+      gestionadoPor: STATE.user ? STATE.user.nombre : 'Admin',
+      fechaGestion: window._serverTimestamp ? window._serverTimestamp() : new Date()
+    };
+    await window._fbOps.updateDoc(docRef, updateData);
+
+    // Si es entregado, descontar inventario en Firebase
+    if (estado === 'entregado') {
+      var items = r.items || [];
+      for (var i=0; i<items.length; i++) {
+        var item = items[i];
+        var mat = STATE.items.find(function(m){ return m.nombre.toLowerCase()===item.nombre.toLowerCase(); });
+        if (mat && mat.cantidad >= item.cantidad) {
+          await window._fbOps.updateDoc(window._fbOps.doc(window._db,'materiales',mat.id), {cantidad: mat.cantidad - item.cantidad});
+          await window._fbOps.addDoc(window._fbOps.collection(window._db,'movimientos'), {
+            tipo:'despacho', material:mat.nombre, cantidad:item.cantidad,
+            departamento:'Pedido distrito',
+            responsable: STATE.user ? STATE.user.nombre : 'Admin',
+            recibe: r.distrito,
+            nota: 'Entrega pedido ' + id,
+            fecha: window._serverTimestamp ? window._serverTimestamp() : new Date()
+          });
+        }
       }
-    });
-    toast('✓ Pedido marcado como entregado — inventario actualizado');
+      toast('Pedido entregado — inventario actualizado');
+      notificarEmail('pedido_entregado', {distrito: r.distrito});
+    } else {
+      toast(estado==='aprobado' ? 'Solicitud aprobada' : 'Solicitud rechazada');
+    }
   } else {
-    toast(estado==='aprobado'?'✓ Solicitud aprobada':'Solicitud rechazada');
+    // Fallback local
+    r.estado = estado;
+    renderAll();
+    toast(estado==='aprobado' ? 'Aprobado (sin conexion)' : estado==='rechazado' ? 'Rechazado' : 'Entregado');
   }
-  renderAll();
 }
 
 
