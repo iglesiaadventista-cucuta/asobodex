@@ -1333,53 +1333,143 @@ function exportarExcel() {
 function generarXLSX(data) {
   try {
     var wb = XLSX.utils.book_new();
+
+    // ── HOJA 1: HISTORIAL ──────────────────────────────────
     var ws = XLSX.utils.aoa_to_sheet(data);
+    ws['!cols'] = [{wch:16},{wch:12},{wch:30},{wch:10},{wch:20},{wch:20},{wch:20},{wch:35}];
 
-    // Column widths
-    ws['!cols'] = [
-      {wch:14},{wch:10},{wch:28},{wch:10},{wch:18},{wch:18},{wch:18},{wch:30}
-    ];
-
-    // Style header row
-    var headerRange = XLSX.utils.decode_range(ws['!ref']);
-    for (var c = headerRange.s.c; c <= headerRange.e.c; c++) {
-      var cellAddr = XLSX.utils.encode_cell({r:0, c:c});
-      if (ws[cellAddr]) {
-        ws[cellAddr].s = {
-          font: {bold:true, color:{rgb:'FFFFFF'}},
-          fill: {fgColor:{rgb:'3A8FA3'}},
-          alignment: {horizontal:'center'}
-        };
+    // Style all cells
+    var range = XLSX.utils.decode_range(ws['!ref']);
+    for (var R = range.s.r; R <= range.e.r; R++) {
+      for (var C = range.s.c; C <= range.e.c; C++) {
+        var addr = XLSX.utils.encode_cell({r:R, c:C});
+        if (!ws[addr]) continue;
+        if (R === 0) {
+          // Header style
+          ws[addr].s = {
+            font: {bold:true, color:{rgb:'FFFFFF'}, sz:11},
+            fill: {patternType:'solid', fgColor:{rgb:'2D7A8E'}},
+            alignment: {horizontal:'center', vertical:'center', wrapText:true},
+            border: {
+              top:{style:'thin',color:{rgb:'FFFFFF'}},
+              bottom:{style:'thin',color:{rgb:'FFFFFF'}},
+              left:{style:'thin',color:{rgb:'FFFFFF'}},
+              right:{style:'thin',color:{rgb:'FFFFFF'}}
+            }
+          };
+        } else {
+          // Data rows - alternate colors
+          var bg = R % 2 === 0 ? 'EBF5F8' : 'FFFFFF';
+          ws[addr].s = {
+            font: {sz:10},
+            fill: {patternType:'solid', fgColor:{rgb:bg}},
+            alignment: {vertical:'center', wrapText:false},
+            border: {
+              bottom:{style:'thin',color:{rgb:'CCCCCC'}},
+              right:{style:'thin',color:{rgb:'CCCCCC'}}
+            }
+          };
+          // Color tipo column
+          if (C === 1) {
+            var tipo = ws[addr].v || '';
+            ws[addr].s.font = {
+              sz:10, bold:true,
+              color:{rgb: tipo==='despacho' ? '1D6F8E' : '2E7D32'}
+            };
+          }
+        }
       }
     }
+    ws['!rows'] = [{hpt:22}]; // header height
 
     XLSX.utils.book_append_sheet(wb, ws, 'Historial');
 
-    // Add solicitudes sheet
+    // ── HOJA 2: SOLICITUDES ────────────────────────────────
     var reqs = STATE.requests;
     if (reqs.length) {
-      var dataReqs = [['Fecha','Pastor','Distrito','Estado','Materiales','Gestionado por']];
+      var dataReqs = [['Fecha','Pastor','Distrito','Estado','Materiales solicitados','Gestionado por','Fecha gestion']];
       reqs.forEach(function(r) {
-        var mats = (r.items||[]).map(function(i){ return i.nombre+' x'+i.cantidad; }).join(', ');
+        var mats = (r.items||[]).map(function(i){
+          return i.nombre + ' x' + i.cantidad + (i.iglesia?' ('+i.iglesia+')':'');
+        }).join(' | ');
         dataReqs.push([
           fmtD(r.fecha),
           r.pastor || '',
           r.distrito || '',
-          r.estado || '',
+          (r.estado||'').toUpperCase(),
           mats,
-          r.gestionadoPor || ''
+          r.gestionadoPor || '—',
+          r.fechaGestion ? fmtD(r.fechaGestion) : '—'
         ]);
       });
       var ws2 = XLSX.utils.aoa_to_sheet(dataReqs);
-      ws2['!cols'] = [{wch:14},{wch:20},{wch:20},{wch:12},{wch:50},{wch:18}];
+      ws2['!cols'] = [{wch:14},{wch:22},{wch:20},{wch:12},{wch:55},{wch:18},{wch:16}];
+
+      var range2 = XLSX.utils.decode_range(ws2['!ref']);
+      for (var R2=range2.s.r; R2<=range2.e.r; R2++) {
+        for (var C2=range2.s.c; C2<=range2.e.c; C2++) {
+          var addr2 = XLSX.utils.encode_cell({r:R2, c:C2});
+          if (!ws2[addr2]) continue;
+          if (R2 === 0) {
+            ws2[addr2].s = {
+              font:{bold:true,color:{rgb:'FFFFFF'},sz:11},
+              fill:{patternType:'solid',fgColor:{rgb:'2D7A8E'}},
+              alignment:{horizontal:'center',vertical:'center'}
+            };
+          } else {
+            var bg2 = R2%2===0?'EBF5F8':'FFFFFF';
+            var estadoVal = ws2[XLSX.utils.encode_cell({r:R2,c:3})] ? ws2[XLSX.utils.encode_cell({r:R2,c:3})].v : '';
+            var estadoColor = estadoVal==='ENTREGADO'?'1B5E20':estadoVal==='APROBADO'?'1565C0':estadoVal==='RECHAZADO'?'B71C1C':'E65100';
+            ws2[addr2].s = {
+              font:{sz:10},
+              fill:{patternType:'solid',fgColor:{rgb:bg2}},
+              alignment:{vertical:'center'},
+              border:{bottom:{style:'thin',color:{rgb:'CCCCCC'}},right:{style:'thin',color:{rgb:'CCCCCC'}}}
+            };
+            if (C2===3) ws2[addr2].s.font = {sz:10,bold:true,color:{rgb:estadoColor}};
+          }
+        }
+      }
       XLSX.utils.book_append_sheet(wb, ws2, 'Solicitudes');
     }
 
+    // ── HOJA 3: INVENTARIO ACTUAL ──────────────────────────
+    var items = STATE.items;
+    if (items.length) {
+      var dataInv = [['Material','Departamento','Cantidad actual','Stock minimo','Estado','Dias en bodega']];
+      items.forEach(function(item) {
+        var dias = diasEnBodega(item.fechaIngreso);
+        var estado = item.cantidad<=0?'AGOTADO':item.cantidad<50?'STOCK BAJO':item.cantidad<100?'REVISAR':'NORMAL';
+        dataInv.push([item.nombre,item.departamento,item.cantidad,item.minimo,estado,dias]);
+      });
+      var ws3 = XLSX.utils.aoa_to_sheet(dataInv);
+      ws3['!cols'] = [{wch:30},{wch:22},{wch:16},{wch:14},{wch:14},{wch:14}];
+      var range3 = XLSX.utils.decode_range(ws3['!ref']);
+      for (var R3=range3.s.r; R3<=range3.e.r; R3++) {
+        for (var C3=range3.s.c; C3<=range3.e.c; C3++) {
+          var addr3 = XLSX.utils.encode_cell({r:R3,c:C3});
+          if (!ws3[addr3]) continue;
+          if (R3===0) {
+            ws3[addr3].s={font:{bold:true,color:{rgb:'FFFFFF'},sz:11},fill:{patternType:'solid',fgColor:{rgb:'2D7A8E'}},alignment:{horizontal:'center'}};
+          } else {
+            var bg3=R3%2===0?'EBF5F8':'FFFFFF';
+            ws3[addr3].s={font:{sz:10},fill:{patternType:'solid',fgColor:{rgb:bg3}},border:{bottom:{style:'thin',color:{rgb:'CCCCCC'}}}};
+            if (C3===4) {
+              var est = ws3[addr3].v||'';
+              var ec = est==='AGOTADO'?'B71C1C':est==='STOCK BAJO'?'E65100':est==='REVISAR'?'F57F17':'1B5E20';
+              ws3[addr3].s.font={sz:10,bold:true,color:{rgb:ec}};
+            }
+          }
+        }
+      }
+      XLSX.utils.book_append_sheet(wb, ws3, 'Inventario actual');
+    }
+
     var fecha = new Date().toLocaleDateString('es-CO').replace(/\//g,'-');
-    XLSX.writeFile(wb, 'AsoBodex_Reporte_' + fecha + '.xlsx');
-    toast('Excel descargado correctamente');
+    XLSX.writeFile(wb, 'AsoBodex_Reporte_'+fecha+'.xlsx');
+    toast('✓ Excel descargado — 3 hojas: Historial, Solicitudes e Inventario');
   } catch(e) {
-    toast('Error: ' + e.message, 'err');
+    toast('Error generando Excel: '+e.message,'err');
     console.error(e);
   }
 }
@@ -1387,30 +1477,81 @@ function generarXLSX(data) {
 
 function exportarPDF() {
   var movs = STATE.movements;
+  var reqs = STATE.requests;
+  var items = STATE.items;
   var w = window.open('','_blank');
-  var rows = movs.map(function(m) {
-    return '<tr><td>'+fmtD(m.fecha)+'</td><td>'+m.tipo+'</td><td>'+(m.material||'')+'</td><td>'+(m.cantidad||'')+'</td><td>'+(m.departamento||'')+'</td><td>'+(m.responsable||'')+'</td><td>'+(m.recibe||'')+'</td><td>'+(m.nota||'')+'</td></tr>';
+
+  var histRows = movs.map(function(m) {
+    var color = m.tipo==='despacho'?'#1565C0':'#2E7D32';
+    return '<tr>' +
+      '<td>'+fmtD(m.fecha)+'</td>' +
+      '<td style="color:'+color+';font-weight:bold">'+m.tipo+'</td>' +
+      '<td>'+( m.material||'')+'</td>' +
+      '<td style="text-align:center">'+( m.cantidad||'')+'</td>' +
+      '<td>'+(m.departamento||'')+'</td>' +
+      '<td>'+(m.responsable||'')+'</td>' +
+      '<td>'+(m.recibe||'')+'</td>' +
+      '<td style="font-size:11px">'+(m.nota||'')+'</td>' +
+    '</tr>';
   }).join('');
-  var html = '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Historial AsoBodex</title>' +
-    '<style>body{font-family:Arial,sans-serif;font-size:12px;padding:20px}' +
-    'h1{color:#3A8FA3}table{width:100%;border-collapse:collapse}' +
-    'th{background:#3A8FA3;color:#fff;padding:8px;text-align:left}' +
-    'td{padding:7px 8px;border-bottom:1px solid #eee}' +
-    'tr:nth-child(even){background:#f8f9fa}</style></head><body>' +
-    '<h1>AsoBodex — Historial de Movimientos</h1>' +
-    '<p>Generado: '+new Date().toLocaleString('es-CO')+'</p>' +
-    '<table><thead><tr><th>Fecha</th><th>Tipo</th><th>Material</th><th>Cant.</th><th>Departamento</th><th>Entregado por</th><th>Recibido por</th><th>Nota</th></tr></thead>' +
-    '<tbody>'+rows+'</tbody></table></body></html>';
+
+  var solRows = reqs.map(function(r) {
+    var colors = {pendiente:'#E65100',aprobado:'#1565C0',entregado:'#2E7D32',rechazado:'#B71C1C'};
+    var mats = (r.items||[]).map(function(i){return i.nombre+' x'+i.cantidad;}).join(', ');
+    return '<tr>' +
+      '<td>'+fmtD(r.fecha)+'</td>' +
+      '<td>'+( r.pastor||'')+'</td>' +
+      '<td><strong>'+( r.distrito||'')+'</strong></td>' +
+      '<td style="color:'+(colors[r.estado]||'#333')+';font-weight:bold">'+(r.estado||'').toUpperCase()+'</td>' +
+      '<td style="font-size:11px">'+mats+'</td>' +
+      '<td>'+(r.gestionadoPor||'—')+'</td>' +
+    '</tr>';
+  }).join('');
+
+  var invRows = items.map(function(i) {
+    var dias = diasEnBodega(i.fechaIngreso);
+    var eColor = i.cantidad<=0?'#B71C1C':i.cantidad<50?'#E65100':i.cantidad<100?'#F57F17':'#2E7D32';
+    var eText = i.cantidad<=0?'AGOTADO':i.cantidad<50?'STOCK BAJO':i.cantidad<100?'REVISAR':'NORMAL';
+    return '<tr>' +
+      '<td><strong>'+i.nombre+'</strong></td>' +
+      '<td>'+i.departamento+'</td>' +
+      '<td style="text-align:center;font-weight:bold">'+i.cantidad+'</td>' +
+      '<td style="text-align:center">'+i.minimo+'</td>' +
+      '<td style="color:'+eColor+';font-weight:bold;text-align:center">'+eText+'</td>' +
+      '<td style="text-align:center">'+dias+' días</td>' +
+    '</tr>';
+  }).join('');
+
+  var html = '<!DOCTYPE html><html><head><meta charset="UTF-8">' +
+    '<title>Reporte AsoBodex</title>' +
+    '<style>' +
+      'body{font-family:Arial,sans-serif;font-size:12px;color:#333;padding:20px}' +
+      '.header{background:#0f2236;color:white;padding:16px 24px;border-radius:8px;margin-bottom:24px;display:flex;align-items:center;justify-content:space-between}' +
+      '.header h1{margin:0;font-size:22px;color:#3A8FA3}' +
+      '.header p{margin:0;font-size:11px;color:#8BA8C4}' +
+      'h2{color:#2d7a8e;border-bottom:2px solid #3A8FA3;padding-bottom:6px;margin:24px 0 12px}' +
+      'table{width:100%;border-collapse:collapse;margin-bottom:24px;font-size:11px}' +
+      'th{background:#2d7a8e;color:white;padding:8px 10px;text-align:left;font-size:11px}' +
+      'td{padding:7px 10px;border-bottom:1px solid #eee;vertical-align:top}' +
+      'tr:nth-child(even){background:#f0f8fb}' +
+      '.footer{text-align:center;color:#999;font-size:10px;margin-top:20px;border-top:1px solid #eee;padding-top:10px}' +
+      '@media print{body{padding:0}.no-print{display:none}}' +
+    '</style></head><body>' +
+    '<div class="header"><div><h1>AsoBodex</h1><p>Asociación del Noreste Colombiano — Sistema de Gestión de Bodega</p></div>' +
+    '<div style="text-align:right"><p style="color:#8BA8C4">Generado:</p><p style="color:white;font-weight:bold">'+new Date().toLocaleString('es-CO')+'</p></div></div>' +
+    '<div class="no-print" style="margin-bottom:16px"><button onclick="window.print()" style="padding:8px 20px;background:#3A8FA3;color:white;border:none;border-radius:6px;cursor:pointer;font-size:13px">🖨️ Imprimir / Guardar como PDF</button></div>' +
+    '<h2>📦 Inventario actual</h2>' +
+    '<table><thead><tr><th>Material</th><th>Departamento</th><th>Cantidad</th><th>Mínimo</th><th>Estado</th><th>Días en bodega</th></tr></thead><tbody>'+invRows+'</tbody></table>' +
+    '<h2>📊 Historial de movimientos</h2>' +
+    '<table><thead><tr><th>Fecha</th><th>Tipo</th><th>Material</th><th>Cant.</th><th>Departamento</th><th>Entregado por</th><th>Recibido por</th><th>Nota</th></tr></thead><tbody>'+histRows+'</tbody></table>' +
+    '<h2>📋 Solicitudes de distritos</h2>' +
+    '<table><thead><tr><th>Fecha</th><th>Pastor</th><th>Distrito</th><th>Estado</th><th>Materiales</th><th>Gestionado por</th></tr></thead><tbody>'+solRows+'</tbody></table>' +
+    '<div class="footer">AsoBodex — Asociación del Noreste Colombiano © '+new Date().getFullYear()+'</div>' +
+    '</body></html>';
+
   w.document.write(html);
   w.document.close();
-  setTimeout(function(){ w.print(); }, 500);
-  toast('Abriendo PDF para imprimir...');
+  toast('PDF listo — usa Imprimir para guardar');
 }
 
-
-window.addEventListener('load',()=>{
-  document.getElementById('loginWrap').classList.remove('hidden');
-});
-</script>
-</body>
-</html>
+>
