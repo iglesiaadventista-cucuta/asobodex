@@ -582,11 +582,11 @@ function diasEnBodega(fecha) {
 }
 function badgeEstado(e) {
   const m={pendiente:'bwn',aprobado:'bok',entregado:'btl',rechazado:'bre'};
-  return `<span class="b ${m[e]||'bgr'}">${e}</span>`;
+  return '<span class="b '+(m[e]||'bgr')+'">'+(e||'')+'</span>';
 }
 function dBadge(d) {
   const m={Mayordomía:'btl',Evangelismo:'bgd','Salud':'bok','Secretaria':'bgr','Hogar y Familia':'bwn','Ministerio de la Mujer':'bre','Niños y Adolescentes':'btl'};
-  return `<span class="b ${m[d]||'bgr'}">${d||'—'}</span>`;
+  return '<span class="b '+(m[d]||'bgr')+'">'+(d||'')+'</span>';
 }
 function sBadge(i) {
   if (i.cantidad<=0) return '<span class="b bre">Sin stock</span>';
@@ -791,12 +791,15 @@ function renderDash() {
   ).join('') : '<div class="empty">Sin material viejo ✓</div>';
 
   // Activity
-  document.getElementById('dAct').innerHTML = movs.slice(0,5).map(m=>
-    `<div class="log"><div class="ldot" style="background:${m.tipo==='despacho'?'var(--teal)':'var(--green)}"></div>
-    <div class="ltxt"><strong>${m.tipo==='despacho'?'📤 Despacho':'📥 Ingreso'}:</strong> ${m.material} (${m.tipo==='despacho'?'-':'+'}<strong>${m.cantidad}</strong>)
-    <div class="lsub">${m.departamento||'—'} · ${m.responsable||'—'}</div></div>
-    <div class="ltime">${fmtD(m.fecha)}</div></div>`
-  ).join('') || '<div class="empty">Sin movimientos aún</div>';
+  document.getElementById('dAct').innerHTML = movs.slice(0,5).map(function(m){
+    var c=m.tipo==='despacho'?'var(--teal)':'var(--green)';
+    var t=m.tipo==='despacho'?'Despacho':'Ingreso';
+    var s=m.tipo==='despacho'?'-':'+';
+    return '<div class="log"><div class="ldot" style="background:'+c+'"></div>'+
+      '<div class="ltxt"><strong>'+t+':</strong> '+m.material+' ('+s+'<strong>'+m.cantidad+'</strong>)'+
+      '<div class="lsub">'+(m.departamento||'')+'  '+( m.responsable||'')+'</div></div>'+
+      '<div class="ltime">'+fmtD(m.fecha)+'</div></div>';
+  }).join('') || '<div class="empty">Sin movimientos aun</div>';
 }
 
 function renderInv() {
@@ -860,7 +863,7 @@ function renderSols() {
         </div>
       </div>
       <div style="margin-bottom:8px">
-        ${(r.items||[]).map(i=>`<span class="rtag">${i.nombre} ×${i.cantidad}${i.iglesia?' ('+i.iglesia+')':''}</span>`).join('')}
+        '+((r.items||[]).map(function(i){return '<span class="rtag">'+i.nombre+' x'+i.cantidad+(i.iglesia?' ('+i.iglesia+')':'')+'</span>';}).join(''))+('
         ${r.otros?`<span class="rtag" style="border-color:var(--gold);color:var(--gold)">Otro: ${r.otros}</span>`:''}
       </div>
       ${r.fotoRequerida?'<div class="mat-note">📸 Este pedido requiere foto del talonario anterior</div>':''}
@@ -876,27 +879,32 @@ function renderSols() {
 function renderHist() {
   const t=document.getElementById('fHTipo')?.value||'';
   let m=STATE.movements; if(t) m=m.filter(x=>x.tipo===t);
-  document.getElementById('histTbl').innerHTML=m.length?m.map(x=>
-    `<tr>
-    <td style="font-size:11px;color:var(--t2);white-space:nowrap">${fmtD(x.fecha)}</td>
-    <td><span class="b ${x.tipo==='despacho'?'btl':'bok'}">${x.tipo==='despacho'?'📤 Despacho':'📥 Ingreso'}</span></td>
-    <td style="font-weight:600">${x.material}</td>
-    <td style="color:${x.tipo==='despacho'?'var(--red)':'var(--green)'};font-weight:700;font-family:monospace">${x.tipo==='despacho'?'-':'+'}${x.cantidad}</td>
-    <td>${dBadge(x.departamento)}</td>
-    <td style="color:var(--t2)">${x.responsable||'—'}</td>
-    <td style="color:var(--t2)">${x.recibe||'—'}</td>
-    <td style="color:var(--t2);font-size:12px">${x.nota||'—'}</td>
-    </tr>`
-  ).join(''):'<tr><td colspan="8" class="empty" style="text-align:center">Sin movimientos</td></tr>';
+  document.getElementById('histTbl').innerHTML=m.length?m.map(function(x){
+    var bc=x.tipo==='despacho'?'btl':'bok';
+    var tl=x.tipo==='despacho'?'Despacho':'Ingreso';
+    var cl=x.tipo==='despacho'?'var(--red)':'var(--green)';
+    var sg=x.tipo==='despacho'?'-':'+';
+    return '<tr>'+
+      '<td style="font-size:11px;color:var(--t2);white-space:nowrap">'+fmtD(x.fecha)+'</td>'+
+      '<td><span class="b '+bc+'">'+tl+'</span></td>'+
+      '<td style="font-weight:600">'+x.material+'</td>'+
+      '<td style="color:'+cl+';font-weight:700;font-family:monospace">'+sg+x.cantidad+'</td>'+
+      '<td>'+dBadge(x.departamento)+'</td>'+
+      '<td style="color:var(--t2)">'+(x.responsable||'')+'</td>'+
+      '<td style="color:var(--t2)">'+(x.recibe||'')+'</td>'+
+      '<td style="color:var(--t2);font-size:12px">'+(x.nota||'')+'</td>'+
+      '</tr>';
+  }).join(''):'<tr><td colspan="8" class="empty" style="text-align:center">Sin movimientos</td></tr>';
 }
 
 function renderPedidos() {
   const dist=STATE.requests.slice(0,6);
-  document.getElementById('pedidosDist').innerHTML=dist.length?dist.map(r=>
-    `<div class="log"><div class="ldot" style="background:var(--teal)"></div>
-    <div class="ltxt"><strong>${r.pastor}</strong> — ${r.distrito}<div class="lsub">${(r.items||[]).length} material(es) · ${badgeEstado(r.estado)}</div></div>
-    <div class="ltime">${fmtD(r.fecha)}</div></div>`
-  ).join(''):'<div class="empty">Sin pedidos recientes</div>';
+  document.getElementById('pedidosDist').innerHTML=dist.length?dist.map(function(r){
+    return '<div class="log"><div class="ldot" style="background:var(--teal)"></div>'+
+      '<div class="ltxt"><strong>'+r.pastor+'</strong> — '+r.distrito+
+      '<div class="lsub">'+(r.items||[]).length+' material(es) · '+badgeEstado(r.estado)+'</div></div>'+
+      '<div class="ltime">'+fmtD(r.fecha)+'</div></div>';
+  }).join(''):'<div class="empty">Sin pedidos recientes</div>';
 }
 
 function buildPedidoForm() {
@@ -1100,7 +1108,7 @@ function verDetalleSol(id) {
     </div>
     <div class="divider">Materiales solicitados</div>
     <div style="margin-bottom:12px">
-      ${(r.items||[]).map(i=>`<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--bd);font-size:13px"><span>${i.nombre}${i.iglesia?' <span style="color:var(--teal)">(${i.iglesia})</span>':''}</span><strong>${i.cantidad}</strong></div>`).join('')}
+      '+((r.items||[]).map(function(i){return '<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:var(--navy3);border-radius:var(--r);margin-bottom:6px"><div><div style="font-size:13px;font-weight:600">'+i.nombre+'</div>'+(i.iglesia?'<div style="font-size:11px;color:var(--teal)">Iglesia: '+i.iglesia+'</div>':'')+'</div><div style="font-size:20px;font-weight:700;color:var(--teal)">'+i.cantidad+'</div></div>';}).join(''))+('
       ${r.otros?`<div style="padding:8px;background:var(--gold-light);border-radius:var(--r);margin-top:8px;font-size:12px;color:var(--amber)">Otro: ${r.otros}</div>`:''}
     </div>
     ${r.fotoRequerida?'<div class="mat-note">📸 Este pedido requiere foto del talonario anterior antes de entregarlo</div>':''}
