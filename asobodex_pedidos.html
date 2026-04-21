@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Solicitud de Materiales — AsoBodex</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --teal:#3A8FA3;--teal2:#2d7a8e;--teal-light:rgba(58,143,163,.1);
+  --gold:#F5A623;--gold-light:rgba(245,166,35,.1);
+  --navy:#0B1929;--navy2:#0f2236;--navy3:#152d47;--navy4:#1a3558;
+  --t1:#F0F6FF;--t2:#8BA8C4;--t3:#4d6a85;
+  --bd:rgba(58,143,163,.2);--bd2:rgba(58,143,163,.35);
+  --green:#2ecc71;--red:#e74c3c;--amber:#F5A623;
+  --r:10px;--r2:14px;
+  --font:'Inter',sans-serif;
+}
+html,body{min-height:100%;background:var(--navy);color:var(--t1);font-family:var(--font);font-size:14px;line-height:1.5}
+.header{background:var(--navy2);border-bottom:1px solid var(--bd);padding:14px 20px;display:flex;align-items:center;gap:14px;position:sticky;top:0;z-index:10}
+.hlogo{width:38px;height:38px;border-radius:50%;overflow:hidden;border:2px solid var(--teal);flex-shrink:0}
+.hlogo img{width:100%;height:100%;object-fit:cover}
+.htitle{font-size:15px;font-weight:700;color:var(--t1)}
+.hsub{font-size:10px;color:var(--teal);margin-top:1px}
+.main{max-width:640px;margin:0 auto;padding:20px 16px 60px}
+.steps{display:flex;margin-bottom:24px;background:var(--navy2);border:1px solid var(--bd);border-radius:var(--r2);overflow:hidden}
+.step{flex:1;padding:11px 8px;text-align:center;font-size:11px;font-weight:600;color:var(--t3);border-right:1px solid var(--bd);transition:all .2s}
+.step:last-child{border-right:none}
+.step.active{background:var(--teal-light);color:var(--teal)}
+.step.done{color:var(--green)}
+.step-num{display:block;font-size:18px;margin-bottom:2px}
+.panel{background:var(--navy2);border:1px solid var(--bd);border-radius:var(--r2);padding:20px;margin-bottom:14px}
+.panel-title{font-size:12px;font-weight:700;color:var(--teal);text-transform:uppercase;letter-spacing:.08em;margin-bottom:16px}
+.fg{margin-bottom:12px}
+.fg label{display:block;font-size:11px;font-weight:600;color:var(--t2);text-transform:uppercase;letter-spacing:.06em;margin-bottom:5px}
+.fc{width:100%;padding:11px 14px;background:var(--navy3);border:1px solid var(--bd);border-radius:var(--r);color:var(--t1);font-family:var(--font);font-size:14px;outline:none;transition:border .2s}
+.fc:focus{border-color:var(--teal);box-shadow:0 0 0 3px var(--teal-light)}
+.fc::placeholder{color:var(--t3)}
+select.fc option{background:var(--navy3)}
+textarea.fc{resize:vertical;min-height:70px}
+.note-red{background:rgba(231,76,60,.1);border:1px solid rgba(231,76,60,.3);border-left:3px solid var(--red);border-radius:var(--r);padding:10px 14px;font-size:12px;color:#ff8a80;margin:8px 0;line-height:1.6}
+.note-gold{background:var(--gold-light);border:1px solid rgba(245,166,35,.3);border-left:3px solid var(--gold);border-radius:var(--r);padding:10px 14px;font-size:12px;color:var(--gold);margin:8px 0;line-height:1.6}
+.note-teal{background:var(--teal-light);border:1px solid var(--bd);border-radius:var(--r);padding:10px 14px;font-size:12px;color:var(--teal);margin-bottom:14px;line-height:1.6}
+
+/* MATERIAL CARDS */
+.mat{background:var(--navy3);border:1px solid var(--bd);border-radius:var(--r);margin-bottom:8px;overflow:hidden;transition:border .2s}
+.mat.sel{border-color:var(--teal)}
+.mat-top{display:flex;align-items:center;gap:12px;padding:13px 14px;cursor:pointer;user-select:none}
+.mat-chk{width:22px;height:22px;border-radius:6px;border:2px solid var(--t3);background:transparent;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .2s;font-size:13px;font-weight:700;color:transparent}
+.mat.sel .mat-chk{background:var(--teal);border-color:var(--teal);color:#fff}
+.mat-label{flex:1}
+.mat-name{font-size:13px;font-weight:600;color:var(--t1)}
+.mat-rule{font-size:11px;color:var(--t2);margin-top:2px}
+.mat-body{display:none;padding:0 14px 14px;border-top:1px solid var(--bd);margin-top:0}
+.mat.sel .mat-body{display:block;padding-top:12px}
+.qty-row{display:flex;align-items:center;gap:10px;margin-top:8px}
+.qty-btn{width:36px;height:36px;border:1px solid var(--bd2);background:var(--navy4);border-radius:8px;color:var(--t1);font-size:18px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .15s}
+.qty-btn:hover{background:var(--teal);border-color:var(--teal)}
+.qty-input{flex:1;text-align:center;font-size:18px;font-weight:700;padding:6px;background:var(--navy4);border:1px solid var(--bd2);border-radius:8px;color:var(--teal);font-family:var(--font);outline:none}
+.qty-range{font-size:11px;color:var(--t3);text-align:center;margin-top:4px}
+
+/* BUTTONS */
+.btn{width:100%;padding:13px;border:none;border-radius:var(--r);font-family:var(--font);font-size:14px;font-weight:700;cursor:pointer;transition:all .2s;letter-spacing:.2px}
+.btn-primary{background:var(--teal);color:#fff}
+.btn-primary:hover{background:var(--teal2);box-shadow:0 4px 20px rgba(58,143,163,.3)}
+.btn-sec{background:var(--navy3);color:var(--t2);border:1px solid var(--bd)}
+.btn-row{display:flex;gap:10px}
+.btn-row .btn-sec{width:auto;padding:12px 20px;font-size:13px}
+
+/* RESUMEN */
+.res-item{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:var(--navy3);border-radius:var(--r);margin-bottom:6px}
+.res-name{font-size:13px;font-weight:600}
+.res-sub{font-size:11px;color:var(--teal);margin-top:2px}
+.res-qty{font-size:20px;font-weight:700;color:var(--teal)}
+
+/* SUCCESS */
+#successScreen{display:none;text-align:center;padding:48px 20px}
+.suc-icon{font-size:60px;margin-bottom:16px}
+.suc-title{font-size:22px;font-weight:700;color:var(--teal);margin-bottom:8px}
+.suc-sub{font-size:13px;color:var(--t2);line-height:1.7;margin-bottom:20px}
+.suc-ref{font-size:12px;color:var(--t3);font-family:monospace;background:var(--navy3);padding:8px 16px;border-radius:var(--r);display:inline-block;margin-bottom:24px}
+
+#toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(80px);z-index:9999;background:var(--navy2);border:1px solid var(--teal);border-left:3px solid var(--teal);border-radius:var(--r2);padding:12px 20px;font-size:13px;color:var(--t1);max-width:340px;width:90%;text-align:center;opacity:0;transition:all .3s;pointer-events:none}
+#toast.show{transform:translateX(-50%) translateY(0);opacity:1}
+#toast.err{border-color:var(--red)}
+#toast.warn{border-color:var(--amber)}
+@media(max-width:480px){.step span:not(.step-num){display:none}}
+</style>
+<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+</head>
+<body>
+
+<div class="header">
+  <div class="hlogo"><img src="data:image/jpeg;base64,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" alt="Logo"></div>
+  <div>
+    <div class="htitle">Solicitud de Materiales</div>
+    <div class="hsub">Asociación del Noreste Colombiano</div>
+  </div>
+</div>
+
+<div class="main">
+
+  <div class="steps">
+    <div class="step active" id="s1"><span class="step-num">1</span><span>Datos</span></div>
+    <div class="step" id="s2"><span class="step-num">2</span><span>Materiales</span></div>
+    <div class="step" id="s3"><span class="step-num">3</span><span>Confirmar</span></div>
+  </div>
+
+  <!-- ÉXITO -->
+  <div id="successScreen">
+    <div class="suc-icon">✅</div>
+    <div class="suc-title">¡Pedido enviado!</div>
+    <div class="suc-sub">Tu solicitud fue recibida por la Asociación del Noreste Colombiano.<br>El administrador la revisará y te contactará para la entrega.</div>
+    <div class="suc-ref" id="sucRef"></div>
+    <div style="font-size:12px;color:var(--t2);margin-bottom:24px">⏳ Podrás hacer otro pedido después de <strong>48 horas</strong></div>
+    <button class="btn btn-sec" style="width:auto;padding:10px 24px;font-size:13px" onclick="location.reload()">Nuevo pedido</button>
+  </div>
+
+  <!-- PASO 1 -->
+  <div id="p1">
+    <div class="panel">
+      <div class="panel-title">👤 Información del pastor</div>
+      <div class="fg"><label>Nombre completo <span style="color:var(--teal)">*</span></label>
+        <input type="text" class="fc" id="pNombre" placeholder="Nombre del pastor solicitante">
+      </div>
+      <div class="fg">
+        <label>Correo corporativo <span style="color:var(--teal)">*</span></label>
+        <input type="email" class="fc" id="pCorreo" placeholder="pastor@asonoreste.org">
+        <div style="font-size:11px;color:var(--t2);margin-top:4px">Recibirás confirmación de tu solicitud en este correo</div>
+      </div>
+      <div class="fg"><label>Distrito <span style="color:var(--teal)">*</span></label>
+        <select class="fc" id="pDistrito">
+          <option value="">— Selecciona tu distrito —</option>
+          <option value="CUCUTA CENTRAL">CUCUTA CENTRAL</option>
+<option value="RENACER">RENACER</option>
+<option value="SION">SION</option>
+<option value="ATALAYA">ATALAYA</option>
+<option value="ZULIA">ZULIA</option>
+<option value="VIÑA DEL SEÑOR">VIÑA DEL SEÑOR</option>
+<option value="CUCUTA OCCIDENTE">CUCUTA OCCIDENTE</option>
+<option value="ARBOLEDAS">ARBOLEDAS</option>
+<option value="LIBERTAD">LIBERTAD</option>
+<option value="GETSEMANI">GETSEMANI</option>
+<option value="EDEN">EDEN</option>
+<option value="PATIOS">PATIOS</option>
+<option value="CHINACOTA">CHINACOTA</option>
+<option value="PAMPLONA">PAMPLONA</option>
+<option value="OCAÑA CENTRAL">OCAÑA CENTRAL</option>
+<option value="OCAÑA NORTE">OCAÑA NORTE</option>
+<option value="TIBU">TIBU</option>
+<option value="EL TARRA">EL TARRA</option>
+<option value="PUERTO CARREÑO">PUERTO CARREÑO</option>
+<option value="VICHADA">VICHADA</option>
+<option value="CENTRAL ARAUCA">CENTRAL ARAUCA</option>
+<option value="BETANIA">BETANIA</option>
+<option value="PANAMA">PANAMA</option>
+<option value="CENTRAL SARAVENA">CENTRAL SARAVENA</option>
+<option value="REDENCION">REDENCION</option>
+<option value="PALESTINA">PALESTINA</option>
+<option value="BETHEL">BETHEL</option>
+<option value="MARANATHA">MARANATHA</option>
+<option value="CUBARA">CUBARA</option>
+<option value="FORTUL">FORTUL</option>
+<option value="NUEVO CARANAL">NUEVO CARANAL</option>
+<option value="ARAUQUITA">ARAUQUITA</option>
+<option value="LA ESMERALDA">LA ESMERALDA</option>
+<option value="TAME CENTRAL">TAME CENTRAL</option>
+<option value="TAME ORIENTAL">TAME ORIENTAL</option>
+<option value="PUERTO JORDAN">PUERTO JORDAN</option>
+<option value="LA HERMOSA">LA HERMOSA</option>
+        </select>
+      </div>
+    </div>
+    <div class="note-teal">⏱ Recuerda: solo puedes enviar <strong>una solicitud cada 48 horas</strong> por distrito. Incluye todo lo que necesitas en este pedido.</div>
+    <button class="btn btn-primary" onclick="irPaso2()">Continuar →</button>
+  </div>
+
+  <!-- PASO 2 -->
+  <div id="p2" style="display:none">
+    <div class="note-teal">Selecciona los materiales que necesitas. Puedes pedir uno o varios. Todos los campos son opcionales — solo marca lo que necesites.</div>
+    <div id="matList"></div>
+    <div class="panel">
+      <div class="panel-title">📝 ¿Necesitas otro material?</div>
+      <textarea class="fc" id="pOtros" placeholder="Describe cualquier material que no aparezca en la lista..."></textarea>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-sec" onclick="irPaso(1)">← Atrás</button>
+      <button class="btn btn-primary" onclick="irPaso3()">Revisar pedido →</button>
+    </div>
+  </div>
+
+  <!-- PASO 3 -->
+  <div id="p3" style="display:none">
+    <div class="panel">
+      <div class="panel-title">✅ Resumen de tu solicitud</div>
+      <div id="resumen"></div>
+    </div>
+    <div class="note-teal" style="margin-bottom:14px">Al enviar confirmas que los datos son correctos. La administración revisará tu pedido.</div>
+    <div class="btn-row">
+      <button class="btn btn-sec" onclick="irPaso(2)">← Modificar</button>
+      <button class="btn btn-primary" id="btnEnv" onclick="enviar()">📤 Enviar solicitud</button>
+    </div>
+  </div>
+
+</div>
+<div id="toast"></div>
+
+<script>
+const DISTRITOS = ["CUCUTA CENTRAL", "RENACER", "SION", "ATALAYA", "ZULIA", "VI\u00d1A DEL SE\u00d1OR", "CUCUTA OCCIDENTE", "ARBOLEDAS", "LIBERTAD", "GETSEMANI", "EDEN", "PATIOS", "CHINACOTA", "PAMPLONA", "OCA\u00d1A CENTRAL", "OCA\u00d1A NORTE", "TIBU", "EL TARRA", "PUERTO CARRE\u00d1O", "VICHADA", "CENTRAL ARAUCA", "BETANIA", "PANAMA", "CENTRAL SARAVENA", "REDENCION", "PALESTINA", "BETHEL", "MARANATHA", "CUBARA", "FORTUL", "NUEVO CARANAL", "ARAUQUITA", "LA ESMERALDA", "TAME CENTRAL", "TAME ORIENTAL", "PUERTO JORDAN", "LA HERMOSA"];
+
+// EmailJS config
+const EJS_SERVICE        = 'service_9qcuclc';
+const EJS_TEMPLATE_ADMIN = 'template_crtka2m';
+const EJS_TEMPLATE_PASTOR= 'template_crtka2m';
+const EJS_KEY            = '34IfEv9d2SCicaYWz';
+const MASTER_EMAIL       = 'mensajeria@asonoreste.org';
+
+// Initialize EmailJS
+document.addEventListener('DOMContentLoaded', function() {
+  if (window.emailjs) {
+    emailjs.init({publicKey: EJS_KEY});
+    console.log('✓ EmailJS inicializado con publicKey');
+  } else {
+    console.error('✗ EmailJS NO cargó');
+  }
+});
+
+function enviarNotificacionEmail(pastor, correo, distrito, items, otros) {
+  if (!window.emailjs) { console.error('EmailJS no disponible'); return; }
+  var materiales = items.map(function(i) {
+    return '• ' + i.nombre + ': ' + i.cantidad + (i.iglesia ? ' (Iglesia: ' + i.iglesia + ')' : '');
+  }).join('\n');
+  if (otros) materiales += '\n• Otro: ' + otros;
+  var fecha = new Date().toLocaleString('es-CO');
+  
+  // Notificar al administrador
+  console.log('Enviando email al admin:', MASTER_EMAIL);
+  emailjs.send(EJS_SERVICE, EJS_TEMPLATE_ADMIN, {
+    pastor: pastor, distrito: distrito,
+    fecha: fecha, materiales: materiales,
+    to_email: MASTER_EMAIL
+  }).then(function(r) {
+    console.log('✓ Email admin enviado OK:', r.status, r.text);
+  }).catch(function(e) {
+    console.error('✗ Email admin ERROR:', e);
+    alert('Error enviando correo al admin: ' + JSON.stringify(e));
+  });
+
+  // Notificar al pastor
+  if (correo && correo.includes('@')) {
+    console.log('Enviando email al pastor:', correo);
+    emailjs.send(EJS_SERVICE, EJS_TEMPLATE_PASTOR, {
+      pastor: pastor, distrito: distrito,
+      fecha: fecha,
+      materiales: 'Tu solicitud fue recibida correctamente.\n\nMateriales solicitados:\n' + materiales + '\n\nEl administrador la procesará pronto.',
+      to_email: correo
+    }).then(function(r) {
+      console.log('✓ Email pastor enviado OK:', r.status, r.text);
+    }).catch(function(e) {
+      console.error('✗ Email pastor ERROR:', e);
+    });
+  }
+}
+
+
+const MATS = [
+  {id:'m1', nombre:'Talonario de Diáconos', tipo:'diacono', min:1, max:null,
+   regla:'Debes indicar el nombre de la iglesia que lo solicita y recuerda enviar <strong>FOTO DE LA ÚLTIMA HOJA DEL LIBRO DE DIÁCONOS DE LA IGLESIA SOLICITADA</strong> al WhatsApp de la persona encargada en la asociación.'},
+  {id:'m2', nombre:'Envío Mensual de Fondos Distritales', tipo:'normal', min:1, max:10},
+  {id:'m3', nombre:'Arqueo de Caja', tipo:'libre', min:1, max:null, regla:'Tiene un valor de <strong>$3.000 c/u</strong>. Puedes pedir los que necesites.'},
+  {id:'m4', nombre:'Orden de Culto', tipo:'normal', min:1, max:10},
+  {id:'m5', nombre:'Resumen Mensual de Fondos', tipo:'normal', min:1, max:10},
+  {id:'m6', nombre:'Talonario de Caja Menor', tipo:'libre', min:1, max:null, regla:'Tiene un valor de <strong>$3.000 c/u</strong>. Puedes pedir los que necesites.'},
+  {id:'m7', nombre:'Talonario de Fondos Confiados', tipo:'iglesia', min:1, max:null, regla:'Debes indicar el nombre exacto de la iglesia para personalizar el talonario.'},
+  {id:'m8', nombre:'Sobres de Diezmos', tipo:'normal', min:100, max:1500},
+  {id:'m9', nombre:'Fe de Jesús', tipo:'normal', min:20, max:100},
+  {id:'m10', nombre:'Quiero Vivir Sano', tipo:'normal', min:20, max:100},
+  {id:'m11', nombre:'Joven a Joven', tipo:'normal', min:20, max:100},
+  {id:'m12', nombre:'Hogar y Familia', tipo:'normal', min:20, max:100},
+  {id:'m13', nombre:'Tiras de Bautismo', tipo:'normal', min:20, max:70},
+  {id:'m14', nombre:'Certificados de Bautismo', tipo:'normal', min:20, max:50},
+  {id:'m15', nombre:'Material de Salud', tipo:'normal', min:20, max:100},
+  {id:'m16', nombre:'Yo Creo', tipo:'normal', min:20, max:50},
+  {id:'m17', nombre:'Sobres de Diezmos de Niños', tipo:'normal', min:100, max:500},
+  {id:'m18', nombre:'Biblias', tipo:'normal', min:5, max:40},
+];
+
+function check48h(dist) {
+  const k = 'abx48_'+dist.replace(/[^a-z0-9]/gi,'_');
+  const t = localStorage.getItem(k);
+  if (!t) return {ok:true};
+  const h = (Date.now()-parseInt(t))/3600000;
+  if (h >= 48) return {ok:true};
+  return {ok:false, hFalt: Math.ceil(48-h)};
+}
+function set48h(dist) {
+  const k = 'abx48_'+dist.replace(/[^a-z0-9]/gi,'_');
+  localStorage.setItem(k, Date.now().toString());
+}
+
+function irPaso2() {
+  const nombre = document.getElementById('pNombre').value.trim();
+  const dist = document.getElementById('pDistrito').value;
+  if (!nombre) { toast('⚠️ Escribe tu nombre','warn'); return; }
+  if (!dist)   { toast('⚠️ Selecciona tu distrito','warn'); return; }
+  const chk = check48h(dist);
+  if (!chk.ok) { toast('⚠️ El distrito '+dist+' debe esperar '+chk.hFalt+'h más para hacer otro pedido','warn'); return; }
+  buildMats();
+  irPaso(2);
+}
+
+function buildMats() {
+  document.getElementById('matList').innerHTML = MATS.map(m => {
+    const rangoTxt = m.max ? 'Mín. '+m.min+' — Máx. '+m.max : (m.tipo==='libre'?'Cantidad libre':'Mín. '+m.min);
+    const campoExtra = m.tipo==='diacono' || m.tipo==='iglesia'
+      ? `<div style="margin-top:10px"><label style="font-size:11px;font-weight:600;color:var(--t2);text-transform:uppercase;letter-spacing:.06em;display:block;margin-bottom:5px">Nombre de la iglesia</label>
+         <input type="text" class="fc" id="igl_${m.id}" placeholder="Ej: Iglesia Central Cúcuta" onclick="event.stopPropagation()"></div>`
+      : '';
+    const nota = m.regla
+      ? `<div class="${m.tipo==='diacono'?'note-red':'note-gold'}">${m.regla}</div>`
+      : '';
+    return `<div class="mat" id="mat_${m.id}">
+      <div class="mat-top" onclick="toggleMat('${m.id}')">
+        <div class="mat-chk" id="chk_${m.id}">✓</div>
+        <div class="mat-label">
+          <div class="mat-name">${m.nombre}</div>
+          <div class="mat-rule">${rangoTxt}</div>
+        </div>
+      </div>
+      <div class="mat-body">
+        ${nota}
+        <div>
+          <label style="font-size:11px;font-weight:600;color:var(--t2);text-transform:uppercase;letter-spacing:.06em;display:block;margin-bottom:6px">Cantidad</label>
+          <div class="qty-row">
+            <button class="qty-btn" onclick="event.stopPropagation();cambiarQty('${m.id}',-1)">−</button>
+            <input type="number" class="qty-input" id="qty_${m.id}" value="${m.min}" min="${m.min}" ${m.max?'max="'+m.max+'"':''} onclick="event.stopPropagation()" oninput="validarQty('${m.id}')">
+            <button class="qty-btn" onclick="event.stopPropagation();cambiarQty('${m.id}',1)">+</button>
+          </div>
+          <div class="qty-range" id="range_${m.id}">${m.max?'Mín: '+m.min+' / Máx: '+m.max:'Mín: '+m.min}</div>
+        </div>
+        ${campoExtra}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function toggleMat(id) {
+  const el = document.getElementById('mat_'+id);
+  el.classList.toggle('sel');
+}
+
+function cambiarQty(id, delta) {
+  const m = MATS.find(x=>x.id===id);
+  const inp = document.getElementById('qty_'+id);
+  let v = parseInt(inp.value)||m.min;
+  v = Math.max(m.min, m.max ? Math.min(m.max, v+delta) : v+delta);
+  inp.value = v;
+  colorearQty(id, m, v);
+}
+
+function validarQty(id) {
+  const m = MATS.find(x=>x.id===id);
+  const inp = document.getElementById('qty_'+id);
+  let v = parseInt(inp.value)||m.min;
+  if (v < m.min) { v = m.min; inp.value = v; }
+  if (m.max && v > m.max) { v = m.max; inp.value = v; toast('⚠️ Máximo permitido: '+m.max,'warn'); }
+  colorearQty(id, m, v);
+}
+
+function colorearQty(id, m, v) {
+  const inp = document.getElementById('qty_'+id);
+  const ok = v >= m.min && (!m.max || v <= m.max);
+  inp.style.borderColor = ok ? '' : 'var(--red)';
+  inp.style.color = ok ? 'var(--teal)' : 'var(--red)';
+}
+
+function getSeleccionados() {
+  return MATS.filter(m => document.getElementById('mat_'+m.id)?.classList.contains('sel'));
+}
+
+function irPaso3() {
+  const sel = getSeleccionados();
+  const otros = document.getElementById('pOtros').value.trim();
+  if (sel.length === 0 && !otros) { toast('⚠️ Selecciona al menos un material o escribe en "Otro material"','warn'); return; }
+
+  // Validar campos obligatorios de los seleccionados
+  for (const m of sel) {
+    const qty = parseInt(document.getElementById('qty_'+m.id)?.value)||0;
+    if (qty < m.min) { toast('⚠️ '+m.nombre+': mínimo es '+m.min,'warn'); return; }
+    if (m.max && qty > m.max) { toast('⚠️ '+m.nombre+': máximo es '+m.max,'warn'); return; }
+    if ((m.tipo==='diacono'||m.tipo==='iglesia') && !document.getElementById('igl_'+m.id)?.value.trim()) {
+      toast('⚠️ Indica el nombre de la iglesia para: '+m.nombre,'warn'); return;
+    }
+  }
+
+  const nombre = document.getElementById('pNombre').value.trim();
+  const dist = document.getElementById('pDistrito').value;
+  const tieneDiacono = sel.some(m=>m.tipo==='diacono');
+
+  let resHtml = `<div style="background:var(--navy3);border-radius:var(--r);padding:12px 14px;margin-bottom:14px;font-size:13px">
+    <div style="margin-bottom:4px"><span style="color:var(--t2)">Pastor:</span> <strong>${nombre}</strong></div>
+    <div><span style="color:var(--t2)">Distrito:</span> <strong style="color:var(--teal)">${dist}</strong></div>
+  </div>`;
+
+  if (sel.length > 0) {
+    resHtml += `<div style="font-size:11px;font-weight:600;color:var(--t2);text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px">Materiales solicitados</div>`;
+    sel.forEach(m => {
+      const qty = document.getElementById('qty_'+m.id)?.value;
+      const igl = document.getElementById('igl_'+m.id)?.value.trim()||'';
+      resHtml += `<div class="res-item"><div class="res-label"><div class="res-name">${m.nombre}</div>${igl?`<div class="res-sub">Iglesia: ${igl}</div>`:''}</div><div class="res-qty">${qty}</div></div>`;
+    });
+  }
+  if (otros) resHtml += `<div class="note-gold" style="margin-top:8px">📝 Otro: ${otros}</div>`;
+  if (tieneDiacono) resHtml += `<div class="note-red" style="margin-top:10px">📸 <strong>IMPORTANTE:</strong> Envía FOTO DE LA ÚLTIMA HOJA DEL LIBRO DE DIÁCONOS DE LA IGLESIA SOLICITADA al WhatsApp de la persona encargada en la asociación para procesar este pedido.</div>`;
+
+  document.getElementById('resumen').innerHTML = resHtml;
+  irPaso(3);
+}
+
+
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyC2KXXgFWh8M4Oel3u1h8GFgKdEwSe0yoM",
+  authDomain: "asobodex.firebaseapp.com",
+  projectId: "asobodex",
+  storageBucket: "asobodex.firebasestorage.app",
+  messagingSenderId: "581532768335",
+  appId: "1:581532768335:web:7b5bc61dda482c2d98b23a"
+};
+
+async function enviar() {
+  const btn = document.getElementById('btnEnv');
+  btn.disabled = true; btn.textContent = 'Enviando...';
+
+  const nombre = document.getElementById('pNombre').value.trim();
+  const correo = document.getElementById('pCorreo') ? document.getElementById('pCorreo').value.trim() : '';
+  const dist   = document.getElementById('pDistrito').value;
+  const sel    = getSeleccionados();
+  const otros  = document.getElementById('pOtros').value.trim();
+
+  const items = sel.map(function(m) {
+    return {
+      id:       m.id,
+      nombre:   m.nombre,
+      cantidad: parseInt(document.getElementById('qty_'+m.id) ? document.getElementById('qty_'+m.id).value : m.min) || m.min,
+      iglesia:  (document.getElementById('igl_'+m.id) ? document.getElementById('igl_'+m.id).value.trim() : '')
+    };
+  });
+
+  const ref    = 'ABX-'+dist.slice(0,3).toUpperCase()+'-'+Date.now().toString().slice(-5);
+  const fotoReq = sel.some(function(m){ return m.tipo==='diacono'; });
+  const pedido = {
+    ref, pastor:nombre, distrito:dist, items, otros,
+    fotoRequerida: fotoReq, estado:'pendiente',
+    fecha: new Date().toISOString()
+  };
+
+  try {
+    // Guardar en Firebase para que el admin lo vea en tiempo real
+    const { initializeApp }   = await import("https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js");
+    const { getFirestore, collection, addDoc, serverTimestamp } = await import("https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js");
+    const fbapp = initializeApp(FIREBASE_CONFIG);
+    const db    = getFirestore(fbapp);
+    await addDoc(collection(db, 'pedidos'), {
+      ref, pastor:nombre, correo:correo, distrito:dist, items, otros,
+      fotoRequerida: fotoReq, estado:'pendiente',
+      fecha: serverTimestamp()
+    });
+    console.log('Pedido guardado en Firebase');
+  } catch(e) {
+    console.warn('Firebase error:', e.message);
+    // Fallback: guardar local
+    try {
+      const todos = JSON.parse(localStorage.getItem('abx_pedidos')||'[]');
+      todos.unshift(pedido);
+      localStorage.setItem('abx_pedidos', JSON.stringify(todos.slice(0,200)));
+    } catch(e2) {}
+  }
+
+  // Bloqueo 48h y notificacion email
+  set48h(dist);
+  enviarNotificacionEmail(nombre, correo, dist, items, otros);
+
+  // Mostrar pantalla de éxito
+  setTimeout(function() {
+    ['p1','p2','p3'].forEach(function(id){ document.getElementById(id).style.display='none'; });
+    document.getElementById('sucRef').textContent = 'Referencia: '+ref;
+    document.getElementById('successScreen').style.display = 'block';
+    document.querySelectorAll('.step').forEach(function(s){ s.classList.remove('active','done'); });
+  }, 600);
+}
+
+
+function irPaso(n) {
+  ['p1','p2','p3'].forEach((id,i)=>document.getElementById(id).style.display=i+1===n?'block':'none');
+  ['s1','s2','s3'].forEach((id,i)=>{
+    const el=document.getElementById(id);
+    el.classList.toggle('active',i+1===n);
+    el.classList.toggle('done',i+1<n);
+  });
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
+function toast(msg,type='') {
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.className=type; t.classList.add('show');
+  clearTimeout(t._t); t._t=setTimeout(()=>t.classList.remove('show'),3500);
+}
+</script>
+</body>
+</html>
