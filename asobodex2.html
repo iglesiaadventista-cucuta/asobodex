@@ -448,7 +448,11 @@ textarea.fc{resize:vertical;min-height:70px}
     <div class="view" id="view-historial">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px">
         <div style="font-size:16px;font-weight:700">Historial de movimientos</div>
-        <div style="display:flex;gap:8px">
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <div style="position:relative">
+            <span style="position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:12px;color:var(--t2);pointer-events:none">🔍</span>
+            <input type="text" class="fc" id="fHBuscar" placeholder="Buscar material, pastor, distrito..." oninput="renderHist()" style="width:220px;padding:7px 10px 7px 28px;font-size:12px">
+          </div>
           <select class="fc" style="width:auto;padding:7px 10px;font-size:12px" id="fHTipo" onchange="renderHist()">
             <option value="">Todos</option><option value="ingreso">Ingresos</option><option value="despacho">Despachos</option><option value="pedido">Entregas a pastores (pedidos)</option><option value="distribucion">Distribuciones</option><option value="envio_ocasional">Envíos ocasionales</option>
           </select>
@@ -1879,10 +1883,8 @@ async function enviarConGuia(btn) {
 
 
 function renderHist() {
-  const t=document.getElementById('fHTipo')?.value||'';
-  let m=STATE.movements;
-  if(t==='pedido') m=m.filter(x=>x.origenPedido===true);
-  else if(t) m=m.filter(x=>x.tipo===t);
+  const q=(document.getElementById('fHBuscar')?.value||'').trim();
+  let m=filtrarMovimientosHistorial();
   document.getElementById('histTbl').innerHTML=m.length?m.map(function(x){
     var esSalida = x.tipo==='despacho' || x.tipo==='distribucion' || x.tipo==='envio_ocasional';
     var esPedido = x.tipo==='despacho' && x.origenPedido===true;
@@ -1899,7 +1901,7 @@ function renderHist() {
       '<td style="color:var(--t2)">'+(x.responsable||'')+'</td>'+
       '<td style="color:var(--t2)">'+(x.recibe||'')+'</td>'+
       '</tr>';
-  }).join(''):'<tr><td colspan="8" class="empty" style="text-align:center">Sin movimientos</td></tr>';
+  }).join(''):'<tr><td colspan="8" class="empty" style="text-align:center">'+(q?'Sin resultados para "'+q+'"':'Sin movimientos')+'</td></tr>';
 }
 
 function renderPedidos() {
@@ -3662,12 +3664,26 @@ async function enviarEnvioOcasional() {
   }
 }
 
-// Exportar Excel (CSV)
-function exportarExcel() {
-  var movs = STATE.movements;
+// Aplica el mismo filtro de tipo + búsqueda que usa la tabla de Historial en pantalla
+function filtrarMovimientosHistorial() {
   var t = document.getElementById('fHTipo')?.value||'';
+  var q = (document.getElementById('fHBuscar')?.value||'').trim().toLowerCase();
+  var movs = STATE.movements;
   if(t==='pedido') movs = movs.filter(function(x){ return x.origenPedido===true; });
   else if(t) movs = movs.filter(function(x){ return x.tipo===t; });
+  if(q) movs = movs.filter(function(x){
+    return (x.material||'').toLowerCase().indexOf(q)!==-1 ||
+      (x.responsable||'').toLowerCase().indexOf(q)!==-1 ||
+      (x.recibe||'').toLowerCase().indexOf(q)!==-1 ||
+      (x.departamento||'').toLowerCase().indexOf(q)!==-1 ||
+      (x.nota||'').toLowerCase().indexOf(q)!==-1;
+  });
+  return movs;
+}
+
+// Exportar Excel (CSV)
+function exportarExcel() {
+  var movs = filtrarMovimientosHistorial();
   if(!movs.length){ toast('Sin datos para exportar','warn'); return; }
 
   var csv = 'Fecha,Tipo,Material,Cantidad,Departamento,Entregado por,Recibido por\n';
@@ -3687,10 +3703,7 @@ function exportarExcel() {
 
 // Exportar PDF (tabla simple en nueva ventana para imprimir)
 function exportarPDF() {
-  var movs = STATE.movements;
-  var t = document.getElementById('fHTipo')?.value||'';
-  if(t==='pedido') movs = movs.filter(function(x){ return x.origenPedido===true; });
-  else if(t) movs = movs.filter(function(x){ return x.tipo===t; });
+  var movs = filtrarMovimientosHistorial();
   if(!movs.length){ toast('Sin datos para exportar','warn'); return; }
 
   var html = '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>AsoBodex Historial</title>' +
