@@ -970,7 +970,7 @@ const MATERIALES_INIT = [
 
 // ── REGLAS DE MATERIALES PEDIBLES ────────────────────────────
 const MATERIALES_PEDIDO = [
-  {id:'p1', nombre:'Talonario de Diáconos', tipo:'foto', nota:'⚠️ Debe enviar foto del talonario anterior para procesar el pedido', minimo:1, maximo:null},
+  {id:'p1', nombre:'Talonario de Diáconos', tipo:'diacono', nota:'Indica el código de la iglesia (o el consecutivo del talonario). Si tienes el talonario anterior, adjunta una foto aquí mismo — ya no es necesario enviarla por WhatsApp.', minimo:1, maximo:null},
   {id:'p2', nombre:'Envío Mensual de Fondos Distritales', tipo:'normal', minimo:1, maximo:10},
   {id:'p3', nombre:'Arqueo de Caja', tipo:'valor', nota:'Valor: $3.000 c/u — puede pedir los que necesite', minimo:1, maximo:null},
   {id:'p4', nombre:'Orden de Culto', tipo:'normal', minimo:1, maximo:10},
@@ -1530,7 +1530,7 @@ function renderSols() {
     var items = r.items || [];
     for (var ii = 0; ii < items.length; ii++) {
       var item = items[ii];
-      itemsHtml += '<span class="rtag">' + (item.nombre||'') + ' x' + (item.cantidad||'') + (item.iglesia ? ' (' + item.iglesia + ')' : '') + '</span>';
+      itemsHtml += '<span class="rtag">' + (item.nombre||'') + ' x' + (item.cantidad||'') + (item.iglesia ? ' (' + item.iglesia + ')' : '') + (item.codigoIglesia ? ' — Cód: ' + item.codigoIglesia : '') + (item.fotoUrl ? ' 📷' : '') + '</span>';
     }
     if (r.otros) itemsHtml += '<span class="rtag" style="border-color:var(--gold);color:var(--gold)">Otro: ' + r.otros + '</span>';
 
@@ -1593,11 +1593,20 @@ function verDetalleSol(btn) {
     if(rechazado && r.estado !== 'pendiente') {
       checkHtml = '<span style="font-size:11px;color:var(--red);font-weight:600">RECHAZADO</span>';
     }
-    itemsHtml += '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;background:var(--navy3);border-radius:var(--r);margin-bottom:6px;opacity:'+(rechazado && r.estado!=='pendiente'?'0.5':'1')+'">' +
+    var libroInfo = '';
+    if(it.codigoIglesia || it.fotoUrl) {
+      libroInfo = '<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--bd)">' +
+        (it.codigoIglesia ? '<div style="font-size:12px;color:var(--t2)">🏷️ Código / consecutivo: <strong style="color:var(--teal);font-family:monospace">'+it.codigoIglesia+'</strong></div>' : '<div style="font-size:11px;color:var(--amber)">🏷️ Sin código de iglesia — el pastor no lo indicó</div>') +
+        (it.fotoUrl ? '<div style="margin-top:6px"><a href="'+it.fotoUrl+'" target="_blank"><img src="'+it.fotoUrl+'" style="max-width:180px;border-radius:var(--r);border:1px solid var(--bd)"></a></div>' : '') +
+      '</div>';
+    }
+    itemsHtml += '<div style="padding:8px 12px;background:var(--navy3);border-radius:var(--r);margin-bottom:6px;opacity:'+(rechazado && r.estado!=='pendiente'?'0.5':'1')+'">' +
+      '<div style="display:flex;justify-content:space-between;align-items:center">' +
       '<div><div style="font-size:13px;font-weight:600">' + (it.nombre||'') + '</div>' +
       (it.iglesia ? '<div style="font-size:11px;color:var(--teal)">Iglesia: ' + it.iglesia + '</div>' : '') + '</div>' +
       '<div style="display:flex;align-items:center;gap:12px">' + checkHtml +
-      '<div style="font-size:18px;font-weight:700;color:var(--teal)">' + (it.cantidad||'') + '</div></div></div>';
+      '<div style="font-size:18px;font-weight:700;color:var(--teal)">' + (it.cantidad||'') + '</div></div></div>' +
+      libroInfo + '</div>';
   }
 
   document.getElementById('mSolTitle').textContent = 'Pedido — ' + (r.distrito||'');
@@ -1901,6 +1910,13 @@ function buildPedidoForm() {
     var extraHtml = (m.tipo==='iglesia' || m.tipo==='diacono') ?
       '<div style="margin-top:10px"><label style="font-size:11px;font-weight:600;color:var(--t2);text-transform:uppercase;letter-spacing:.06em;display:block;margin-bottom:5px">Nombre de la iglesia</label>' +
       '<input type="text" class="fc" id="igl_'+m.id+'" placeholder="Ej: Iglesia Central" onclick="event.stopPropagation()"></div>' : '';
+    var diaconoExtraHtml = (m.tipo==='diacono') ?
+      '<div class="f2" style="margin-top:10px">' +
+        '<div class="fg" style="margin-bottom:0"><label style="font-size:11px;font-weight:600;color:var(--t2);text-transform:uppercase;letter-spacing:.06em;display:block;margin-bottom:5px">Código de iglesia / Consecutivo</label>' +
+          '<input type="text" class="fc" id="cod_'+m.id+'" placeholder="Ej: EDN-014 (déjalo en blanco si no lo sabes)" onclick="event.stopPropagation()"></div>' +
+        '<div class="fg" style="margin-bottom:0"><label style="font-size:11px;font-weight:600;color:var(--t2);text-transform:uppercase;letter-spacing:.06em;display:block;margin-bottom:5px">Foto del talonario anterior (opcional)</label>' +
+          '<input type="file" accept="image/*" class="fc" id="foto_'+m.id+'" style="padding:8px" onclick="event.stopPropagation()"></div>' +
+      '</div>' : '';
     html += '<div class="mat-item" id="matItem_'+m.id+'">' +
       '<div class="mat-header">' +
         '<div><div class="mat-name">'+m.nombre+'</div><div class="mat-rules">'+rangeInfo+'</div></div>' +
@@ -1914,6 +1930,7 @@ function buildPedidoForm() {
             '<input type="number" class="fc" id="qty_'+m.id+'" min="'+m.minimo+'"' + (m.maximo?' max="'+m.maximo+'"':'') + ' placeholder="'+m.minimo+'"></div>' +
           (m.tipo==='iglesia' || m.tipo==='diacono' ? extraHtml : '<div></div>') +
         '</div>' +
+        diaconoExtraHtml +
       '</div>' +
     '</div>';
   }
@@ -3312,8 +3329,7 @@ async function enviarPedido() {
   var otros    = document.getElementById('pOtros').value.trim();
   if(!pastor||!distrito){ toast('Ingresa nombre del pastor y distrito','warn'); return; }
 
-  var items = [];
-  var fotoRequerida = false;
+  var picks = [];
   for(var mi=0; mi<MATERIALES_PEDIDO.length; mi++) {
     var m = MATERIALES_PEDIDO[mi];
     var chk = document.getElementById('chk_'+m.id);
@@ -3327,21 +3343,52 @@ async function enviarPedido() {
     if((m.tipo==='iglesia'||m.tipo==='diacono') && !iglesia){
       toast(m.nombre+': debe indicar nombre de la iglesia','warn'); return;
     }
-    if(m.tipo==='foto') fotoRequerida = true;
-    items.push({nombre:m.nombre, cantidad:qty, iglesia:iglesia});
+    var codigoIglesia = '';
+    var codEl = document.getElementById('cod_'+m.id);
+    if(codEl) codigoIglesia = codEl.value.trim();
+    var fotoFile = null;
+    var fotoEl = document.getElementById('foto_'+m.id);
+    if(fotoEl && fotoEl.files[0]) fotoFile = fotoEl.files[0];
+    picks.push({m:m, qty:qty, iglesia:iglesia, codigoIglesia:codigoIglesia, fotoFile:fotoFile});
   }
 
-  if(!items.length && !otros){ toast('Selecciona al menos un material o escribe en "Otros"','warn'); return; }
+  if(!picks.length && !otros){ toast('Selecciona al menos un material o escribe en "Otros"','warn'); return; }
 
   var btn = document.querySelector('[onclick="enviarPedido()"]');
   if(btn){ btn.textContent='Enviando...'; btn.disabled=true; }
 
   try {
+    // Armar los items, subiendo a ImgBB la foto del talonario si el pastor adjuntó una
+    var items = [];
+    for(var pi=0; pi<picks.length; pi++) {
+      var p = picks[pi];
+      var itemData = {nombre:p.m.nombre, cantidad:p.qty, iglesia:p.iglesia};
+      if(p.m.tipo==='diacono') {
+        itemData.codigoIglesia = p.codigoIglesia;
+        if(p.fotoFile) {
+          try {
+            toast('Subiendo foto del talonario...');
+            var formData = new FormData();
+            formData.append('image', p.fotoFile);
+            formData.append('key', '90ef17531a96e2ba46f944b5987756a4');
+            var imgResp = await fetch('https://api.imgbb.com/1/upload', { method:'POST', body:formData });
+            var imgData = await imgResp.json();
+            if(imgData.success) itemData.fotoUrl = imgData.data.url;
+            else toast('No se pudo subir la foto, el pedido se enviará sin ella','warn');
+          } catch(e) {
+            console.error('Error subiendo foto del talonario:', e);
+            toast('No se pudo subir la foto, el pedido se enviará sin ella','warn');
+          }
+        }
+      }
+      items.push(itemData);
+    }
+
     if(window._db && window._fbOps) {
       var st = window._serverTimestamp;
       await window._fbOps.addDoc(window._fbOps.collection(window._db,'pedidos'), {
         pastor:pastor, distrito:distrito, email:email, telefono:tel,
-        items:items, otros:otros, fotoRequerida:fotoRequerida,
+        items:items, otros:otros,
         estado:'pendiente', fecha:st()
       });
       toast('Pedido enviado correctamente');
@@ -3350,13 +3397,8 @@ async function enviarPedido() {
         var el=document.getElementById(x); if(el) el.value='';
       });
       document.getElementById('pDistrito').value='';
-      // Uncheck all materials
-      for(var mi=0; mi<MATERIALES_PEDIDO.length; mi++){
-        var chk=document.getElementById('chk_'+MATERIALES_PEDIDO[mi].id);
-        if(chk){ chk.checked=false; }
-        var f=document.getElementById('matFields_'+MATERIALES_PEDIDO[mi].id);
-        if(f) f.style.display='none';
-      }
+      // Reconstruir el formulario de materiales para limpiar cantidades, iglesia, código y foto
+      buildPedidoForm();
     } else {
       toast('Sin conexion a Firebase','err');
     }
