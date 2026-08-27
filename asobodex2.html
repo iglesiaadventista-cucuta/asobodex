@@ -462,14 +462,23 @@ textarea.fc{resize:vertical;min-height:70px}
       </div></div>
     </div>
 
-    <!-- DISTRIBUCIONES (vista admin - tabla detallada) -->
+    <!-- DISTRIBUCIONES (vista admin - resumen tipo Excel + tabla detallada) -->
     <div class="view" id="view-verdistribucion">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px">
         <div style="font-size:16px;font-weight:700">📦 Distribuciones de materiales</div>
         <div style="display:flex;gap:8px">
-          <button class="btn bgold bsm" onclick="exportarExcelDist()">⬇ Excel</button>
+          <button class="btn bgold bsm" onclick="exportarExcelDistPivot()">⬇ Excel resumen</button>
+          <button class="btn bsm" onclick="exportarExcelDist()">⬇ Excel detallado</button>
         </div>
       </div>
+
+      <div class="panel"><div class="ph"><span class="pt">Resumen por distrito — un distrito, todos sus materiales</span></div>
+        <div class="tw" id="distPivotWrap">
+          <table><thead><tr id="distPivotHead"></tr></thead><tbody id="distPivotBody"></tbody></table>
+        </div>
+      </div>
+
+      <div style="font-size:12px;font-weight:600;color:var(--t2);text-transform:uppercase;letter-spacing:.06em;margin:18px 0 8px">🔍 Detalle completo (auditoría)</div>
       <div class="panel"><div class="tw">
         <table><thead><tr><th>Fecha</th><th>Estado</th><th>Distrito</th><th>Material</th><th>Cant.</th><th>Responsable</th><th></th></tr></thead>
         <tbody id="distTbl"></tbody></table>
@@ -2803,6 +2812,68 @@ function renderDistribuciones() {
       '<div class="ltime">'+fmtD(d.fecha)+'</div></div>';
   }).join('');
   renderDistTabla();
+  renderDistPivot();
+}
+
+// ── RESUMEN TIPO EXCEL: filas = distrito, columnas = material ──
+function buildDistPivotData() {
+  var dists = STATE.distribuciones || [];
+  var materiales = [];
+  var matSet = {};
+  var porDistrito = {};
+  var ordenDistritos = [];
+  dists.forEach(function(d) {
+    (d.detalle||[]).forEach(function(it) {
+      if(!it.destino) return;
+      if(!matSet[it.material]) { matSet[it.material] = true; materiales.push(it.material); }
+      if(!porDistrito[it.destino]) { porDistrito[it.destino] = {}; ordenDistritos.push(it.destino); }
+      porDistrito[it.destino][it.material] = (porDistrito[it.destino][it.material]||0) + it.cantidad;
+    });
+  });
+  ordenDistritos.sort();
+  materiales.sort();
+  return { materiales: materiales, distritos: ordenDistritos, porDistrito: porDistrito };
+}
+
+function renderDistPivot() {
+  var head = document.getElementById('distPivotHead');
+  var body = document.getElementById('distPivotBody');
+  if(!head || !body) return;
+  var data = buildDistPivotData();
+  if(!data.distritos.length) {
+    head.innerHTML = '<th>Distrito</th>';
+    body.innerHTML = '<tr><td class="empty" style="text-align:center">Sin distribuciones registradas</td></tr>';
+    return;
+  }
+  head.innerHTML = '<th>Distrito</th>' + data.materiales.map(function(m){ return '<th>'+m+'</th>'; }).join('') + '<th>Total</th>';
+  body.innerHTML = data.distritos.map(function(dist) {
+    var fila = data.porDistrito[dist];
+    var total = 0;
+    var celdas = data.materiales.map(function(m) {
+      var v = fila[m]||0;
+      total += v;
+      return '<td style="text-align:center;'+(v?'color:var(--teal);font-weight:700':'color:var(--t3)')+'">'+(v||'—')+'</td>';
+    }).join('');
+    return '<tr><td style="font-weight:700;white-space:nowrap">'+dBadge(dist)+'</td>'+celdas+'<td style="text-align:center;font-weight:700;color:var(--gold)">'+total+'</td></tr>';
+  }).join('');
+}
+
+function exportarExcelDistPivot() {
+  var data = buildDistPivotData();
+  if(!data.distritos.length){ toast('Sin datos para exportar','warn'); return; }
+  var csv = 'Distrito,' + data.materiales.map(function(m){ return '"'+m+'"'; }).join(',') + ',Total\n';
+  data.distritos.forEach(function(dist) {
+    var fila = data.porDistrito[dist];
+    var total = 0;
+    var celdas = data.materiales.map(function(m){ var v = fila[m]||0; total += v; return v||''; }).join(',');
+    csv += '"'+dist+'",' + celdas + ',' + total + '\n';
+  });
+  var blob = new Blob(['﻿'+csv], {type:'text/csv;charset=utf-8;'});
+  var link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = 'AsoBodex_Distribuciones_Resumen_'+new Date().toISOString().slice(0,10)+'.csv';
+  link.click();
+  toast('Excel resumen exportado');
 }
 
 // ── TABLA DETALLADA DE DISTRIBUCIONES (vista admin) ──────────
