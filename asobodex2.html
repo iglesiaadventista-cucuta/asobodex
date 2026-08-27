@@ -450,7 +450,7 @@ textarea.fc{resize:vertical;min-height:70px}
         <div style="font-size:16px;font-weight:700">Historial de movimientos</div>
         <div style="display:flex;gap:8px">
           <select class="fc" style="width:auto;padding:7px 10px;font-size:12px" id="fHTipo" onchange="renderHist()">
-            <option value="">Todos</option><option value="ingreso">Ingresos</option><option value="despacho">Despachos</option><option value="distribucion">Distribuciones</option><option value="envio_ocasional">Envíos ocasionales</option>
+            <option value="">Todos</option><option value="ingreso">Ingresos</option><option value="despacho">Despachos</option><option value="pedido">Entregas a pastores (pedidos)</option><option value="distribucion">Distribuciones</option><option value="envio_ocasional">Envíos ocasionales</option>
           </select>
           <button class="btn bgold bsm" onclick="exportarExcel()">⬇ Excel</button>
           <button class="btn bsm" onclick="exportarPDF()">⬇ PDF</button>
@@ -1811,9 +1811,11 @@ async function enviarConGuia(btn) {
       await window._fbOps.updateDoc(window._fbOps.doc(window._db,'pedidos',id), updateData);
       toast('Pedido marcado como enviado');
 
-      // Descontar inventario
+      // Descontar inventario y dejar SIEMPRE constancia en el historial,
+      // aunque el material no coincida exactamente con el inventario actual
       var st = window._serverTimestamp;
       var items = r.items || [];
+      var sinInventario = [];
       for(var i=0; i<items.length; i++) {
         var pedItem = items[i];
         if(pedItem.rechazado) continue;
@@ -1821,13 +1823,18 @@ async function enviarConGuia(btn) {
         if(invItem) {
           var nuevaCant = Math.max(0, invItem.cantidad - pedItem.cantidad);
           await window._fbOps.updateDoc(window._fbOps.doc(window._db,'materiales',invItem.id), {cantidad:nuevaCant});
-          await window._fbOps.addDoc(window._fbOps.collection(window._db,'movimientos'), {
-            tipo:'despacho', material:pedItem.nombre, cantidad:pedItem.cantidad,
-            departamento:invItem.departamento, responsable:STATE.user?STATE.user.nombre:'Admin',
-            recibe:r.pastor+' — '+r.distrito,
-            nota:'Entrega pedido '+id, fecha:st()
-          });
+        } else {
+          sinInventario.push(pedItem.nombre);
         }
+        await window._fbOps.addDoc(window._fbOps.collection(window._db,'movimientos'), {
+          tipo:'despacho', material:pedItem.nombre, cantidad:pedItem.cantidad,
+          departamento: invItem ? invItem.departamento : '',
+          responsable:STATE.user?STATE.user.nombre:'Admin',
+          recibe:r.pastor+' — '+r.distrito,
+          nota: invItem ? 'Entrega de pedido aprobado' : 'Entrega de pedido aprobado — material no encontrado en inventario, no se descontó stock',
+          origenPedido:true, pedidoId:id,
+          fecha:st()
+        });
         var nombreLower = pedItem.nombre.toLowerCase();
         if(nombreLower.indexOf('diacono')!==-1 || nombreLower.indexOf('diácono')!==-1) {
           var iglesia = pedItem.iglesia || r.pastor || 'No especificada';
@@ -1836,6 +1843,9 @@ async function enviarConGuia(btn) {
           console.log('Detectado libro de diáconos:', iglesia, distrito, codigoIgl);
           await registrarLibroDiacono(iglesia, distrito, codigoIgl);
         }
+      }
+      if(sinInventario.length) {
+        toast('⚠️ No se descontó stock de: '+sinInventario.join(', ')+' (no coincide con ningún material del inventario)','warn');
       }
 
       // Notificar al pastor con link de la guía
@@ -1870,11 +1880,14 @@ async function enviarConGuia(btn) {
 
 function renderHist() {
   const t=document.getElementById('fHTipo')?.value||'';
-  let m=STATE.movements; if(t) m=m.filter(x=>x.tipo===t);
+  let m=STATE.movements;
+  if(t==='pedido') m=m.filter(x=>x.origenPedido===true);
+  else if(t) m=m.filter(x=>x.tipo===t);
   document.getElementById('histTbl').innerHTML=m.length?m.map(function(x){
     var esSalida = x.tipo==='despacho' || x.tipo==='distribucion' || x.tipo==='envio_ocasional';
-    var bc = x.tipo==='despacho' ? 'btl' : x.tipo==='distribucion' ? 'bgd' : x.tipo==='envio_ocasional' ? 'bre' : 'bok';
-    var tl = x.tipo==='despacho' ? 'Despacho' : x.tipo==='distribucion' ? 'Distribución' : x.tipo==='envio_ocasional' ? 'Envío ocasional' : 'Ingreso';
+    var esPedido = x.tipo==='despacho' && x.origenPedido===true;
+    var bc = esPedido ? 'bgd' : x.tipo==='despacho' ? 'btl' : x.tipo==='distribucion' ? 'bgd' : x.tipo==='envio_ocasional' ? 'bre' : 'bok';
+    var tl = esPedido ? '📤 Pedido → pastor' : x.tipo==='despacho' ? 'Despacho' : x.tipo==='distribucion' ? 'Distribución' : x.tipo==='envio_ocasional' ? 'Envío ocasional' : 'Ingreso';
     var cl = x.tipo==='despacho' ? 'var(--red)' : x.tipo==='distribucion' ? 'var(--gold)' : x.tipo==='envio_ocasional' ? 'var(--red)' : 'var(--green)';
     var sg = esSalida ? '-' : '+';
     return '<tr>'+
@@ -1882,7 +1895,7 @@ function renderHist() {
       '<td><span class="b '+bc+'">'+tl+'</span></td>'+
       '<td style="font-weight:600">'+x.material+'</td>'+
       '<td style="color:'+cl+';font-weight:700;font-family:monospace">'+sg+x.cantidad+'</td>'+
-      '<td>'+dBadge(x.departamento)+'</td>'+
+      '<td>'+(x.departamento?dBadge(x.departamento):'<span style="color:var(--t3)">—</span>')+'</td>'+
       '<td style="color:var(--t2)">'+(x.responsable||'')+'</td>'+
       '<td style="color:var(--t2)">'+(x.recibe||'')+'</td>'+
       '</tr>';
@@ -3653,13 +3666,15 @@ async function enviarEnvioOcasional() {
 function exportarExcel() {
   var movs = STATE.movements;
   var t = document.getElementById('fHTipo')?.value||'';
-  if(t) movs = movs.filter(function(x){ return x.tipo===t; });
+  if(t==='pedido') movs = movs.filter(function(x){ return x.origenPedido===true; });
+  else if(t) movs = movs.filter(function(x){ return x.tipo===t; });
   if(!movs.length){ toast('Sin datos para exportar','warn'); return; }
 
   var csv = 'Fecha,Tipo,Material,Cantidad,Departamento,Entregado por,Recibido por\n';
   movs.forEach(function(m){
     var fecha = m.fecha ? new Date(m.fecha).toLocaleString('es-CO') : '';
-    csv += '"'+fecha+'","'+(m.tipo||'')+'","'+(m.material||'')+'",'+(m.cantidad||0)+',"'+(m.departamento||'')+'","'+(m.responsable||'')+'","'+(m.recibe||'')+'"\n';
+    var tipoTxt = (m.tipo==='despacho' && m.origenPedido) ? 'pedido a pastor' : (m.tipo||'');
+    csv += '"'+fecha+'","'+tipoTxt+'","'+(m.material||'')+'",'+(m.cantidad||0)+',"'+(m.departamento||'')+'","'+(m.responsable||'')+'","'+(m.recibe||'')+'"\n';
   });
 
   var blob = new Blob(['\uFEFF'+csv], {type:'text/csv;charset=utf-8;'});
@@ -3674,7 +3689,8 @@ function exportarExcel() {
 function exportarPDF() {
   var movs = STATE.movements;
   var t = document.getElementById('fHTipo')?.value||'';
-  if(t) movs = movs.filter(function(x){ return x.tipo===t; });
+  if(t==='pedido') movs = movs.filter(function(x){ return x.origenPedido===true; });
+  else if(t) movs = movs.filter(function(x){ return x.tipo===t; });
   if(!movs.length){ toast('Sin datos para exportar','warn'); return; }
 
   var html = '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>AsoBodex Historial</title>' +
@@ -3692,7 +3708,8 @@ function exportarPDF() {
     var fecha = m.fecha ? new Date(m.fecha).toLocaleString('es-CO') : '';
     var cls = m.tipo==='despacho' ? 'des' : m.tipo==='distribucion' ? 'dis' : 'ing';
     var sig = (m.tipo==='despacho' || m.tipo==='distribucion') ? '-' : '+';
-    html += '<tr><td>'+fecha+'</td><td>'+m.tipo+'</td><td>'+m.material+'</td>' +
+    var tipoTxt = (m.tipo==='despacho' && m.origenPedido) ? 'pedido a pastor' : m.tipo;
+    html += '<tr><td>'+fecha+'</td><td>'+tipoTxt+'</td><td>'+m.material+'</td>' +
       '<td class="'+cls+'">'+sig+m.cantidad+'</td><td>'+(m.departamento||'')+'</td>' +
       '<td>'+(m.responsable||'')+'</td><td>'+(m.recibe||'')+'</td></tr>';
   });
