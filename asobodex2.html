@@ -26,6 +26,13 @@
 }
 html,body{height:100%;background:var(--navy);color:var(--t1);font-family:var(--font);font-size:14px;line-height:1.5;overflow:hidden}
 
+/* ── DATA LOADING OVERLAY ── */
+#dataLoading{position:fixed;inset:0;background:rgba(11,25,41,.88);z-index:998;display:none;align-items:center;justify-content:center;flex-direction:column;gap:14px}
+#dataLoading.show{display:flex}
+#dataLoading .dlspin{width:36px;height:36px;border:3px solid var(--bd);border-top-color:var(--teal);border-radius:50%;animation:dlspin .8s linear infinite}
+@keyframes dlspin{to{transform:rotate(360deg)}}
+#dataLoading .dltxt{font-size:13px;color:var(--t2);font-weight:500}
+
 /* ── LOGIN ── */
 #loginWrap{display:flex;position:fixed;inset:0;z-index:999;background:var(--navy);align-items:center;justify-content:center;flex-direction:column}
 #loginWrap.hidden{display:none}
@@ -802,6 +809,8 @@ textarea.fc{resize:vertical;min-height:70px}
 
 <div id="toast"></div>
 
+<div id="dataLoading"><div class="dlspin"></div><div class="dltxt">Sincronizando inventario…</div></div>
+
 <div class="mo" id="mBienvenida"><div class="modal" style="max-width:520px">
   <div id="bienvenidaBody"></div>
   <div class="mf"><button class="btn bpri" style="width:100%;padding:11px" onclick="closeM('mBienvenida')">Entendido — Ir al sistema ✓</button></div>
@@ -960,7 +969,7 @@ const DISTRITOS = ['CUCUTA CENTRAL', 'RENACER', 'SION', 'ATALAYA', 'ZULIA', 'VI�
 // ── ESTADO ───────────────────────────────────────────────────
 const STATE = {
   user: null,
-  items: [...MATERIALES_INIT],
+  items: [],
   movements: [],
   requests: [],
   libros: [],
@@ -1075,6 +1084,11 @@ function loginOk(u) {
   const isReader = u.role==='reader';
   const isFacturador = u.role==='facturador';
   const isMasterAdmin = u.uid === '7k3swOaRgLTcO5faxjp5dx4iPkR2';
+  var dl = document.getElementById('dataLoading');
+  if(dl){
+    dl.classList.add('show');
+    setTimeout(function(){ dl.classList.remove('show'); }, 8000); // salvavidas: no dejar el overlay pegado si Firestore no responde
+  }
   setTimeout(()=>mostrarBienvenida(u), 300);
   document.querySelectorAll('.admin-tab').forEach(el=>el.style.display=isAdmin?'':'none');
   document.querySelectorAll('.admin-el').forEach(el=>el.style.display=isAdmin?'':'none');
@@ -1152,6 +1166,13 @@ function startListeners(db) {
       });
     });
     renderAll();
+    var dl = document.getElementById('dataLoading');
+    if(dl) dl.classList.remove('show');
+  }, function(err) {
+    console.error('Error cargando materiales:', err);
+    var dl = document.getElementById('dataLoading');
+    if(dl) dl.classList.remove('show');
+    toast('Error sincronizando inventario: '+err.message,'err');
   }));
 
   window._unsubscribers.push(ons(q(col(db,'movimientos'), ord('fecha','desc')), function(snap) {
@@ -1227,6 +1248,8 @@ function doLogout() {
   window._fbOps = null;
   
   // Show login, hide app
+  var dl = document.getElementById('dataLoading');
+  if(dl) dl.classList.remove('show');
   document.getElementById('app').classList.remove('show');
   document.getElementById('loginWrap').classList.remove('hidden');
   document.getElementById('lEmail').value = '';
