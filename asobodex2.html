@@ -2885,7 +2885,7 @@ function renderDistTabla() {
   dists.forEach(function(d) {
     (d.detalle||[]).forEach(function(it, idx) {
       filas.push({
-        distId: d.id, fecha: d.fecha, revisado: !!d.revisado,
+        distId: d.id, idx: idx, fecha: d.fecha, revisado: !!d.revisado,
         responsable: d.responsable, destino: it.destino,
         material: it.material, cantidad: it.cantidad,
         rowKey: d.id+'_'+idx
@@ -2896,6 +2896,7 @@ function renderDistTabla() {
   tbl.innerHTML = filas.map(function(f) {
     var estadoBadge = f.revisado ? '<span class="b bok">Revisada</span>' : '<span class="b bwn">Sin revisar</span>';
     var accionBtn = f.revisado ? '' : '<button class="btn bsm bpri" onclick="marcarDistribucionRevisada(\''+f.distId+'\')">✓ Marcar vista</button>';
+    var delBtn = '<button class="btn bic bsm bred" onclick="eliminarDistribucionItem(\''+f.distId+'\','+f.idx+')" title="Eliminar y devolver al inventario">🗑️</button>';
     return '<tr>'+
       '<td style="font-size:11px;color:var(--t2);white-space:nowrap">'+fmtD(f.fecha)+'</td>'+
       '<td>'+estadoBadge+'</td>'+
@@ -2903,7 +2904,7 @@ function renderDistTabla() {
       '<td style="font-weight:600">'+f.material+'</td>'+
       '<td style="color:var(--gold);font-weight:700;font-family:monospace">-'+f.cantidad+'</td>'+
       '<td style="color:var(--t2)">'+f.responsable+'</td>'+
-      '<td>'+accionBtn+'</td>'+
+      '<td style="display:flex;gap:6px;justify-content:flex-end">'+accionBtn+delBtn+'</td>'+
       '</tr>';
   }).join('');
 }
@@ -2916,6 +2917,47 @@ async function marcarDistribucionRevisada(distId) {
     } else {
       toast('Sin conexión a Firebase','err');
     }
+  } catch(e) {
+    toast('Error: '+e.message,'err');
+    console.error(e);
+  }
+}
+
+// Elimina un material de una distribución (ej. registro de prueba) y devuelve la cantidad al inventario
+async function eliminarDistribucionItem(distId, idx) {
+  var d = (STATE.distribuciones||[]).find(function(x){ return x.id===distId; });
+  if(!d) return;
+  var detalle = d.detalle || [];
+  var it = detalle[idx];
+  if(!it) return;
+  if(!confirm('¿Eliminar esta entrega: '+it.cantidad+' x '+it.material+' → '+it.destino+'?\n\nLa cantidad se devolverá al inventario.')) return;
+
+  try {
+    if(!window._db || !window._fbOps) { toast('Sin conexión a Firebase','err'); return; }
+    var st = window._serverTimestamp;
+
+    // Devolver la cantidad al inventario
+    var item = STATE.items.find(function(i){ return i.nombre===it.material; });
+    if(item) {
+      await window._fbOps.updateDoc(window._fbOps.doc(window._db,'materiales',item.id), {cantidad: item.cantidad + it.cantidad});
+      await window._fbOps.addDoc(window._fbOps.collection(window._db,'movimientos'), {
+        tipo:'ingreso', material:item.nombre, cantidad:it.cantidad,
+        departamento:item.departamento, responsable: STATE.user ? STATE.user.nombre : 'Administrador',
+        nota:'Corrección: se eliminó una distribución hacia '+it.destino+' y se devolvió el stock', fecha: st()
+      });
+    } else {
+      toast('⚠️ "'+it.material+'" ya no existe en el inventario, no se pudo devolver el stock','warn');
+    }
+
+    // Quitar el material de la distribución (o borrar todo el registro si era el único)
+    var nuevoDetalle = detalle.slice(0,idx).concat(detalle.slice(idx+1));
+    if(nuevoDetalle.length) {
+      await window._fbOps.updateDoc(window._fbOps.doc(window._db,'distribuciones',distId), {detalle: nuevoDetalle, totalItems: nuevoDetalle.length});
+    } else {
+      await window._fbOps.deleteDoc(window._fbOps.doc(window._db,'distribuciones',distId));
+    }
+
+    toast('✓ Entrega eliminada'+(item?' y stock devuelto':''));
   } catch(e) {
     toast('Error: '+e.message,'err');
     console.error(e);
