@@ -347,7 +347,7 @@ function enviarNotificacionEmail(pastor, correo, distrito, items, otros) {
 const PASTORES = [{nombre:'Aaron Rodolfo Chacon Davila',correo:'aaron.chacon@asonoreste.org'},{nombre:'Alberto Monroy',correo:'alberto.monroy@asonoreste.org'},{nombre:'Alonso Gonzalez',correo:'alonso.gonzalez@asonoreste.org'},{nombre:'Andres Micaan',correo:'andres.micaan@asonoreste.org'},{nombre:'Anyelo Ruiz Lopez',correo:'anyelo.ruiz@asonoreste.org'},{nombre:'Braham Parada',correo:'braham.parada@asonoreste.org'},{nombre:'Cristian Piamba',correo:'cristian.piamba@asonoreste.org'},{nombre:'Daniel Grandas',correo:'daniel.grandas@asonoreste.org'},{nombre:'Daniel Quintero',correo:'daniel.quintero@asonoreste.org'},{nombre:'David Perez',correo:'david.perez@asonoreste.org'},{nombre:'Deison Leon',correo:'deison.leon@asonoreste.org'},{nombre:'Deivy Duran',correo:'deivy.duran@asonoreste.org'},{nombre:'Edwin Velandia',correo:'edwin.velandia@asonoreste.org'},{nombre:'Edwing Adrian Blanco Martinez',correo:'edwing.blanco@asonoreste.org'},{nombre:'Eibar Jose Villamizar Lozada',correo:'eibar.villamizar@asonoreste.org'},{nombre:'Elexis Delgado',correo:'elexis.delgado@asonoreste.org'},{nombre:'Fabian Alcaraz',correo:'fabian.alcaraz@asonoreste.org'},{nombre:'Felix Diaz',correo:'felix.diaz@asonoreste.org'},{nombre:'Ferney Maldonado',correo:'ferney.maldonado@asonoreste.org'},{nombre:'Gerson Mesa',correo:'gerson.mesa@asonoreste.org'},{nombre:'Gleyffer Zapata',correo:'gleyffer.zapata@asonoreste.org'},{nombre:'Henry Villamizar',correo:'henry.villamizar@asonoreste.org'},{nombre:'Ismael Abril',correo:'ismael.abril@asonoreste.org'},{nombre:'Ismael Herreño',correo:'ismael.herreno@asonoreste.org'},{nombre:'Ivan Rincon',correo:'ivan.rincon@asonoreste.org'},{nombre:'Jaime Perez',correo:'jaime.perez@asonoreste.org'},{nombre:'Jarlys Ospina',correo:'jarlys.ospina@asonoreste.org'},{nombre:'Jeferson Rodriguez',correo:'jeferson.rodriguez@asonoreste.org'},{nombre:'Jesus Crespo',correo:'jesus.crespo@asonoreste.org'},{nombre:'Jolman Mujica',correo:'jolman.mujica@asonoreste.org'},{nombre:'Jonathan Rey Cuevas',correo:'jonathan.rey@asonoreste.org'},{nombre:'Jonathan Roa',correo:'jonathan.roa@asonoreste.org'},{nombre:'Jorge Garcia',correo:'jorge.garcia@asonoreste.org'},{nombre:'Jorge Luis Sierra Alvis',correo:'jorge.sierra@asonoreste.org'},{nombre:'Jose Manuel Romero',correo:'jose.romero@asonoreste.org'},{nombre:'Julian Agudelo',correo:'julian.agudelo@asonoreste.org'},{nombre:'Luis Rendon',correo:'luis.rendon@asonoreste.org'},{nombre:'Manuel Beleño',correo:'manuel.beleno@asonoreste.org'},{nombre:'Manuel Cadena',correo:'manuel.cadena@asonoreste.org'},{nombre:'Marco Medina',correo:'marcos.medina@asonoreste.org'},{nombre:'Mauricio Antonio Ruiz Cordero',correo:'mauricio.ruiz@asonoreste.org'},{nombre:'Nelson Carreño',correo:'nelson.carreno@asonoreste.org'},{nombre:'Rafael Peña',correo:'rafael.pena@asonoreste.org'},{nombre:'Samuel Marin',correo:'samuel.marin@asonoreste.org'},{nombre:'Teodomiro Carvajal',correo:'teodomiro.carvajal@asonoreste.org'},{nombre:'Yamith Ledesma',correo:'yamith.ledesma@asonoreste.org'},{nombre:'Yanpier Garcia',correo:'yanpier.garcia@asonoreste.org'},{nombre:'Yeison Chaverra',correo:'yeison.chaverra@asonoreste.org'},{nombre:'Yoneider Uriel Barajas Buitrago',correo:'yoneider.barajas@asonoreste.org'},{nombre:'Zeudiel Hernandez',correo:'zeudiel.hernandez@asonoreste.org'}];
 const MATS = [
   {id:'m1', nombre:'Talonario de Diáconos', tipo:'diacono', min:1, max:null,
-   regla:'Debes indicar el nombre de la iglesia que lo solicita y recuerda enviar <strong>FOTO DE LA ÚLTIMA HOJA DEL LIBRO DE DIÁCONOS DE LA IGLESIA SOLICITADA</strong> al WhatsApp de la persona encargada en la asociación.'},
+   regla:'Indica el nombre de la iglesia y, si lo sabes, el código de iglesia o consecutivo del talonario de cada libro. Si tienes el talonario anterior, adjunta la foto aquí mismo — ya no es necesario enviarla por WhatsApp.'},
   {id:'m2', nombre:'Envío Mensual de Fondos Distritales', tipo:'normal', min:1, max:10},
   {id:'m3', nombre:'Arqueo de Caja', tipo:'libre', min:1, max:null, regla:'Tiene un valor de <strong>$3.000 c/u</strong>. Puedes pedir los que necesites.'},
   {id:'m4', nombre:'Orden de Culto', tipo:'normal', min:1, max:10},
@@ -393,14 +393,13 @@ function buildMats() {
   document.getElementById('matList').innerHTML = MATS.map(m => {
     const rangoTxt = m.max ? 'Mín. '+m.min+' — Máx. '+m.max : (m.tipo==='libre'?'Cantidad libre':'Mín. '+m.min);
     const campoExtra = m.tipo==='diacono'
-      ? `<div id="iglesias_${m.id}" style="margin-top:10px"><label style="font-size:11px;font-weight:600;color:var(--t2);text-transform:uppercase;letter-spacing:.06em;display:block;margin-bottom:5px">Nombre de la(s) iglesia(s)</label>
-         <input type="text" class="fc" id="igl_${m.id}_1" placeholder="Iglesia 1 — Ej: Iglesia Central Cúcuta" onclick="event.stopPropagation()" style="margin-bottom:6px"></div>`
+      ? `<div id="iglesias_${m.id}" style="margin-top:10px"></div>`
       : m.tipo==='iglesia'
       ? `<div style="margin-top:10px"><label style="font-size:11px;font-weight:600;color:var(--t2);text-transform:uppercase;letter-spacing:.06em;display:block;margin-bottom:5px">Nombre de la iglesia</label>
          <input type="text" class="fc" id="igl_${m.id}" placeholder="Ej: Iglesia Central Cúcuta" onclick="event.stopPropagation()"></div>`
       : '';
     const nota = m.regla
-      ? `<div class="${m.tipo==='diacono'?'note-red':'note-gold'}">${m.regla}</div>`
+      ? `<div class="${m.tipo==='diacono'?'note-teal':'note-gold'}">${m.regla}</div>`
       : '';
     return `<div class="mat" id="mat_${m.id}">
       <div class="mat-top" onclick="toggleMat('${m.id}')">
@@ -425,6 +424,7 @@ function buildMats() {
       </div>
     </div>`;
   }).join('');
+  MATS.filter(m => m.tipo==='diacono').forEach(m => actualizarCamposIglesia(m.id, m.min));
 }
 
 function toggleMat(id) {
@@ -455,17 +455,27 @@ function validarQty(id) {
 function actualizarCamposIglesia(id, cantidad) {
   var cont = document.getElementById('iglesias_'+id);
   if(!cont) return;
-  // Guardar valores existentes
-  var valoresActuales = [];
+  // Guardar valores existentes (nombre de iglesia y código) antes de reconstruir
+  var iglesiasPrevias = [];
+  var codigosPrevios = [];
   for(var i=1; i<=50; i++) {
-    var inp = document.getElementById('igl_'+id+'_'+i);
-    if(inp) valoresActuales.push(inp.value);
-    else break;
+    var inpIgl = document.getElementById('igl_'+id+'_'+i);
+    if(!inpIgl) break;
+    iglesiasPrevias.push(inpIgl.value);
+    var inpCod = document.getElementById('cod_'+id+'_'+i);
+    codigosPrevios.push(inpCod ? inpCod.value : '');
   }
-  var html = '<label style="font-size:11px;font-weight:600;color:var(--t2);text-transform:uppercase;letter-spacing:.06em;display:block;margin-bottom:5px">Nombre de la(s) iglesia(s) — ' + cantidad + ' libro(s)</label>';
+  var html = '<label style="font-size:11px;font-weight:600;color:var(--t2);text-transform:uppercase;letter-spacing:.06em;display:block;margin-bottom:5px">Datos de cada libro — ' + cantidad + ' libro(s)</label>';
   for(var i=1; i<=cantidad; i++) {
-    var valorPrevio = valoresActuales[i-1] || '';
-    html += '<input type="text" class="fc" id="igl_'+id+'_'+i+'" placeholder="Iglesia '+i+' — Ej: Iglesia Central Cúcuta" onclick="event.stopPropagation()" style="margin-bottom:6px" value="'+valorPrevio+'">';
+    var iglPrevia = iglesiasPrevias[i-1] || '';
+    var codPrevio = codigosPrevios[i-1] || '';
+    html += '<div style="background:var(--navy4);border:1px solid var(--bd);border-radius:8px;padding:10px;margin-bottom:8px">' +
+      '<div style="font-size:10px;font-weight:700;color:var(--teal);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Libro ' + i + '</div>' +
+      '<input type="text" class="fc" id="igl_'+id+'_'+i+'" placeholder="Nombre de la iglesia" onclick="event.stopPropagation()" style="margin-bottom:6px" value="'+iglPrevia+'">' +
+      '<input type="text" class="fc" id="cod_'+id+'_'+i+'" placeholder="Código de iglesia / Consecutivo (opcional)" onclick="event.stopPropagation()" style="margin-bottom:6px" value="'+codPrevio+'">' +
+      '<label style="font-size:10px;font-weight:600;color:var(--t2);text-transform:uppercase;letter-spacing:.06em;display:block;margin-bottom:5px">Foto del talonario anterior (opcional)</label>' +
+      '<input type="file" accept="image/*" class="fc" id="foto_'+id+'_'+i+'" style="padding:8px" onclick="event.stopPropagation()">' +
+    '</div>';
   }
   cont.innerHTML = html;
 }
@@ -506,7 +516,6 @@ function irPaso3() {
 
   const nombre = document.getElementById('pNombre').value.trim();
   const dist = document.getElementById('pDistrito').value;
-  const tieneDiacono = sel.some(m=>m.tipo==='diacono');
 
   let resHtml = `<div style="background:var(--navy3);border-radius:var(--r);padding:12px 14px;margin-bottom:14px;font-size:13px">
     <div style="margin-bottom:4px"><span style="color:var(--t2)">Pastor:</span> <strong>${nombre}</strong></div>
@@ -520,7 +529,9 @@ function irPaso3() {
       if(m.tipo==='diacono') {
         for(var ig=1; ig<=parseInt(qty); ig++) {
           var iglNom = document.getElementById('igl_'+m.id+'_'+ig)?.value.trim()||'';
-          resHtml += `<div class="res-item"><div class="res-label"><div class="res-name">${m.nombre}</div><div class="res-sub">Iglesia: ${iglNom}</div></div><div class="res-qty">1</div></div>`;
+          var codNom = document.getElementById('cod_'+m.id+'_'+ig)?.value.trim()||'';
+          var tieneFoto = document.getElementById('foto_'+m.id+'_'+ig)?.files.length > 0;
+          resHtml += `<div class="res-item"><div class="res-label"><div class="res-name">${m.nombre}</div><div class="res-sub">Iglesia: ${iglNom}${codNom?' · Código: '+codNom:''}${tieneFoto?' · 📷 Foto adjunta':''}</div></div><div class="res-qty">1</div></div>`;
         }
       } else {
         const igl = document.getElementById('igl_'+m.id)?.value.trim()||'';
@@ -532,7 +543,6 @@ function irPaso3() {
     const otrosCant = document.getElementById('pOtrosCantidad').value.trim();
     resHtml += `<div class="note-gold" style="margin-top:8px">📝 Otro: ${otros}${otrosCant?' x'+otrosCant:''}</div>`;
   }
-  if (tieneDiacono) resHtml += `<div class="note-red" style="margin-top:10px">📸 <strong>IMPORTANTE:</strong> Envía FOTO DE LA ÚLTIMA HOJA DEL LIBRO DE DIÁCONOS DE LA IGLESIA SOLICITADA al WhatsApp de la persona encargada en la asociación para procesar este pedido.</div>`;
 
   document.getElementById('resumen').innerHTML = resHtml;
   irPaso(3);
@@ -568,17 +578,31 @@ async function enviar() {
   const otrosCantidad = parseInt(document.getElementById('pOtrosCantidad').value)||0;
 
   var items = [];
-  sel.forEach(function(m) {
+  for (const m of sel) {
     if(m.tipo==='diacono') {
       var qty = parseInt(document.getElementById('qty_'+m.id) ? document.getElementById('qty_'+m.id).value : m.min) || m.min;
       for(var ig=1; ig<=qty; ig++) {
         var iglNom = document.getElementById('igl_'+m.id+'_'+ig) ? document.getElementById('igl_'+m.id+'_'+ig).value.trim() : '';
-        items.push({
-          id: m.id,
-          nombre: m.nombre,
-          cantidad: 1,
-          iglesia: iglNom
-        });
+        var codNom = document.getElementById('cod_'+m.id+'_'+ig) ? document.getElementById('cod_'+m.id+'_'+ig).value.trim() : '';
+        var itemData = { id: m.id, nombre: m.nombre, cantidad: 1, iglesia: iglNom, codigoIglesia: codNom };
+
+        var fotoInput = document.getElementById('foto_'+m.id+'_'+ig);
+        if(fotoInput && fotoInput.files[0]) {
+          try {
+            toast('Subiendo foto del talonario...');
+            var formData = new FormData();
+            formData.append('image', fotoInput.files[0]);
+            formData.append('key', '90ef17531a96e2ba46f944b5987756a4');
+            var imgResp = await fetch('https://api.imgbb.com/1/upload', { method:'POST', body:formData });
+            var imgData = await imgResp.json();
+            if(imgData.success) itemData.fotoUrl = imgData.data.url;
+            else toast('No se pudo subir la foto, el pedido se enviará sin ella','warn');
+          } catch(e) {
+            console.error('Error subiendo foto del talonario:', e);
+            toast('No se pudo subir la foto, el pedido se enviará sin ella','warn');
+          }
+        }
+        items.push(itemData);
       }
     } else {
       items.push({
@@ -588,13 +612,12 @@ async function enviar() {
         iglesia: (document.getElementById('igl_'+m.id) ? document.getElementById('igl_'+m.id).value.trim() : '')
       });
     }
-  });
+  }
 
   const ref    = 'ABX-'+dist.slice(0,3).toUpperCase()+'-'+Date.now().toString().slice(-5);
-  const fotoReq = sel.some(function(m){ return m.tipo==='diacono'; });
   const pedido = {
     ref, pastor:nombre, distrito:dist, items, otros, otrosCantidad, otrosVinculado:false,
-    fotoRequerida: fotoReq, estado:'pendiente',
+    estado:'pendiente',
     fecha: new Date().toISOString()
   };
 
@@ -606,7 +629,7 @@ async function enviar() {
     const db    = getFirestore(fbapp);
     await addDoc(collection(db, 'pedidos'), {
       ref, pastor:nombre, correo:correo, distrito:dist, items, otros, otrosCantidad, otrosVinculado:false,
-      fotoRequerida: fotoReq, estado:'pendiente',
+      estado:'pendiente',
       fecha: serverTimestamp()
     });
     console.log('Pedido guardado en Firebase');
