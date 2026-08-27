@@ -57,8 +57,8 @@ textarea.fc{resize:vertical;min-height:70px}
 .mat-label{flex:1}
 .mat-name{font-size:13px;font-weight:600;color:var(--t1)}
 .mat-rule{font-size:11px;color:var(--t2);margin-top:2px}
-.mat-body{display:none;padding:0 14px 14px;border-top:1px solid var(--bd);margin-top:0}
-.mat.sel .mat-body{display:block;padding-top:12px}
+.mat-body{max-height:0;overflow:hidden;padding:0 14px;border-top:1px solid transparent;margin-top:0;transition:max-height .25s ease}
+.mat.sel .mat-body{max-height:2500px;padding-top:12px;padding-bottom:14px;border-top-color:var(--bd)}
 .qty-row{display:flex;align-items:center;gap:10px;margin-top:8px}
 .qty-btn{width:36px;height:36px;border:1px solid var(--bd2);background:var(--navy4);border-radius:8px;color:var(--t1);font-size:18px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .15s}
 .qty-btn:hover{background:var(--teal);border-color:var(--teal)}
@@ -415,7 +415,7 @@ function buildMats() {
           <label style="font-size:11px;font-weight:600;color:var(--t2);text-transform:uppercase;letter-spacing:.06em;display:block;margin-bottom:6px">Cantidad</label>
           <div class="qty-row">
             <button class="qty-btn" onclick="event.stopPropagation();cambiarQty('${m.id}',-1)">−</button>
-            <input type="number" class="qty-input" id="qty_${m.id}" value="${m.min}" min="${m.min}" ${m.max?'max="'+m.max+'"':''} onclick="event.stopPropagation()" oninput="validarQty('${m.id}')">
+            <input type="number" class="qty-input" id="qty_${m.id}" value="${m.min}" min="${m.min}" ${m.max?'max="'+m.max+'"':''} onclick="event.stopPropagation()" oninput="colorearQtyLive('${m.id}')" onblur="validarQty('${m.id}')">
             <button class="qty-btn" onclick="event.stopPropagation();cambiarQty('${m.id}',1)">+</button>
           </div>
           <div class="qty-range" id="range_${m.id}">${m.max?'Mín: '+m.min+' / Máx: '+m.max:'Mín: '+m.min}</div>
@@ -442,6 +442,18 @@ function cambiarQty(id, delta) {
   if(m.tipo==='diacono') actualizarCamposIglesia(id, v);
 }
 
+// Mientras el pastor está escribiendo: solo da retroalimentación visual, sin corregir el valor
+// (corregirlo en cada tecla hacía imposible digitar un número de varias cifras)
+function colorearQtyLive(id) {
+  const m = MATS.find(x=>x.id===id);
+  const inp = document.getElementById('qty_'+id);
+  if (inp.value === '') return;
+  const v = parseInt(inp.value);
+  if (isNaN(v)) return;
+  colorearQty(id, m, v);
+}
+
+// Al salir del campo (blur): ahí sí se corrige al mínimo/máximo y se actualizan los campos de libros
 function validarQty(id) {
   const m = MATS.find(x=>x.id===id);
   const inp = document.getElementById('qty_'+id);

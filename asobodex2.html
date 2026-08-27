@@ -1839,8 +1839,8 @@ async function enviarConGuia(btn) {
           origenPedido:true, pedidoId:id,
           fecha:st()
         });
-        var nombreLower = pedItem.nombre.toLowerCase();
-        if(nombreLower.indexOf('diacono')!==-1 || nombreLower.indexOf('diácono')!==-1) {
+        var nombreSinTildes = pedItem.nombre.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
+        if(nombreSinTildes.indexOf('diacono')!==-1) {
           var iglesia = pedItem.iglesia || r.pastor || 'No especificada';
           var distrito = r.distrito ? r.distrito.replace(' (Solicitud interna)','') : 'No especificado';
           var codigoIgl = pedItem.codigoIglesia || '';
