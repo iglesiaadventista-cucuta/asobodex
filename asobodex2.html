@@ -343,31 +343,36 @@ textarea.fc{resize:vertical;min-height:70px}
 
     <!-- DESPACHAR -->
     <div class="view" id="view-despachar">
+      <div style="margin-bottom:14px">
+        <div style="font-size:16px;font-weight:700">📤 Despachar materiales</div>
+        <div style="font-size:12px;color:var(--t2);margin-top:2px">Agrega uno o varios materiales a la lista y confírmalos en un solo despacho. El departamento se toma automáticamente del inventario.</div>
+      </div>
       <div class="g2">
         <div>
-          <div class="panel"><div class="ph"><span class="pt">Registrar despacho</span></div><div class="pb">
-            <div class="fg"><label>Material</label>
-              <div style="position:relative">
-                <input type="text" class="fc" id="dItemSearch" placeholder="Escribe el nombre del material..." autocomplete="off" oninput="buscarMaterial(this.value)" onfocus="buscarMaterial(this.value)">
-                <input type="hidden" id="dItem">
-                <div id="dItemResults" style="display:none;position:absolute;top:100%;left:0;right:0;max-height:200px;overflow-y:auto;background:var(--navy2);border:1px solid var(--bd);border-radius:0 0 var(--r) var(--r);z-index:100"></div>
+          <div class="panel"><div class="ph"><span class="pt">Nuevo despacho</span></div><div class="pb">
+            <div style="background:var(--navy3);border-radius:var(--r2);padding:14px;margin-bottom:12px">
+              <div style="font-size:12px;font-weight:600;color:var(--teal);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px">1️⃣ Agregar materiales</div>
+              <div class="fg"><label>Material</label>
+                <div style="position:relative">
+                  <input type="text" class="fc" id="dItemSearch" placeholder="Escribe el nombre del material..." autocomplete="off" oninput="buscarMaterial(this.value)" onfocus="buscarMaterial(this.value)">
+                  <input type="hidden" id="dItem">
+                  <div id="dItemResults" style="display:none;position:absolute;top:100%;left:0;right:0;max-height:200px;overflow-y:auto;background:var(--navy2);border:1px solid var(--bd);border-radius:0 0 var(--r) var(--r);z-index:100"></div>
+                </div>
               </div>
+              <div id="dDeptInfo" style="display:none;background:var(--teal-light);border-radius:var(--r);padding:10px 14px;font-size:12px;color:var(--teal);margin-bottom:8px"></div>
+              <div class="f2">
+                <div class="fg"><label>Disponible</label><div style="font-size:20px;font-weight:700;color:var(--teal);padding:6px 0" id="dAvail">—</div></div>
+                <div class="fg"><label>Cantidad</label><input type="number" class="fc" id="dCant" min="1" placeholder="0"></div>
+              </div>
+              <button class="btn bgrn" style="width:100%" onclick="agregarAlCarritoDesp()">＋ Agregar a la lista</button>
             </div>
-            <div class="f2">
-              <div class="fg"><label>Disponible en bodega</label><div style="font-size:22px;font-weight:700;color:var(--teal);padding:6px 0" id="dAvail">—</div></div>
-              <div class="fg"><label>Cantidad a despachar</label><input type="number" class="fc" id="dCant" min="1" placeholder="0"></div>
-            </div>
-            <div class="fg"><label>Departamento destino</label><select class="fc" id="dDept"><option value="">Seleccionar...</option><option value="Mayordomía">Mayordomía</option>
-<option value="Evangelismo">Evangelismo</option>
-<option value="Salud">Salud</option>
-<option value="Secretaria">Secretaria</option>
-<option value="Hogar y Familia">Hogar y Familia</option>
-<option value="Ministerio de la Mujer">Ministerio de la Mujer</option>
-<option value="Niños y Adolescentes">Niños y Adolescentes</option></select></div>
+            <div style="font-size:12px;font-weight:600;color:var(--t2);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">📦 Materiales en este despacho (<span id="despCarritoCount">0</span>)</div>
+            <div id="despCarritoItems" style="margin-bottom:12px"><div class="empty">Agrega materiales a la lista</div></div>
+            <div style="font-size:12px;font-weight:600;color:var(--teal);text-transform:uppercase;letter-spacing:.06em;margin:14px 0 10px">2️⃣ Datos de entrega</div>
             <div class="fg"><label>Entregado por</label><input type="text" class="fc" id="dResp" placeholder="Nombre de quien entrega"></div>
             <div class="fg"><label>Recibido por / Destino</label><input type="text" class="fc" id="dRecibe" placeholder="Pastor, distrito o persona que recibe"></div>
             <div class="fg"><label>Observación</label><input type="text" class="fc" id="dNota" placeholder="Ej: Pedido aprobado del distrito Sión"></div>
-            <button class="btn bpri" style="width:100%;margin-top:4px" onclick="doDespacho()">✓ Confirmar despacho — descontar inventario</button>
+            <button class="btn bpri" style="width:100%;margin-top:4px" onclick="registrarDespacho()">✓ Confirmar despacho — descontar inventario</button>
           </div></div>
         </div>
         <div>
@@ -876,11 +881,23 @@ function notificarEmail(tipo, data) {
     solicitud_interna: 'Solicitud interna de ' + (data.solicitante||'') + ': ' + (data.cantidad||'') + ' x ' + (data.material||'') + ' (' + (data.departamento||'') + ') — Motivo: ' + (data.motivo||'')
   };
 
+  var mensaje = msgs[tipo] || tipo;
+  var asunto = data.distrito || data.departamento || tipo;
+
+  if(tipo === 'despacho_multiple') {
+    var lineas = (data.detalle||[]).map(function(d){ return '• ' + d.cantidad + ' x ' + d.material + ' (' + d.departamento + ')'; }).join('\n');
+    mensaje = 'Despacho de ' + (data.detalle||[]).length + ' material(es) → ' + (data.recibe||'—') + ' (Entregado por: ' + data.responsable + '):\n' + lineas;
+    if(data.bajos && data.bajos.length) {
+      mensaje += '\n\n⚠️ Stock bajo tras este despacho:\n' + data.bajos.map(function(b){ return '• '+b.material+': quedan '+b.cantidad; }).join('\n');
+    }
+    asunto = 'Despacho de materiales' + (data.recibe ? ' — ' + data.recibe : '');
+  }
+
   // Enviar al admin
   emailjs.send(EJS.service, EJS.template, {
     to_email: EJS.email,
-    asunto: data.distrito || data.departamento || tipo,
-    mensaje: msgs[tipo] || tipo,
+    asunto: asunto,
+    mensaje: mensaje,
     name: data.solicitante || data.responsable || 'Sistema',
     email: EJS.email
   }).then(function(r) { console.log('Email admin OK:', r.status); })
@@ -888,7 +905,7 @@ function notificarEmail(tipo, data) {
 
   // Enviar al pastor/solicitante
   if(data.correo && data.correo.includes('@')) {
-    var msgPastor = 'Hola,\n\n' + (msgs[tipo]||tipo) + '\n\nAsoBodex — Asociación del Noreste Colombiano';
+    var msgPastor = 'Hola,\n\n' + mensaje + '\n\nAsoBodex — Asociación del Noreste Colombiano';
     emailjs.send(EJS.service, EJS.template, {
       to_email: data.correo,
       asunto: 'Tu solicitud — ' + (data.distrito||data.departamento||'AsoBodex'),
@@ -2048,6 +2065,63 @@ function seleccionarMaterial(id) {
   document.getElementById('dItem').value = id;
   document.getElementById('dItemResults').style.display = 'none';
   updDisp();
+  var info = document.getElementById('dDeptInfo');
+  if(info) {
+    info.style.display = 'block';
+    info.innerHTML = '🏷️ Departamento: <strong>'+item.departamento+'</strong> (asignado automáticamente)';
+  }
+}
+
+// ── CARRITO DE DESPACHO (varios materiales en un solo despacho) ─
+var _carritoDesp = [];
+
+function agregarAlCarritoDesp() {
+  var matId = document.getElementById('dItem').value;
+  var cant = parseInt(document.getElementById('dCant').value)||0;
+  if(!matId){ toast('Selecciona un material','warn'); return; }
+  if(!cant || cant<1){ toast('Ingresa una cantidad válida','warn'); return; }
+  var item = STATE.items.find(function(i){ return i.id===matId; });
+  if(!item) return;
+
+  var yaEnCarrito = _carritoDesp.filter(function(c){ return c.materialId===matId; })
+    .reduce(function(sum,c){ return sum + c.cantidad; }, 0);
+  var disponible = item.cantidad - yaEnCarrito;
+  if(cant > disponible){ toast('⚠️ Solo quedan '+disponible+' disponibles de '+item.nombre,'warn'); return; }
+
+  _carritoDesp.push({materialId:matId, material:item.nombre, cantidad:cant, departamento:item.departamento});
+  toast('✓ Agregado: '+item.nombre+' x'+cant);
+
+  document.getElementById('dItemSearch').value = '';
+  document.getElementById('dItem').value = '';
+  document.getElementById('dCant').value = '';
+  document.getElementById('dAvail').textContent = '—';
+  var info = document.getElementById('dDeptInfo');
+  if(info) info.style.display = 'none';
+  renderCarritoDesp();
+}
+
+function quitarDelCarritoDesp(idx) {
+  _carritoDesp.splice(idx, 1);
+  renderCarritoDesp();
+}
+
+function renderCarritoDesp() {
+  var cont = document.getElementById('despCarritoItems');
+  var countEl = document.getElementById('despCarritoCount');
+  if(!cont) return;
+  if(countEl) countEl.textContent = _carritoDesp.length;
+  if(!_carritoDesp.length) {
+    cont.innerHTML = '<div class="empty">Agrega materiales a la lista</div>';
+    return;
+  }
+  cont.innerHTML = _carritoDesp.map(function(c, idx) {
+    return '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;background:var(--navy3);border-radius:var(--r);margin-bottom:6px">' +
+      '<div><div style="font-size:13px;font-weight:600">'+c.material+'</div>' +
+      '<div style="font-size:11px;color:var(--t2);margin-top:2px">'+c.departamento+'</div></div>' +
+      '<div style="display:flex;align-items:center;gap:10px">' +
+      '<span style="font-size:14px;font-weight:700;color:var(--teal)">x'+c.cantidad+'</span>' +
+      '<button class="btn bic bsm bred" onclick="quitarDelCarritoDesp('+idx+')" title="Quitar">✕</button></div></div>';
+  }).join('');
 }
 
 // Cerrar resultados al hacer clic fuera
@@ -2931,40 +3005,59 @@ function renderMisSolicitudes() {
 }
 
 // Despacho
-async function doDespacho() {
-  var id   = document.getElementById('dItem').value;
-  var cant = parseInt(document.getElementById('dCant').value)||0;
-  var dept = document.getElementById('dDept').value;
+async function registrarDespacho() {
   var resp = document.getElementById('dResp').value.trim();
   var recibe = document.getElementById('dRecibe').value.trim();
   var nota = document.getElementById('dNota').value.trim();
-  if(!id||!cant||!dept||!resp){ toast('Completa material, cantidad, departamento y responsable','warn'); return; }
-  var item = STATE.items.find(function(i){ return i.id===id; });
-  if(!item) return;
-  if(cant>item.cantidad){ toast('No hay suficiente stock. Disponible: '+item.cantidad,'err'); return; }
+  if(!resp){ toast('Ingresa el nombre de quien entrega','warn'); return; }
+  if(!_carritoDesp.length){ toast('Agrega al menos un material a la lista','warn'); return; }
 
-  var btn = document.querySelector('[onclick="doDespacho()"]');
+  // Agrupar cantidades por material (por si se agregó el mismo material más de una vez)
+  var totalesPorMaterial = {};
+  _carritoDesp.forEach(function(c){
+    totalesPorMaterial[c.materialId] = (totalesPorMaterial[c.materialId]||0) + c.cantidad;
+  });
+  for(var matId in totalesPorMaterial) {
+    var item = STATE.items.find(function(i){ return i.id===matId; });
+    if(!item || totalesPorMaterial[matId] > item.cantidad) {
+      toast('⚠️ Stock insuficiente para '+(item?item.nombre:matId),'err');
+      return;
+    }
+  }
+
+  var btn = document.querySelector('[onclick="registrarDespacho()"]');
   if(btn){ btn.textContent='Despachando...'; btn.disabled=true; }
 
   try {
     if(window._db && window._fbOps) {
       var st = window._serverTimestamp;
-      var nuevaCant = item.cantidad - cant;
-      await window._fbOps.updateDoc(window._fbOps.doc(window._db,'materiales',id), {cantidad: nuevaCant});
-      await window._fbOps.addDoc(window._fbOps.collection(window._db,'movimientos'), {
-        tipo:'despacho', material:item.nombre, cantidad:cant,
-        departamento:dept, responsable:resp, recibe:recibe,
-        nota:nota||'Despacho de material', fecha:st()
-      });
-      toast('Despachado: '+cant+' x '+item.nombre+' → '+dept);
-      notificarEmail('despacho', {material:item.nombre, cantidad:cant, departamento:dept, responsable:resp});
-      if(nuevaCant < (item.minimo||50)) {
-        notificarEmail('stock_bajo', {material:item.nombre, cantidad:nuevaCant});
+      var bajos = [];
+
+      // Descontar inventario y registrar un movimiento por cada material
+      for(var matId2 in totalesPorMaterial) {
+        var item2 = STATE.items.find(function(i){ return i.id===matId2; });
+        var nuevaCant = item2.cantidad - totalesPorMaterial[matId2];
+        await window._fbOps.updateDoc(window._fbOps.doc(window._db,'materiales',matId2), {cantidad: nuevaCant});
+        await window._fbOps.addDoc(window._fbOps.collection(window._db,'movimientos'), {
+          tipo:'despacho', material:item2.nombre, cantidad:totalesPorMaterial[matId2],
+          departamento:item2.departamento, responsable:resp, recibe:recibe,
+          nota:nota||'Despacho de material', fecha:st()
+        });
+        if(nuevaCant < (item2.minimo||50)) bajos.push({material:item2.nombre, cantidad:nuevaCant});
       }
-      ['dItem','dCant','dDept','dResp','dRecibe','dNota'].forEach(function(x){
+
+      var detalle = _carritoDesp.map(function(c){ return {material:c.material, cantidad:c.cantidad, departamento:c.departamento}; });
+      toast('✓ Despacho registrado con '+detalle.length+' material'+(detalle.length>1?'es':''));
+      notificarEmail('despacho_multiple', {detalle:detalle, responsable:resp, recibe:recibe, bajos:bajos});
+
+      _carritoDesp = [];
+      renderCarritoDesp();
+      ['dItem','dCant','dResp','dRecibe','dNota'].forEach(function(x){
         var el=document.getElementById(x); if(el) el.value='';
       });
       document.getElementById('dAvail').textContent='—';
+      var info = document.getElementById('dDeptInfo');
+      if(info) info.style.display = 'none';
     } else {
       toast('Sin conexion a Firebase','err');
     }
