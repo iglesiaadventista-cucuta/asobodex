@@ -984,7 +984,7 @@ const MATERIALES_INIT = [
 
 // ── REGLAS DE MATERIALES PEDIBLES ────────────────────────────
 const MATERIALES_PEDIDO = [
-  {id:'p1', nombre:'Talonario de Diáconos', tipo:'diacono', nota:'Indica el código de la iglesia (o el consecutivo del talonario). Si tienes el talonario anterior, adjunta una foto aquí mismo — ya no es necesario enviarla por WhatsApp.', minimo:1, maximo:null},
+  {id:'p1', nombre:'Talonario de Diáconos', tipo:'diacono', nota:'Escribe solo el número que aparece en tu talonario (sin letras). Si tienes el talonario anterior, adjunta una foto aquí mismo — ya no es necesario enviarla por WhatsApp.', minimo:1, maximo:null},
   {id:'p2', nombre:'Envío Mensual de Fondos Distritales', tipo:'normal', minimo:1, maximo:10},
   {id:'p3', nombre:'Arqueo de Caja', tipo:'valor', nota:'Valor: $3.000 c/u — puede pedir los que necesite', minimo:1, maximo:null},
   {id:'p4', nombre:'Orden de Culto', tipo:'normal', minimo:1, maximo:10},
@@ -1966,8 +1966,8 @@ function buildPedidoForm() {
       '<input type="text" class="fc" id="igl_'+m.id+'" placeholder="Ej: Iglesia Central" onclick="event.stopPropagation()"></div>' : '';
     var diaconoExtraHtml = (m.tipo==='diacono') ?
       '<div class="f2" style="margin-top:10px">' +
-        '<div class="fg" style="margin-bottom:0"><label style="font-size:11px;font-weight:600;color:var(--t2);text-transform:uppercase;letter-spacing:.06em;display:block;margin-bottom:5px">Código de iglesia / Consecutivo</label>' +
-          '<input type="text" class="fc" id="cod_'+m.id+'" placeholder="Ej: EDN-014 (déjalo en blanco si no lo sabes)" onclick="event.stopPropagation()"></div>' +
+        '<div class="fg" style="margin-bottom:0"><label style="font-size:11px;font-weight:600;color:var(--t2);text-transform:uppercase;letter-spacing:.06em;display:block;margin-bottom:5px">Número del talonario (solo el número, sin letras)</label>' +
+          '<input type="text" class="fc" id="cod_'+m.id+'" placeholder="Ej: 167150 (déjalo en blanco si no lo sabes)" onclick="event.stopPropagation()"></div>' +
         '<div class="fg" style="margin-bottom:0"><label style="font-size:11px;font-weight:600;color:var(--t2);text-transform:uppercase;letter-spacing:.06em;display:block;margin-bottom:5px">Foto del talonario anterior (opcional)</label>' +
           '<input type="file" accept="image/*" class="fc" id="foto_'+m.id+'" style="padding:8px" onclick="event.stopPropagation()"></div>' +
       '</div>' : '';
@@ -2597,9 +2597,18 @@ function renderLibros() {
   document.getElementById('librosResumen').innerHTML = resumenHtml || '<div class="empty">Sin datos</div>';
 }
 
+// El pastor solo escribe el número que aparece en su talonario (ej: 167150);
+// el prefijo "TCN" lo asigna la asociación automáticamente al registrar el libro
+function normalizarCodigoLibro(codigo) {
+  if(!codigo) return '';
+  var limpio = codigo.trim();
+  if(!limpio) return '';
+  return 'TCN' + limpio.replace(/^tcn/i, '').trim();
+}
+
 // Busca si esa iglesia ya tiene un código de libro asignado en entregas anteriores
-// (los pastores no conocen el significado del código, así que no se les pide —
-// el sistema lo recupera solo a partir de lo que ya se ha registrado)
+// (el pastor solo escribe el número la primera vez; de ahí en adelante el sistema
+// lo recupera solo a partir de lo que ya se ha registrado)
 function buscarCodigoIglesiaExistente(iglesia) {
   if(!iglesia) return '';
   var nombreNorm = iglesia.trim().toLowerCase();
@@ -2620,13 +2629,14 @@ async function registrarLibroDiacono(iglesia, distrito, codigoIglesia) {
   if(!window._db || !window._fbOps) { console.error('Firebase no disponible para registrar libro'); return; }
   try {
     var st = window._serverTimestamp;
+    var codigoFinal = normalizarCodigoLibro(codigoIglesia);
     await window._fbOps.addDoc(window._fbOps.collection(window._db,'libros_diaconos'), {
       iglesia: iglesia,
       distrito: distrito,
-      codigoIglesia: codigoIglesia || '',
+      codigoIglesia: codigoFinal,
       fechaEntrega: st()
     });
-    console.log('✓ Libro de diáconos registrado:', iglesia, distrito, codigoIglesia||'');
+    console.log('✓ Libro de diáconos registrado:', iglesia, distrito, codigoFinal);
     toast('📖 Libro registrado: '+iglesia);
   } catch(e) {
     console.error('✗ Error registrando libro:', e);
@@ -2636,12 +2646,14 @@ async function registrarLibroDiacono(iglesia, distrito, codigoIglesia) {
 
 // Editar código de iglesia en libro
 async function editarCodigoLibro(id, codigoActual) {
-  var nuevo = prompt('Ingresa el código de la iglesia:', codigoActual || '');
+  var soloNumero = (codigoActual||'').replace(/^tcn/i,'').trim();
+  var nuevo = prompt('Ingresa el número del talonario (el prefijo TCN se agrega solo):', soloNumero);
   if(nuevo === null) return;
   try {
     if(window._db && window._fbOps) {
-      await window._fbOps.updateDoc(window._fbOps.doc(window._db,'libros_diaconos',id), {codigoIglesia: nuevo.trim()});
-      toast('✓ Código actualizado: ' + nuevo.trim());
+      var codigoFinal = normalizarCodigoLibro(nuevo);
+      await window._fbOps.updateDoc(window._fbOps.doc(window._db,'libros_diaconos',id), {codigoIglesia: codigoFinal});
+      toast('✓ Código actualizado: ' + codigoFinal);
     }
   } catch(e) {
     toast('Error: '+e.message,'err');
