@@ -1879,7 +1879,9 @@ async function enviarConGuia(btn) {
         if(nombreSinTildes.indexOf('diacono')!==-1) {
           var iglesia = pedItem.iglesia || r.pastor || 'No especificada';
           var distrito = r.distrito ? r.distrito.replace(' (Solicitud interna)','') : 'No especificado';
-          var codigoIgl = pedItem.codigoIglesia || '';
+          // El pastor no conoce el código, así que se recupera del historial de esa iglesia
+          // en Libros; si nunca ha tenido uno, se registra sin código para asignarlo manualmente
+          var codigoIgl = buscarCodigoIglesiaExistente(iglesia) || pedItem.codigoIglesia || '';
           console.log('Detectado libro de diáconos:', iglesia, distrito, codigoIgl);
           await registrarLibroDiacono(iglesia, distrito, codigoIgl);
         }
@@ -2592,6 +2594,24 @@ function renderLibros() {
   document.getElementById('librosAlertas').innerHTML = alertasHtml || '<div class="empty">Sin alertas — todas las iglesias están al día</div>';
   document.getElementById('librosTbl').innerHTML = filasHtml || '<tr><td colspan="7" style="text-align:center;color:var(--t2);padding:20px">Sin registros de libros</td></tr>';
   document.getElementById('librosResumen').innerHTML = resumenHtml || '<div class="empty">Sin datos</div>';
+}
+
+// Busca si esa iglesia ya tiene un código de libro asignado en entregas anteriores
+// (los pastores no conocen el significado del código, así que no se les pide —
+// el sistema lo recupera solo a partir de lo que ya se ha registrado)
+function buscarCodigoIglesiaExistente(iglesia) {
+  if(!iglesia) return '';
+  var nombreNorm = iglesia.trim().toLowerCase();
+  var libros = STATE.libros || [];
+  var match = libros.find(function(l){ return (l.iglesia||'').trim().toLowerCase()===nombreNorm && l.codigoIglesia; });
+  if(!match) {
+    // Coincidencia parcial (ej. "Iglesia Alfa y Omega" vs "ALFA Y OMEGA")
+    match = libros.find(function(l){
+      var n = (l.iglesia||'').trim().toLowerCase();
+      return n && l.codigoIglesia && (n.indexOf(nombreNorm)!==-1 || nombreNorm.indexOf(n)!==-1);
+    });
+  }
+  return match ? match.codigoIglesia : '';
 }
 
 // Registrar entrega de libro de diáconos
@@ -3661,10 +3681,12 @@ async function enviarEnvioOcasional() {
         fecha:st()
       });
 
-      // Si el material es un libro de diáconos, registrar también en el módulo de Libros
+      // Si el material es un libro de diáconos, registrar también en el módulo de Libros,
+      // recuperando el código ya asignado a esa iglesia si existe
       if(esLibroDiaconos) {
-        console.log('Detectado libro de diáconos en envío ocasional:', iglesia, distrito);
-        await registrarLibroDiacono(iglesia, distrito||'No especificado', '');
+        var codigoIglExistente = buscarCodigoIglesiaExistente(iglesia);
+        console.log('Detectado libro de diáconos en envío ocasional:', iglesia, distrito, codigoIglExistente);
+        await registrarLibroDiacono(iglesia, distrito||'No especificado', codigoIglExistente);
       }
     }
 
