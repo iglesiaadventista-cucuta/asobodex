@@ -401,8 +401,10 @@ textarea.fc{resize:vertical;min-height:70px}
         </div>
       </div>
 
-      <!-- ENVÍO OCASIONAL -->
-      <div class="panel admin-el" id="envioOcasionalPanel" style="display:none;margin-bottom:14px">
+      <!-- ENVÍO OCASIONAL (la vista "Solicitudes" ya es master-only, así que este panel
+           no debe llevar la clase admin-el: ese toggle global pisa el display:none que
+           controla si el panel está abierto o cerrado) -->
+      <div class="panel" id="envioOcasionalPanel" style="display:none;margin-bottom:14px">
         <div class="ph"><span class="pt">✉️ Envío ocasional a pastor</span></div>
         <div class="pb">
           <div style="font-size:12px;color:var(--t2);margin-bottom:12px">Para materiales que no fueron pedidos pero se le envían de igual forma. Se le notificará por correo con la foto de la guía.</div>
