@@ -1879,9 +1879,10 @@ async function enviarConGuia(btn) {
         if(nombreSinTildes.indexOf('diacono')!==-1) {
           var iglesia = pedItem.iglesia || r.pastor || 'No especificada';
           var distrito = r.distrito ? r.distrito.replace(' (Solicitud interna)','') : 'No especificado';
-          // El pastor no conoce el código, así que se recupera del historial de esa iglesia
-          // en Libros; si nunca ha tenido uno, se registra sin código para asignarlo manualmente
-          var codigoIgl = buscarCodigoIglesiaExistente(iglesia) || pedItem.codigoIglesia || '';
+          // El pastor sí puede leer el código en su talonario físico, así que lo que
+          // escribió manda; si lo dejó en blanco, se recupera del historial de esa
+          // iglesia en Libros (si nunca ha tenido código, queda pendiente de asignar)
+          var codigoIgl = pedItem.codigoIglesia || buscarCodigoIglesiaExistente(iglesia) || '';
           console.log('Detectado libro de diáconos:', iglesia, distrito, codigoIgl);
           await registrarLibroDiacono(iglesia, distrito, codigoIgl);
         }
