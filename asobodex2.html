@@ -430,6 +430,9 @@ textarea.fc{resize:vertical;min-height:70px}
               <input type="number" class="fc" id="eoCantidad" min="1" placeholder="0">
             </div>
           </div>
+          <div class="fg"><label>Observación / Descripción del material (opcional)</label>
+            <input type="text" class="fc" id="eoObservacion" placeholder="Útil si el material no está registrado en el inventario">
+          </div>
           <div class="fg" id="eoIglesiaBlock" style="display:none;background:var(--teal-light);border-radius:var(--r);padding:12px 14px">
             <label>📖 Nombre de la iglesia (libro de diáconos) *</label>
             <input type="text" class="fc" id="eoIglesia" placeholder="Ej: Iglesia Central Cúcuta">
@@ -3567,10 +3570,11 @@ async function enviarEnvioOcasional() {
   var cantidad = parseInt(document.getElementById('eoCantidad').value)||0;
   var fotoInput = document.getElementById('eoFoto');
   var iglesia = document.getElementById('eoIglesia').value.trim();
+  var observacion = document.getElementById('eoObservacion').value.trim();
 
   if(!pastor){ toast('Ingresa el nombre del pastor','warn'); return; }
   if(!correo || !correo.includes('@')){ toast('Ingresa un correo válido','warn'); return; }
-  if(!material){ toast('Selecciona el material enviado','warn'); return; }
+  if(!material){ toast('Escribe el material enviado','warn'); return; }
   if(!cantidad || cantidad<1){ toast('Ingresa una cantidad válida','warn'); return; }
   if(!fotoInput || !fotoInput.files[0]){ toast('Adjunta la foto de la guía de envío','warn'); return; }
 
@@ -3578,9 +3582,10 @@ async function enviarEnvioOcasional() {
   var esLibroDiaconos = materialLower0.indexOf('diacono')!==-1 || materialLower0.indexOf('diácono')!==-1;
   if(esLibroDiaconos && !iglesia){ toast('Ingresa el nombre de la iglesia para el libro de diáconos','warn'); return; }
 
+  // El material puede no estar en el inventario (ej. algo puntual que no se maneja en bodega);
+  // en ese caso se envía igual, solo que no se descuenta stock.
   var item = STATE.items.find(function(i){ return i.nombre===material; });
-  if(!item){ toast('Material no encontrado en inventario','err'); return; }
-  if(cantidad > item.cantidad){ toast('⚠️ Solo quedan '+item.cantidad+' disponibles de '+material,'warn'); return; }
+  if(item && cantidad > item.cantidad){ toast('⚠️ Solo quedan '+item.cantidad+' disponibles de '+material,'warn'); return; }
 
   var btn = document.querySelector('[onclick="enviarEnvioOcasional()"]');
   if(btn){ btn.textContent='Enviando...'; btn.disabled=true; }
@@ -3605,15 +3610,19 @@ async function enviarEnvioOcasional() {
     if(window._db && window._fbOps) {
       var st = window._serverTimestamp;
 
-      // Descontar del inventario
-      var nuevaCant = item.cantidad - cantidad;
-      await window._fbOps.updateDoc(window._fbOps.doc(window._db,'materiales',item.id), {cantidad: nuevaCant});
+      // Descontar del inventario solo si el material existe ahí
+      if(item) {
+        var nuevaCant = item.cantidad - cantidad;
+        await window._fbOps.updateDoc(window._fbOps.doc(window._db,'materiales',item.id), {cantidad: nuevaCant});
+      }
 
       // Registrar en Firestore para historial
       await window._fbOps.addDoc(window._fbOps.collection(window._db,'movimientos'), {
         tipo:'envio_ocasional', material:material, cantidad:cantidad,
         departamento:distrito||'No especificado', responsable:STATE.user?STATE.user.nombre:'Admin',
-        recibe:pastor, nota:'Envío ocasional — guía: '+guiaUrl, guiaUrl:guiaUrl,
+        recibe:pastor,
+        nota:'Envío ocasional — guía: '+guiaUrl + (observacion?' — '+observacion:'') + (item?'':' — material no está en inventario, no se descontó stock'),
+        descripcion: observacion||'', guiaUrl:guiaUrl,
         fecha:st()
       });
 
@@ -3627,6 +3636,7 @@ async function enviarEnvioOcasional() {
     // Enviar correo al pastor
     if(window.emailjs) {
       var msg = 'Hola '+pastor+',\n\nLe informamos que se le ha enviado el siguiente material:\n\n• '+material+' x'+cantidad+
+        (observacion ? '\n  Observación: '+observacion : '') +
         (distrito ? '\nDistrito: '+distrito : '') +
         '\n\n📷 Foto de la guía de envío: '+guiaUrl+
         '\n\nAsoBodex — Asociación del Noreste Colombiano';
@@ -3652,6 +3662,7 @@ async function enviarEnvioOcasional() {
     document.getElementById('eoMaterialSearch').value = '';
     materialSel.value = '';
     document.getElementById('eoCantidad').value = '';
+    document.getElementById('eoObservacion').value = '';
     document.getElementById('eoIglesia').value = '';
     document.getElementById('eoIglesiaBlock').style.display = 'none';
     fotoInput.value = '';
@@ -3676,7 +3687,8 @@ function filtrarMovimientosHistorial() {
       (x.responsable||'').toLowerCase().indexOf(q)!==-1 ||
       (x.recibe||'').toLowerCase().indexOf(q)!==-1 ||
       (x.departamento||'').toLowerCase().indexOf(q)!==-1 ||
-      (x.nota||'').toLowerCase().indexOf(q)!==-1;
+      (x.nota||'').toLowerCase().indexOf(q)!==-1 ||
+      (x.descripcion||'').toLowerCase().indexOf(q)!==-1;
   });
   return movs;
 }
