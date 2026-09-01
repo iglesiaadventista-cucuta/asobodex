@@ -895,7 +895,7 @@ function notificarEmail(tipo, data) {
     stock_bajo: '⚠️ Stock bajo: ' + data.material + ' solo quedan ' + data.cantidad + ' unidades',
     pedido_aprobado: 'Pedido aprobado para distrito: ' + data.distrito,
     pedido_entregado: 'Pedido marcado como enviado para: ' + data.distrito,
-    pedido_rechazado: 'Pedido rechazado para: ' + data.distrito,
+    pedido_rechazado: 'Pedido rechazado para: ' + data.distrito + (data.motivo ? '\nMotivo: ' + data.motivo : ''),
     solicitud_interna: 'Solicitud interna de ' + (data.solicitante||'') + ': ' + (data.cantidad||'') + ' x ' + (data.material||'') + ' (' + (data.departamento||'') + ') — Motivo: ' + (data.motivo||'')
   };
 
@@ -909,6 +909,11 @@ function notificarEmail(tipo, data) {
       mensaje += '\n\n⚠️ Stock bajo tras este despacho:\n' + data.bajos.map(function(b){ return '• '+b.material+': quedan '+b.cantidad; }).join('\n');
     }
     asunto = 'Despacho de materiales' + (data.recibe ? ' — ' + data.recibe : '');
+  }
+
+  if(tipo === 'pedido_aprobado' && data.rechazadosDetalle && data.rechazadosDetalle.length) {
+    mensaje += '\n\n⚠️ Los siguientes artículos NO fueron aprobados:\n' +
+      data.rechazadosDetalle.map(function(x){ return '• ' + x.nombre + (x.motivo ? ' — Motivo: ' + x.motivo : ' — Sin motivo indicado'); }).join('\n');
   }
 
   // Enviar al admin
@@ -1574,13 +1579,18 @@ function renderSols() {
   document.getElementById('solsContainer').innerHTML = html;
 }
 
-function solFootBtn(btn) {
-  accionSol(btn.getAttribute("data-id"), btn.getAttribute("data-estado"));
-  closeM("mVerSol"); renderAll();
+// Pide el motivo (opcional) y rechaza el pedido completo — se incluye en el correo al pastor
+function rechazarConMotivo(id) {
+  var motivo = prompt('¿Por qué se rechaza este pedido? (opcional, se incluirá en el correo al pastor)');
+  if(motivo === null) return; // el admin canceló, no se rechaza nada
+  accionSol(id, 'rechazado', motivo.trim());
+  closeM('mVerSol');
+  renderAll();
 }
 function accionSolBtn(btn) {
   var id = btn.getAttribute('data-id');
   var estado = btn.getAttribute('data-estado');
+  if(estado === 'rechazado') { rechazarConMotivo(id); return; }
   accionSol(id, estado);
 }
 
@@ -1597,10 +1607,17 @@ function verDetalleSol(btn) {
     var rechazado = it.rechazado === true;
     var checkHtml = '';
     if(isAdmin && r.estado === 'pendiente') {
-      checkHtml = '<label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:11px;color:'+(rechazado?'var(--red)':'var(--green)')+'"><input type="checkbox" class="item-check" data-idx="'+i+'" '+(rechazado?'':'checked')+' style="width:16px;height:16px"> '+(rechazado?'Rechazado':'Aprobado')+'</label>';
+      checkHtml = '<label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:11px;color:'+(rechazado?'var(--red)':'var(--green)')+'"><input type="checkbox" class="item-check" data-idx="'+i+'" '+(rechazado?'':'checked')+' onchange="toggleMotivoRechazo(this)" style="width:16px;height:16px"> '+(rechazado?'Rechazado':'Aprobado')+'</label>';
     }
     if(rechazado && r.estado !== 'pendiente') {
       checkHtml = '<span style="font-size:11px;color:var(--red);font-weight:600">RECHAZADO</span>';
+    }
+    var motivoHtml = '';
+    if(isAdmin && r.estado === 'pendiente') {
+      motivoHtml = '<div id="motivoBox_'+i+'" style="display:'+(rechazado?'block':'none')+';margin-top:8px">' +
+        '<input type="text" class="fc" id="motivo_'+i+'" placeholder="Motivo del rechazo (opcional, se incluye en el correo al pastor)" value="'+(it.motivoRechazo||'').replace(/"/g,'&quot;')+'" style="font-size:12px"></div>';
+    } else if(rechazado && it.motivoRechazo) {
+      motivoHtml = '<div style="margin-top:6px;font-size:11px;color:var(--t2)">Motivo: '+it.motivoRechazo+'</div>';
     }
     var libroInfo = '';
     if(it.codigoIglesia || it.fotoUrl) {
@@ -1615,7 +1632,7 @@ function verDetalleSol(btn) {
       (it.iglesia ? '<div style="font-size:11px;color:var(--teal)">Iglesia: ' + it.iglesia + '</div>' : '') + '</div>' +
       '<div style="display:flex;align-items:center;gap:12px">' + checkHtml +
       '<div style="font-size:18px;font-weight:700;color:var(--teal)">' + (it.cantidad||'') + '</div></div></div>' +
-      libroInfo + '</div>';
+      motivoHtml + libroInfo + '</div>';
   }
 
   document.getElementById('mSolTitle').textContent = 'Pedido — ' + (r.distrito||'');
@@ -1649,7 +1666,7 @@ function verDetalleSol(btn) {
   var footHtml = '<button class="btn" onclick="closeM(&apos;mVerSol&apos;)">Cerrar</button>';
   if (isAdmin && r.estado === 'pendiente') {
     footHtml = '<button class="btn bgrn" data-id="'+r.id+'" onclick="aprobarConItems(this)">✓ Aprobar seleccionados</button>' +
-               '<button class="btn bred" data-id="'+r.id+'" data-estado="rechazado" onclick="solFootBtn(this)">✗ Rechazar todo</button>' + footHtml;
+               '<button class="btn bred" onclick="rechazarConMotivo(\''+r.id+'\')">✗ Rechazar todo</button>' + footHtml;
   }
   if (isAdmin && r.estado === 'aprobado') {
     footHtml = '<button class="btn bpri" data-id="'+r.id+'" onclick="enviarConGuia(this)">📤 Marcar como enviado</button>' + footHtml;
@@ -1741,6 +1758,13 @@ async function vincularOtrosMaterial(btn) {
   }
 }
 
+// Muestra u oculta el campo de motivo cuando se marca/desmarca un ítem como rechazado
+function toggleMotivoRechazo(chk) {
+  var idx = chk.getAttribute('data-idx');
+  var box = document.getElementById('motivoBox_'+idx);
+  if(box) box.style.display = chk.checked ? 'none' : 'block';
+}
+
 async function aprobarConItems(btn) {
   var id = btn.getAttribute('data-id');
   var r = STATE.requests.find(function(x){ return x.id===id; });
@@ -1750,12 +1774,19 @@ async function aprobarConItems(btn) {
   var items = r.items || [];
   var itemsActualizados = [];
   var rechazados = [];
+  var rechazadosDetalle = [];
 
   checks.forEach(function(chk, idx) {
     var item = Object.assign({}, items[idx]);
     if(!chk.checked) {
+      var motivoEl = document.getElementById('motivo_'+idx);
+      var motivo = motivoEl ? motivoEl.value.trim() : '';
       item.rechazado = true;
+      item.motivoRechazo = motivo;
       rechazados.push(item.nombre);
+      rechazadosDetalle.push({nombre:item.nombre, motivo:motivo});
+    } else {
+      item.motivoRechazo = '';
     }
     itemsActualizados.push(item);
   });
@@ -1768,7 +1799,7 @@ async function aprobarConItems(btn) {
       });
       var msg = rechazados.length ? 'Aprobado parcialmente. Rechazados: ' + rechazados.join(', ') : 'Pedido aprobado completamente';
       toast(msg);
-      notificarEmail('pedido_aprobado', {distrito:r.distrito, correo:r.correo||r.email});
+      notificarEmail('pedido_aprobado', {distrito:r.distrito, correo:r.correo||r.email, rechazadosDetalle:rechazadosDetalle});
       closeM('mVerSol');
     }
   } catch(e) {
@@ -3431,15 +3462,17 @@ async function enviarPedido() {
 }
 
 // Acción sobre solicitud (aprobar/rechazar/entregar)
-async function accionSol(id, nuevoEstado) {
+async function accionSol(id, nuevoEstado, motivo) {
   var r = STATE.requests.find(function(x){ return x.id===id; });
   if(!r) return;
   try {
     if(window._db && window._fbOps) {
-      await window._fbOps.updateDoc(window._fbOps.doc(window._db,'pedidos',id), {estado:nuevoEstado});
+      var updateData = {estado:nuevoEstado};
+      if(nuevoEstado==='rechazado') updateData.motivoRechazo = motivo||'';
+      await window._fbOps.updateDoc(window._fbOps.doc(window._db,'pedidos',id), updateData);
       toast('Solicitud '+nuevoEstado+': '+r.distrito);
       if(nuevoEstado==='rechazado') {
-        notificarEmail('pedido_rechazado', {distrito:r.distrito, correo:r.correo||r.email});
+        notificarEmail('pedido_rechazado', {distrito:r.distrito, correo:r.correo||r.email, motivo:motivo});
       }
     } else {
       toast('Sin conexion a Firebase','err');
