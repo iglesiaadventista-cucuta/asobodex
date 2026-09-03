@@ -1561,13 +1561,21 @@ function renderSols() {
 
     var itemsHtml = '';
     var items = r.items || [];
+    var libroDuplicado = null;
     for (var ii = 0; ii < items.length; ii++) {
       var item = items[ii];
       itemsHtml += '<span class="rtag">' + (item.nombre||'') + ' x' + (item.cantidad||'') + (item.iglesia ? ' (' + item.iglesia + ')' : '') + (item.codigoIglesia ? ' — Cód: ' + item.codigoIglesia : '') + (item.fotoUrl ? ' 📷' : '') + '</span>';
+      var nombreSinTildesIt2 = (item.nombre||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
+      if(!libroDuplicado && item.iglesia && nombreSinTildesIt2.indexOf('diacono')!==-1) {
+        libroDuplicado = libroReciente(item.iglesia);
+      }
     }
     if (r.otros) itemsHtml += '<span class="rtag" style="border-color:var(--gold);color:var(--gold)">Otro: ' + r.otros + '</span>';
 
     var fotoHtml = r.fotoRequerida ? '<div style="margin:8px 0;padding:8px 12px;background:rgba(231,76,60,.1);border-radius:6px;font-size:12px;color:var(--red)">Requiere foto del libro de diacono</div>' : '';
+    if(libroDuplicado) {
+      fotoHtml += '<div style="margin:8px 0;padding:8px 12px;background:rgba(231,76,60,.1);border-radius:6px;font-size:12px;color:var(--red)">⚠️ Pide libro de diáconos, pero ya recibió uno hace '+libroDuplicado.meses+' mes'+(libroDuplicado.meses===1?'':'es')+'</div>';
+    }
 
     var btns = '<button class="btn bsm" onclick="verDetalleSol(this)" data-id="' + r.id + '">Ver detalle</button>';
     if (canApprove) {
@@ -1645,13 +1653,21 @@ function verDetalleSol(btn) {
         (it.fotoUrl ? '<div style="margin-top:6px"><a href="'+it.fotoUrl+'" target="_blank"><img src="'+it.fotoUrl+'" style="max-width:180px;border-radius:var(--r);border:1px solid var(--bd)"></a></div>' : '') +
       '</div>';
     }
+    var alertaReciente = '';
+    var nombreSinTildesIt = (it.nombre||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
+    if(it.iglesia && nombreSinTildesIt.indexOf('diacono')!==-1) {
+      var reciente = libroReciente(it.iglesia);
+      if(reciente) {
+        alertaReciente = '<div style="margin-top:8px;padding:8px 10px;background:rgba(231,76,60,.12);border-radius:var(--r);font-size:11px;color:var(--red)">⚠️ '+it.iglesia+' ya recibió un libro hace '+reciente.meses+' mes'+(reciente.meses===1?'':'es')+' ('+fmtD(reciente.fecha)+') — verifica si de verdad necesita uno nuevo antes de aprobar</div>';
+      }
+    }
     itemsHtml += '<div style="padding:8px 12px;background:var(--navy3);border-radius:var(--r);margin-bottom:6px;opacity:'+(rechazado && r.estado!=='pendiente'?'0.5':'1')+'">' +
       '<div style="display:flex;justify-content:space-between;align-items:center">' +
       '<div><div style="font-size:13px;font-weight:600">' + (it.nombre||'') + '</div>' +
       (it.iglesia ? '<div style="font-size:11px;color:var(--teal)">Iglesia: ' + it.iglesia + '</div>' : '') + '</div>' +
       '<div style="display:flex;align-items:center;gap:12px">' + checkHtml +
       '<div style="font-size:18px;font-weight:700;color:var(--teal)">' + (it.cantidad||'') + '</div></div></div>' +
-      motivoHtml + libroInfo + '</div>';
+      motivoHtml + libroInfo + alertaReciente + '</div>';
   }
 
   document.getElementById('mSolTitle').textContent = 'Pedido — ' + (r.distrito||'');
@@ -1903,7 +1919,15 @@ async function enviarConGuia(btn) {
           // iglesia en Libros (si nunca ha tenido código, queda pendiente de asignar)
           var codigoIgl = pedItem.codigoIglesia || buscarCodigoIglesiaExistente(iglesia) || '';
           console.log('Detectado libro de diáconos:', iglesia, distrito, codigoIgl);
-          await registrarLibroDiacono(iglesia, distrito, codigoIgl);
+
+          // Si esta iglesia ya recibió un libro hace menos de 9 meses, pedir el motivo
+          // del reenvío para que quede anotado (ej. pérdida, daño del anterior)
+          var motivoLibro = '';
+          var libroReciente_ = libroReciente(iglesia);
+          if(libroReciente_) {
+            motivoLibro = prompt('⚠️ '+iglesia+' ya recibió un libro de diáconos hace '+libroReciente_.meses+' mes'+(libroReciente_.meses===1?'':'es')+' (el '+fmtD(libroReciente_.fecha)+').\n\n¿Por qué se está enviando de nuevo? (quedará anotado en Libros)') || '';
+          }
+          await registrarLibroDiacono(iglesia, distrito, codigoIgl, motivoLibro.trim());
         }
       }
       if(sinInventario.length) {
@@ -2641,6 +2665,24 @@ function buscarCodigoIglesiaExistente(iglesia) {
     });
   }
   return match ? match.codigoIglesia : '';
+}
+
+// Detecta si una iglesia ya recibió un libro de diáconos recientemente (menos de 9 meses,
+// el mismo umbral que usa el módulo de Libros para considerar "normal" un reemplazo).
+// Sirve para avisar al admin ANTES de aprobar/enviar un pedido duplicado.
+function libroReciente(iglesia) {
+  if(!iglesia) return null;
+  var nombreNorm = iglesia.trim().toLowerCase();
+  var libros = (STATE.libros||[]).filter(function(l){
+    var n = (l.iglesia||'').trim().toLowerCase();
+    return n && (n===nombreNorm || n.indexOf(nombreNorm)!==-1 || nombreNorm.indexOf(n)!==-1);
+  });
+  if(!libros.length) return null;
+  libros.sort(function(a,b){ return b.fechaEntrega - a.fechaEntrega; });
+  var ultimo = libros[0];
+  var meses = Math.floor((new Date() - ultimo.fechaEntrega) / (1000*60*60*24*30.44));
+  if(meses < 9) return {meses:meses, fecha:ultimo.fechaEntrega, iglesia:ultimo.iglesia};
+  return null;
 }
 
 // Registrar entrega de libro de diáconos
