@@ -568,6 +568,7 @@ textarea.fc{resize:vertical;min-height:70px}
           <div style="font-size:12px;color:var(--t2);margin-top:2px">Seguimiento del tiempo de uso por iglesia y distrito</div>
         </div>
         <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn bgold bsm admin-el" onclick="abrirReenvioLibro()" style="font-size:11px;padding:7px 12px">🔄 Reenviar libro</button>
           <button class="btn bred bsm admin-el" onclick="limpiarLibros()" style="font-size:11px;padding:7px 12px">🗑 Limpiar historial</button>
           <select class="fc" style="width:auto;padding:7px 10px;font-size:12px" id="fLibDist" onchange="renderLibros()">
             <option value="">Todos los distritos</option>
@@ -833,6 +834,24 @@ textarea.fc{resize:vertical;min-height:70px}
 <div id="toast"></div>
 
 <div id="dataLoading"><div class="dlspin"></div><div class="dltxt">Sincronizando inventario…</div></div>
+
+<div class="mo" id="mReenvioLibro"><div class="modal">
+  <div class="mt">🔄 Registrar reenvío de libro</div>
+  <div class="fg"><label>Iglesia</label>
+    <input type="text" class="fc" id="rlIglesia" list="rlIglesiaList" placeholder="Nombre de la iglesia" oninput="autocompletarReenvioLibro()" onchange="autocompletarReenvioLibro()">
+    <datalist id="rlIglesiaList"></datalist>
+  </div>
+  <div class="fg"><label>Distrito</label>
+    <select class="fc" id="rlDistrito"><option value="">Seleccionar distrito...</option></select>
+  </div>
+  <div class="fg"><label>Número del talonario (solo el número, opcional)</label>
+    <input type="text" class="fc" id="rlCodigo" placeholder="Ej: 167150">
+  </div>
+  <div id="rlInfo" style="display:none;background:var(--teal-light);border-radius:var(--r);padding:10px 14px;font-size:12px;color:var(--teal);margin-bottom:8px"></div>
+  <div class="fg"><label>Motivo del reenvío *</label>
+    <input type="text" class="fc" id="rlMotivo" placeholder="Ej: Se le perdió el talonario anterior al pastor"></div>
+  <div class="mf"><button class="btn" onclick="closeM('mReenvioLibro')">Cancelar</button><button class="btn bgold" onclick="guardarReenvioLibro()">🔄 Registrar reenvío</button></div>
+</div></div>
 
 <div class="mo" id="mBienvenida"><div class="modal" style="max-width:520px">
   <div id="bienvenidaBody"></div>
@@ -2585,7 +2604,7 @@ function renderLibros() {
       var isAdmin = STATE.user && STATE.user.role === 'admin';
       var accionBtn = isAdmin ? '<td><div style="display:flex;gap:4px"><button class="btn bic bsm" onclick="editarCodigoLibro(\''+l.id+'\',\''+( l.codigoIglesia||'').replace(/'/g,'')+'\')" title="Editar código">🏷️</button><button class="btn bic bsm bred" onclick="eliminarLibro(\''+l.id+'\')" title="Eliminar">🗑</button></div></td>' : '';
       filasHtml += '<tr><td>'+l.iglesia+'</td><td style="font-family:monospace;color:var(--teal)">'+(l.codigoIglesia||'<span style="color:var(--t2)">Sin código</span>')+'</td><td>'+l.distrito+'</td>' +
-        '<td>'+fmtD(l.fechaEntrega)+'</td>' +
+        '<td>'+fmtD(l.fechaEntrega)+(l.motivo?'<div style="font-size:10px;color:var(--amber);margin-top:2px">📝 '+l.motivo+'</div>':'')+'</td>' +
         '<td>'+(idx===0 ? meses+' meses (actual)' : tiempoTxt)+'</td>' +
         '<td><span style="'+estadoClass+';padding:2px 8px;border-radius:6px;font-size:11px">'+(idx===0?estadoTxt:'Anterior')+'</span></td>' +
         '<td>#'+numEntrega+'</td>'+accionBtn+'</tr>';
@@ -2625,7 +2644,7 @@ function buscarCodigoIglesiaExistente(iglesia) {
 }
 
 // Registrar entrega de libro de diáconos
-async function registrarLibroDiacono(iglesia, distrito, codigoIglesia) {
+async function registrarLibroDiacono(iglesia, distrito, codigoIglesia, motivo) {
   if(!window._db || !window._fbOps) { console.error('Firebase no disponible para registrar libro'); return; }
   try {
     var st = window._serverTimestamp;
@@ -2634,14 +2653,74 @@ async function registrarLibroDiacono(iglesia, distrito, codigoIglesia) {
       iglesia: iglesia,
       distrito: distrito,
       codigoIglesia: codigoFinal,
+      motivo: motivo || '',
       fechaEntrega: st()
     });
-    console.log('✓ Libro de diáconos registrado:', iglesia, distrito, codigoFinal);
+    console.log('✓ Libro de diáconos registrado:', iglesia, distrito, codigoFinal, motivo||'');
     toast('📖 Libro registrado: '+iglesia);
   } catch(e) {
     console.error('✗ Error registrando libro:', e);
     toast('Error registrando libro: '+e.message,'err');
   }
+}
+
+// Registro manual de reenvío de libro (ej. cuando el pastor perdió el talonario)
+function abrirReenvioLibro() {
+  var distSel = document.getElementById('rlDistrito');
+  if(distSel) {
+    var opts = '<option value="">Seleccionar distrito...</option>';
+    DISTRITOS.forEach(function(d){ opts += '<option value="'+d+'">'+d+'</option>'; });
+    distSel.innerHTML = opts;
+  }
+  var dl = document.getElementById('rlIglesiaList');
+  if(dl) {
+    var vistos = {};
+    var optsIgl = '';
+    (STATE.libros||[]).forEach(function(l){
+      if(l.iglesia && !vistos[l.iglesia]) { vistos[l.iglesia]=true; optsIgl += '<option value="'+l.iglesia+'">'; }
+    });
+    dl.innerHTML = optsIgl;
+  }
+  document.getElementById('rlIglesia').value = '';
+  document.getElementById('rlCodigo').value = '';
+  document.getElementById('rlMotivo').value = '';
+  document.getElementById('rlInfo').style.display = 'none';
+  openM('mReenvioLibro');
+}
+
+function autocompletarReenvioLibro() {
+  var nombre = document.getElementById('rlIglesia').value.trim();
+  var info = document.getElementById('rlInfo');
+  if(!nombre) { info.style.display = 'none'; return; }
+  var nombreNorm = nombre.toLowerCase();
+  var registros = (STATE.libros||[]).filter(function(l){ return (l.iglesia||'').trim().toLowerCase()===nombreNorm; });
+  info.style.display = 'block';
+  if(registros.length) {
+    registros.sort(function(a,b){ return b.fechaEntrega - a.fechaEntrega; });
+    var ultimo = registros[0];
+    document.getElementById('rlDistrito').value = ultimo.distrito || '';
+    var codigo = buscarCodigoIglesiaExistente(nombre);
+    if(codigo) document.getElementById('rlCodigo').value = codigo.replace(/^tcn/i,'').trim();
+    info.innerHTML = '📖 Último libro entregado: '+fmtD(ultimo.fechaEntrega)+(codigo?' · Código: '+codigo:' · Sin código registrado');
+  } else {
+    info.innerHTML = '⚠️ Esta iglesia no tiene libros registrados antes — se registrará como nueva.';
+  }
+}
+
+async function guardarReenvioLibro() {
+  var iglesia = document.getElementById('rlIglesia').value.trim();
+  var distrito = document.getElementById('rlDistrito').value;
+  var codigo = document.getElementById('rlCodigo').value.trim();
+  var motivo = document.getElementById('rlMotivo').value.trim();
+  if(!iglesia){ toast('Ingresa el nombre de la iglesia','warn'); return; }
+  if(!distrito){ toast('Selecciona el distrito','warn'); return; }
+  if(!motivo){ toast('Indica el motivo del reenvío','warn'); return; }
+
+  var btn = document.querySelector('[onclick="guardarReenvioLibro()"]');
+  if(btn){ btn.textContent='Guardando...'; btn.disabled=true; }
+  await registrarLibroDiacono(iglesia, distrito, codigo, motivo);
+  if(btn){ btn.textContent='🔄 Registrar reenvío'; btn.disabled=false; }
+  closeM('mReenvioLibro');
 }
 
 // Editar código de iglesia en libro
