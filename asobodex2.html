@@ -391,6 +391,7 @@ textarea.fc{resize:vertical;min-height:70px}
         </div>
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
           <button class="btn bgold bsm admin-el" onclick="toggleEnvioOcasional()" style="font-size:11px;padding:7px 12px">✉️ Envío ocasional</button>
+          <button class="btn bgold bsm admin-el" onclick="abrirCobrosPorDistrito()" style="font-size:11px;padding:7px 12px">📧 Cobros por distrito</button>
           <button class="btn bred bsm admin-el" onclick="limpiarSolicitudes()" style="font-size:11px;padding:7px 12px">🗑 Limpiar historial</button>
           <select class="fc" style="width:auto;padding:7px 10px;font-size:12px" id="fReqEstado" onchange="renderSols()">
             <option value="">Todos los estados</option>
@@ -835,6 +836,13 @@ textarea.fc{resize:vertical;min-height:70px}
 <div id="toast"></div>
 
 <div id="dataLoading"><div class="dlspin"></div><div class="dltxt">Sincronizando inventario…</div></div>
+
+<div class="mo" id="mCobrosDistrito"><div class="modal" style="max-width:640px">
+  <div class="mt">📧 Cobros pendientes por distrito</div>
+  <div style="font-size:12px;color:var(--t2);margin-bottom:12px">Pedidos ya aprobados/entregados con materiales de costo (ej. Talonario de Caja Menor, Arqueo de Caja) que aún no se le han avisado a auxiliar@asonoreste.org. Se envía un correo por distrito, con todos sus pastores agrupados.</div>
+  <div id="cobrosDistritoBody" style="max-height:400px;overflow-y:auto"></div>
+  <div class="mf"><button class="btn" onclick="closeM('mCobrosDistrito')">Cerrar</button><button class="btn bgold" id="btnEnviarCobros" onclick="enviarCobrosPorDistritoSeleccionados()">📧 Enviar seleccionados</button></div>
+</div></div>
 
 <div class="mo" id="mReenvioLibro"><div class="modal">
   <div class="mt">🔄 Registrar reenvío de libro</div>
@@ -1863,6 +1871,7 @@ async function aprobarConItems(btn) {
       var msg = rechazados.length ? 'Aprobado parcialmente. Rechazados: ' + rechazados.join(', ') : 'Pedido aprobado completamente';
       toast(msg);
       notificarEmail('pedido_aprobado', {distrito:r.distrito, correo:r.correo||r.email, rechazadosDetalle:rechazadosDetalle});
+      notificarCobroAuxiliar(Object.assign({}, r, {items: itemsActualizados}));
       closeM('mVerSol');
     }
   } catch(e) {
@@ -2549,6 +2558,242 @@ async function generarRemision() {
   renderCarritoRem();
   ['remIglesia','remDistrito','remResp','remCorreo'].forEach(function(x){ document.getElementById(x).value=''; });
   if(btn){ btn.textContent='🖨️ Generar e imprimir remisión'; btn.disabled=false; }
+}
+
+// ── AVISO DE COBRO A AUXILIAR (materiales con precio, ej. Talonario de Caja Menor,
+// Arqueo de Caja) — se dispara al APROBAR un pedido (no al solicitarlo), porque algunos
+// pedidos se rechazan y no deben cobrarse. Toma el precio real del inventario (STATE.items).
+const AUXILIAR_EMAIL = 'auxiliar@asonoreste.org';
+
+function itemsConPrecioDePedido(items) {
+  var resultado = [];
+  (items||[]).forEach(function(it) {
+    if(it.rechazado) return;
+    var inv = STATE.items.find(function(x){ return x.nombre === it.nombre; });
+    var precio = inv ? (inv.precio||0) : 0;
+    if(precio > 0) {
+      resultado.push({nombre:it.nombre, cantidad:it.cantidad, precioUnit:precio, subtotal:it.cantidad*precio});
+    }
+  });
+  return resultado;
+}
+
+// Convierte un htmlBody (header+tabla+total ya armados) en imagen y la sube a ImgBB.
+// Devuelve la URL, o null si falla — nunca lanza, para no romper el flujo que lo llama.
+async function capturarYSubirAvisoCobro(htmlBody) {
+  try {
+    var contenedor = document.createElement('div');
+    contenedor.style.position = 'fixed';
+    contenedor.style.left = '-9999px';
+    contenedor.style.top = '0';
+    contenedor.style.width = '700px';
+    contenedor.style.background = '#ffffff';
+    contenedor.style.fontFamily = 'Arial,sans-serif';
+    contenedor.style.fontSize = '13px';
+    contenedor.style.padding = '30px';
+    contenedor.innerHTML =
+      '<style>' +
+      'h1{font-size:20px;margin:0;color:#0f2b3c}h2{font-size:14px;color:#1a9aaa;margin:0}' +
+      '.header{display:flex;justify-content:space-between;align-items:center;border-bottom:2px solid #1a9aaa;padding-bottom:12px;margin-bottom:20px}' +
+      '.info{background:#f5f7fa;padding:12px;border-radius:6px;margin-bottom:16px;font-size:12px}' +
+      '.info div{margin-bottom:4px}' +
+      'table{width:100%;border-collapse:collapse;margin-top:10px}' +
+      'th{background:#0f2b3c;color:white;padding:8px 10px;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:1px}' +
+      'td{padding:8px 10px;border-bottom:1px solid #ddd}' +
+      '.total{text-align:right;font-size:18px;font-weight:bold;color:#0f2b3c;margin-top:16px;padding:12px;background:#e8f5e9;border-radius:6px}' +
+      '.footer{margin-top:40px;font-size:10px;color:#888;text-align:center;border-top:1px solid #ddd;padding-top:12px}' +
+      '</style>' + htmlBody;
+    document.body.appendChild(contenedor);
+
+    var imgs = contenedor.querySelectorAll('img');
+    await Promise.all(Array.from(imgs).map(function(img){
+      return new Promise(function(resolve){
+        if(img.complete) resolve();
+        else { img.onload = resolve; img.onerror = resolve; }
+      });
+    }));
+
+    var canvas = await html2canvas(contenedor, {scale:2, backgroundColor:'#ffffff'});
+    document.body.removeChild(contenedor);
+    var blob = await new Promise(function(resolve){ canvas.toBlob(resolve, 'image/png'); });
+
+    var formData = new FormData();
+    formData.append('image', blob, 'aviso_cobro.png');
+    formData.append('key', '90ef17531a96e2ba46f944b5987756a4');
+    var imgResp = await fetch('https://api.imgbb.com/1/upload', { method:'POST', body:formData });
+    var imgData = await imgResp.json();
+    return imgData.success ? imgData.data.url : null;
+  } catch(e) {
+    console.error('Error generando/subiendo aviso de cobro:', e);
+    return null;
+  }
+}
+
+function encabezadoAvisoCobro(subtitulo, infoHtml) {
+  var fecha = new Date().toLocaleString('es-CO');
+  return '<div class="header"><div style="display:flex;align-items:center;gap:14px"><img src="https://iglesiaadventista-cucuta.github.io/asobodex/logo_iglesia.jpeg" style="width:55px;height:55px;object-fit:contain"><div><h1>Asociación del Noreste Colombiano</h1><h2>Iglesia Adventista del Séptimo Día</h2></div></div><div style="text-align:right"><div style="font-size:18px;font-weight:bold;color:#1a9aaa">AVISO DE COBRO</div><div style="font-size:11px;color:#666">'+fecha+(subtitulo?' · '+subtitulo:'')+'</div></div></div>' +
+    (infoHtml ? '<div class="info">'+infoHtml+'</div>' : '');
+}
+function pieAvisoCobro() {
+  return '<div class="footer"><div style="display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:4px"><img src="https://iglesiaadventista-cucuta.github.io/asobodex/icon_asobodex.png" style="width:20px;height:20px;border-radius:4px"><span style="font-weight:600">AsoBodex</span></div>Sistema de Bodega · Asociación del Noreste Colombiano · Documento generado automáticamente</div>';
+}
+
+async function notificarCobroAuxiliar(r) {
+  if(!r || !window.emailjs) return;
+  var itemsConPrecio = itemsConPrecioDePedido(r.items);
+  if(!itemsConPrecio.length) return;
+  var total = itemsConPrecio.reduce(function(sum, it){ return sum + it.subtotal; }, 0);
+  var pastor = r.pastor || '';
+  var distrito = r.distrito || '';
+
+  var filasHtml = itemsConPrecio.map(function(it) {
+    return '<tr><td>'+it.nombre+'</td><td>'+it.cantidad+'</td><td>$'+Number(it.precioUnit).toLocaleString('es-CO')+'</td><td><strong>$'+Number(it.subtotal).toLocaleString('es-CO')+'</strong></td></tr>';
+  }).join('');
+
+  var htmlBody = encabezadoAvisoCobro('', '<div><strong>Pastor:</strong> '+pastor+'</div><div><strong>Distrito:</strong> '+distrito+'</div>') +
+    '<table><thead><tr><th>Material</th><th>Cant.</th><th>Valor unit.</th><th>Subtotal</th></tr></thead><tbody>'+filasHtml+'</tbody></table>' +
+    '<div class="total">TOTAL A COBRAR: $'+Number(total).toLocaleString('es-CO')+'</div>' + pieAvisoCobro();
+
+  var avisoUrl = await capturarYSubirAvisoCobro(htmlBody);
+  if(!avisoUrl) { console.warn('No se pudo generar el aviso de cobro para el pedido', r.id); return; }
+
+  try {
+    var itemsTxt = itemsConPrecio.map(function(it){ return '• '+it.cantidad+' x '+it.nombre+' — $'+Number(it.subtotal).toLocaleString('es-CO'); }).join('\n');
+    var msg = 'El pastor '+pastor+', del distrito '+distrito+', pidió (aprobado) lo siguiente:\n\n'+itemsTxt+
+      '\n\nTOTAL A COBRAR: $'+Number(total).toLocaleString('es-CO')+
+      '\n\n📄 Ver aviso de cobro: '+avisoUrl+
+      '\n\nAsoBodex — Asociación del Noreste Colombiano';
+
+    await emailjs.send(EJS.service, EJS.template, {
+      to_email: AUXILIAR_EMAIL,
+      asunto: 'Cobro pendiente — '+distrito+' ($'+Number(total).toLocaleString('es-CO')+')',
+      mensaje: msg,
+      name: pastor,
+      email: EJS.email
+    });
+    console.log('✓ Aviso de cobro enviado a auxiliar para pedido', r.id);
+
+    if(r.id && window._db && window._fbOps) {
+      await window._fbOps.updateDoc(window._fbOps.doc(window._db,'pedidos',r.id), {cobroNotificado: true});
+    }
+  } catch(e) {
+    console.error('Error enviando aviso de cobro:', e);
+  }
+}
+
+// ── COBROS PENDIENTES POR DISTRITO (revisar historial y enviar agrupado) ──────
+// Junta todos los pedidos ya aprobados/entregados que tengan materiales con costo
+// y que aún no se hayan notificado (cobroNotificado), agrupados por distrito.
+var _cobrosPorDistritoCache = null;
+
+function calcularCobrosPorDistrito() {
+  var porDistrito = {};
+  (STATE.requests||[]).forEach(function(r) {
+    if(r.estado !== 'aprobado' && r.estado !== 'entregado') return;
+    if(r.cobroNotificado) return;
+    var itemsConPrecio = itemsConPrecioDePedido(r.items);
+    if(!itemsConPrecio.length) return;
+    var subtotal = itemsConPrecio.reduce(function(s,it){ return s+it.subtotal; }, 0);
+    var distrito = r.distrito || 'Sin distrito';
+    if(!porDistrito[distrito]) porDistrito[distrito] = {pedidos:[], total:0};
+    porDistrito[distrito].pedidos.push({id:r.id, pastor:r.pastor||'', items:itemsConPrecio, subtotal:subtotal});
+    porDistrito[distrito].total += subtotal;
+  });
+  return porDistrito;
+}
+
+function abrirCobrosPorDistrito() {
+  _cobrosPorDistritoCache = calcularCobrosPorDistrito();
+  var distritos = Object.keys(_cobrosPorDistritoCache).sort();
+  var body = document.getElementById('cobrosDistritoBody');
+  var btn = document.getElementById('btnEnviarCobros');
+  if(!distritos.length) {
+    body.innerHTML = '<div class="empty">No hay cobros pendientes por notificar — todo lo aprobado con materiales de costo ya se avisó</div>';
+    if(btn) btn.style.display = 'none';
+  } else {
+    if(btn) btn.style.display = '';
+    body.innerHTML = distritos.map(function(d) {
+      var info = _cobrosPorDistritoCache[d];
+      var pedidosHtml = info.pedidos.map(function(p) {
+        var itemsTxt = p.items.map(function(it){ return it.cantidad+' x '+it.nombre; }).join(', ');
+        return '<div style="font-size:11px;color:var(--t2);padding:3px 0 3px 26px">— '+p.pastor+': '+itemsTxt+' = $'+Number(p.subtotal).toLocaleString('es-CO')+'</div>';
+      }).join('');
+      return '<div style="background:var(--navy3);border-radius:var(--r);padding:12px 14px;margin-bottom:8px">' +
+        '<label style="display:flex;align-items:center;gap:8px;cursor:pointer">' +
+          '<input type="checkbox" class="chk-distrito-cobro" value="'+d+'" checked style="width:16px;height:16px">' +
+          '<strong style="flex:1">'+d+'</strong>' +
+          '<span style="color:var(--gold);font-weight:700">$'+Number(info.total).toLocaleString('es-CO')+'</span>' +
+        '</label>' + pedidosHtml + '</div>';
+    }).join('');
+  }
+  openM('mCobrosDistrito');
+}
+
+async function generarYEnviarCobroDistrito(distrito, info) {
+  var filasHtml = '';
+  info.pedidos.forEach(function(p) {
+    p.items.forEach(function(it) {
+      filasHtml += '<tr><td>'+p.pastor+'</td><td>'+it.nombre+'</td><td>'+it.cantidad+'</td><td>$'+Number(it.precioUnit).toLocaleString('es-CO')+'</td><td><strong>$'+Number(it.subtotal).toLocaleString('es-CO')+'</strong></td></tr>';
+    });
+  });
+  var htmlBody = encabezadoAvisoCobro('Distrito: '+distrito, '') +
+    '<table><thead><tr><th>Pastor</th><th>Material</th><th>Cant.</th><th>Valor unit.</th><th>Subtotal</th></tr></thead><tbody>'+filasHtml+'</tbody></table>' +
+    '<div class="total">TOTAL A COBRAR: $'+Number(info.total).toLocaleString('es-CO')+'</div>' + pieAvisoCobro();
+
+  var avisoUrl = await capturarYSubirAvisoCobro(htmlBody);
+  if(!avisoUrl) { toast('No se pudo generar el aviso de '+distrito,'err'); return false; }
+
+  try {
+    var resumenTxt = info.pedidos.map(function(p) {
+      var itemsTxt = p.items.map(function(it){ return it.cantidad+' x '+it.nombre; }).join(', ');
+      return '• '+p.pastor+': '+itemsTxt+' — $'+Number(p.subtotal).toLocaleString('es-CO');
+    }).join('\n');
+    var msg = 'Resumen de cobros pendientes del distrito '+distrito+':\n\n'+resumenTxt+
+      '\n\nTOTAL A COBRAR: $'+Number(info.total).toLocaleString('es-CO')+
+      '\n\n📄 Ver aviso de cobro: '+avisoUrl+
+      '\n\nAsoBodex — Asociación del Noreste Colombiano';
+
+    await emailjs.send(EJS.service, EJS.template, {
+      to_email: AUXILIAR_EMAIL,
+      asunto: 'Cobros pendientes — '+distrito+' ($'+Number(info.total).toLocaleString('es-CO')+')',
+      mensaje: msg,
+      name: distrito,
+      email: EJS.email
+    });
+
+    if(window._db && window._fbOps) {
+      for(var i=0; i<info.pedidos.length; i++) {
+        await window._fbOps.updateDoc(window._fbOps.doc(window._db,'pedidos',info.pedidos[i].id), {cobroNotificado:true});
+      }
+    }
+    return true;
+  } catch(e) {
+    console.error('Error enviando cobro de distrito '+distrito+':', e);
+    toast('Error enviando el cobro de '+distrito,'err');
+    return false;
+  }
+}
+
+async function enviarCobrosPorDistritoSeleccionados() {
+  var checks = document.querySelectorAll('.chk-distrito-cobro:checked');
+  if(!checks.length) { toast('Selecciona al menos un distrito','warn'); return; }
+  if(!_cobrosPorDistritoCache) return;
+
+  var btn = document.getElementById('btnEnviarCobros');
+  if(btn){ btn.textContent='Enviando...'; btn.disabled=true; }
+
+  var enviados = 0;
+  for(var i=0; i<checks.length; i++) {
+    var distrito = checks[i].value;
+    var info = _cobrosPorDistritoCache[distrito];
+    if(!info) continue;
+    var ok = await generarYEnviarCobroDistrito(distrito, info);
+    if(ok) enviados++;
+  }
+
+  if(btn){ btn.textContent='📧 Enviar seleccionados'; btn.disabled=false; }
+  toast('✓ Cobros enviados: '+enviados+' de '+checks.length+' distrito(s)');
+  closeM('mCobrosDistrito');
 }
 
 // Cerrar resultados de remisión al clic fuera
@@ -3655,6 +3900,8 @@ async function accionSol(id, nuevoEstado, motivo) {
       toast('Solicitud '+nuevoEstado+': '+r.distrito);
       if(nuevoEstado==='rechazado') {
         notificarEmail('pedido_rechazado', {distrito:r.distrito, correo:r.correo||r.email, motivo:motivo});
+      } else if(nuevoEstado==='aprobado') {
+        notificarCobroAuxiliar(r);
       }
     } else {
       toast('Sin conexion a Firebase','err');

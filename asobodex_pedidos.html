@@ -140,7 +140,6 @@ textarea.fc{resize:vertical;min-height:70px}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
-<script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
 </head>
 <body>
 
@@ -344,99 +343,15 @@ function enviarNotificacionEmail(pastor, correo, distrito, items, otros) {
   }
 }
 
-const AUXILIAR_EMAIL = 'auxiliar@asonoreste.org';
-
-// Materiales con costo (Talonario de Caja Menor, Arqueo de Caja): si se piden, se le avisa
-// a auxiliar@asonoreste.org con un aviso de cobro diseñado (con logo), para que pase el
-// cobro al distrito correspondiente. No bloquea el envío del pedido si algo falla aquí.
-async function notificarCobroAuxiliar(pastor, distrito, itemsConPrecio) {
-  if(!itemsConPrecio.length || !window.emailjs) return;
-  try {
-    var total = itemsConPrecio.reduce(function(sum, it){ return sum + it.subtotal; }, 0);
-    var fecha = new Date().toLocaleString('es-CO');
-
-    var filasHtml = itemsConPrecio.map(function(it) {
-      return '<tr><td>'+it.nombre+'</td><td>'+it.cantidad+'</td><td>$'+Number(it.precioUnit).toLocaleString('es-CO')+'</td><td><strong>$'+Number(it.subtotal).toLocaleString('es-CO')+'</strong></td></tr>';
-    }).join('');
-
-    var htmlBody =
-      '<div class="header"><div style="display:flex;align-items:center;gap:14px"><img src="https://iglesiaadventista-cucuta.github.io/asobodex/logo_iglesia.jpeg" style="width:55px;height:55px;object-fit:contain"><div><h1>Asociación del Noreste Colombiano</h1><h2>Iglesia Adventista del Séptimo Día</h2></div></div><div style="text-align:right"><div style="font-size:18px;font-weight:bold;color:#1a9aaa">AVISO DE COBRO</div><div style="font-size:11px;color:#666">'+fecha+'</div></div></div>' +
-      '<div class="info"><div><strong>Pastor:</strong> '+pastor+'</div><div><strong>Distrito:</strong> '+distrito+'</div></div>' +
-      '<table><thead><tr><th>Material</th><th>Cant.</th><th>Valor unit.</th><th>Subtotal</th></tr></thead><tbody>'+filasHtml+'</tbody></table>' +
-      '<div class="total">TOTAL A COBRAR: $'+Number(total).toLocaleString('es-CO')+'</div>' +
-      '<div class="footer"><div style="display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:4px"><img src="https://iglesiaadventista-cucuta.github.io/asobodex/icon_asobodex.png" style="width:20px;height:20px;border-radius:4px"><span style="font-weight:600">AsoBodex</span></div>Sistema de Bodega · Asociación del Noreste Colombiano · Documento generado automáticamente</div>';
-
-    var contenedor = document.createElement('div');
-    contenedor.style.position = 'fixed';
-    contenedor.style.left = '-9999px';
-    contenedor.style.top = '0';
-    contenedor.style.width = '700px';
-    contenedor.style.background = '#ffffff';
-    contenedor.style.fontFamily = 'Arial,sans-serif';
-    contenedor.style.fontSize = '13px';
-    contenedor.style.padding = '30px';
-    contenedor.innerHTML =
-      '<style>' +
-      'h1{font-size:20px;margin:0;color:#0f2b3c}h2{font-size:14px;color:#1a9aaa;margin:0}' +
-      '.header{display:flex;justify-content:space-between;align-items:center;border-bottom:2px solid #1a9aaa;padding-bottom:12px;margin-bottom:20px}' +
-      '.info{background:#f5f7fa;padding:12px;border-radius:6px;margin-bottom:16px;font-size:12px}' +
-      '.info div{margin-bottom:4px}' +
-      'table{width:100%;border-collapse:collapse;margin-top:10px}' +
-      'th{background:#0f2b3c;color:white;padding:8px 10px;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:1px}' +
-      'td{padding:8px 10px;border-bottom:1px solid #ddd}' +
-      '.total{text-align:right;font-size:18px;font-weight:bold;color:#0f2b3c;margin-top:16px;padding:12px;background:#e8f5e9;border-radius:6px}' +
-      '.footer{margin-top:40px;font-size:10px;color:#888;text-align:center;border-top:1px solid #ddd;padding-top:12px}' +
-      '</style>' + htmlBody;
-    document.body.appendChild(contenedor);
-
-    var imgs = contenedor.querySelectorAll('img');
-    await Promise.all(Array.from(imgs).map(function(img){
-      return new Promise(function(resolve){
-        if(img.complete) resolve();
-        else { img.onload = resolve; img.onerror = resolve; }
-      });
-    }));
-
-    var canvas = await html2canvas(contenedor, {scale:2, backgroundColor:'#ffffff'});
-    document.body.removeChild(contenedor);
-    var blob = await new Promise(function(resolve){ canvas.toBlob(resolve, 'image/png'); });
-
-    var formData = new FormData();
-    formData.append('image', blob, 'aviso_cobro.png');
-    formData.append('key', '90ef17531a96e2ba46f944b5987756a4');
-    var imgResp = await fetch('https://api.imgbb.com/1/upload', { method:'POST', body:formData });
-    var imgData = await imgResp.json();
-    if(!imgData.success) { console.warn('No se pudo subir el aviso de cobro'); return; }
-
-    var avisoUrl = imgData.data.url;
-    var itemsTxt = itemsConPrecio.map(function(it){ return '• '+it.cantidad+' x '+it.nombre+' — $'+Number(it.subtotal).toLocaleString('es-CO'); }).join('\n');
-    var msg = 'El pastor '+pastor+', del distrito '+distrito+', pidió lo siguiente:\n\n'+itemsTxt+
-      '\n\nTOTAL A COBRAR: $'+Number(total).toLocaleString('es-CO')+
-      '\n\n📄 Ver aviso de cobro: '+avisoUrl+
-      '\n\nAsoBodex — Asociación del Noreste Colombiano';
-
-    await emailjs.send(EJS_SERVICE, EJS_TEMPLATE, {
-      to_email: AUXILIAR_EMAIL,
-      asunto: 'Cobro pendiente — '+distrito+' ($'+Number(total).toLocaleString('es-CO')+')',
-      mensaje: msg,
-      name: pastor,
-      email: MASTER_EMAIL
-    });
-    console.log('✓ Aviso de cobro enviado a auxiliar');
-  } catch(e) {
-    console.error('Error enviando aviso de cobro:', e);
-  }
-}
-
 const PASTORES = [{nombre:'Aaron Rodolfo Chacon Davila',correo:'aaron.chacon@asonoreste.org'},{nombre:'Alberto Monroy',correo:'alberto.monroy@asonoreste.org'},{nombre:'Alonso Gonzalez',correo:'alonso.gonzalez@asonoreste.org'},{nombre:'Andres Micaan',correo:'andres.micaan@asonoreste.org'},{nombre:'Anyelo Ruiz Lopez',correo:'anyelo.ruiz@asonoreste.org'},{nombre:'Braham Parada',correo:'braham.parada@asonoreste.org'},{nombre:'Cristian Piamba',correo:'cristian.piamba@asonoreste.org'},{nombre:'Daniel Grandas',correo:'daniel.grandas@asonoreste.org'},{nombre:'Daniel Quintero',correo:'daniel.quintero@asonoreste.org'},{nombre:'David Perez',correo:'david.perez@asonoreste.org'},{nombre:'Deison Leon',correo:'deison.leon@asonoreste.org'},{nombre:'Deivy Duran',correo:'deivy.duran@asonoreste.org'},{nombre:'Edwin Velandia',correo:'edwin.velandia@asonoreste.org'},{nombre:'Edwing Adrian Blanco Martinez',correo:'edwing.blanco@asonoreste.org'},{nombre:'Eibar Jose Villamizar Lozada',correo:'eibar.villamizar@asonoreste.org'},{nombre:'Elexis Delgado',correo:'elexis.delgado@asonoreste.org'},{nombre:'Fabian Alcaraz',correo:'fabian.alcaraz@asonoreste.org'},{nombre:'Felix Diaz',correo:'felix.diaz@asonoreste.org'},{nombre:'Ferney Maldonado',correo:'ferney.maldonado@asonoreste.org'},{nombre:'Gerson Mesa',correo:'gerson.mesa@asonoreste.org'},{nombre:'Gleyffer Zapata',correo:'gleyffer.zapata@asonoreste.org'},{nombre:'Henry Villamizar',correo:'henry.villamizar@asonoreste.org'},{nombre:'Ismael Abril',correo:'ismael.abril@asonoreste.org'},{nombre:'Ismael Herreño',correo:'ismael.herreno@asonoreste.org'},{nombre:'Ivan Rincon',correo:'ivan.rincon@asonoreste.org'},{nombre:'Jaime Perez',correo:'jaime.perez@asonoreste.org'},{nombre:'Jarlys Ospina',correo:'jarlys.ospina@asonoreste.org'},{nombre:'Jeferson Rodriguez',correo:'jeferson.rodriguez@asonoreste.org'},{nombre:'Jesus Crespo',correo:'jesus.crespo@asonoreste.org'},{nombre:'Jolman Mujica',correo:'jolman.mujica@asonoreste.org'},{nombre:'Jonathan Rey Cuevas',correo:'jonathan.rey@asonoreste.org'},{nombre:'Jonathan Roa',correo:'jonathan.roa@asonoreste.org'},{nombre:'Jorge Garcia',correo:'jorge.garcia@asonoreste.org'},{nombre:'Jorge Luis Sierra Alvis',correo:'jorge.sierra@asonoreste.org'},{nombre:'Jose Manuel Romero',correo:'jose.romero@asonoreste.org'},{nombre:'Julian Agudelo',correo:'julian.agudelo@asonoreste.org'},{nombre:'Luis Rendon',correo:'luis.rendon@asonoreste.org'},{nombre:'Manuel Beleño',correo:'manuel.beleno@asonoreste.org'},{nombre:'Manuel Cadena',correo:'manuel.cadena@asonoreste.org'},{nombre:'Marco Medina',correo:'marcos.medina@asonoreste.org'},{nombre:'Mauricio Antonio Ruiz Cordero',correo:'mauricio.ruiz@asonoreste.org'},{nombre:'Nelson Carreño',correo:'nelson.carreno@asonoreste.org'},{nombre:'Rafael Peña',correo:'rafael.pena@asonoreste.org'},{nombre:'Samuel Marin',correo:'samuel.marin@asonoreste.org'},{nombre:'Teodomiro Carvajal',correo:'teodomiro.carvajal@asonoreste.org'},{nombre:'Yamith Ledesma',correo:'yamith.ledesma@asonoreste.org'},{nombre:'Yanpier Garcia',correo:'yanpier.garcia@asonoreste.org'},{nombre:'Yeison Chaverra',correo:'yeison.chaverra@asonoreste.org'},{nombre:'Yoneider Uriel Barajas Buitrago',correo:'yoneider.barajas@asonoreste.org'},{nombre:'Zeudiel Hernandez',correo:'zeudiel.hernandez@asonoreste.org'}];
 const MATS = [
   {id:'m1', nombre:'Talonario de Diáconos', tipo:'diacono', min:1, max:null,
    regla:'Indica el nombre de la iglesia y, si lo sabes, escribe solo el número que aparece en el talonario de cada libro (sin letras). Si tienes el talonario anterior, adjunta la foto aquí mismo — ya no es necesario enviarla por WhatsApp.'},
   {id:'m2', nombre:'Envío Mensual de Fondos Distritales', tipo:'normal', min:1, max:10},
-  {id:'m3', nombre:'Arqueo de Caja', tipo:'libre', min:1, max:null, precio:3000, regla:'Tiene un valor de <strong>$3.000 c/u</strong>. Puedes pedir los que necesites.'},
+  {id:'m3', nombre:'Arqueo de Caja', tipo:'libre', min:1, max:null, regla:'Tiene un valor de <strong>$3.000 c/u</strong>. Puedes pedir los que necesites.'},
   {id:'m4', nombre:'Orden de Culto', tipo:'normal', min:1, max:10},
   {id:'m5', nombre:'Resumen Mensual de Fondos', tipo:'normal', min:1, max:10},
-  {id:'m6', nombre:'Talonario de Caja Menor', tipo:'libre', min:1, max:null, precio:3000, regla:'Tiene un valor de <strong>$3.000 c/u</strong>. Puedes pedir los que necesites.'},
+  {id:'m6', nombre:'Talonario de Caja Menor', tipo:'libre', min:1, max:null, regla:'Tiene un valor de <strong>$3.000 c/u</strong>. Puedes pedir los que necesites.'},
   {id:'m7', nombre:'Talonario de Fondos Confiados', tipo:'iglesia', min:1, max:null, regla:'Debes indicar el nombre exacto de la iglesia para personalizar el talonario.'},
   {id:'m8', nombre:'Sobres de Diezmos', tipo:'normal', min:100, max:1500},
   {id:'m9', nombre:'Fe de Jesús', tipo:'normal', min:20, max:100},
@@ -673,16 +588,6 @@ async function enviar() {
   const otros  = document.getElementById('pOtros').value.trim();
   const otrosCantidad = parseInt(document.getElementById('pOtrosCantidad').value)||0;
 
-  // Materiales con costo (ej. Talonario de Caja Menor, Arqueo de Caja) — se notifican aparte
-  var itemsConPrecio = [];
-  sel.forEach(function(m) {
-    if(m.precio) {
-      var qtyEl = document.getElementById('qty_'+m.id);
-      var qtyPrecio = parseInt(qtyEl ? qtyEl.value : m.min) || m.min;
-      itemsConPrecio.push({nombre:m.nombre, cantidad:qtyPrecio, precioUnit:m.precio, subtotal:qtyPrecio*m.precio});
-    }
-  });
-
   var items = [];
   for (const m of sel) {
     if(m.tipo==='diacono') {
@@ -751,7 +656,6 @@ async function enviar() {
 
   // Notificación email
   enviarNotificacionEmail(nombre, correo, dist, items, otros);
-  notificarCobroAuxiliar(nombre, dist, itemsConPrecio);
 
   // Mostrar pantalla de éxito
   setTimeout(function() {
