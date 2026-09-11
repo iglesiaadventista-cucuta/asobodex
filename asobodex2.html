@@ -215,6 +215,7 @@ textarea.fc{resize:vertical;min-height:70px}
       <div class="lbody">
         <div class="lfield"><label>CORREO</label><input class="linput" id="lEmail" type="email" placeholder="correo@asobodex.com" autocomplete="username"></div>
         <div class="lfield"><label>CONTRASEÑA</label><input class="linput" id="lPass" type="password" placeholder="••••••••" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()"></div>
+        <div style="text-align:right;margin:-6px 0 10px"><a href="#" onclick="recuperarPassword();return false;" style="font-size:11px;color:var(--teal);text-decoration:none">¿Olvidaste tu contraseña?</a></div>
         <div class="lerr" id="lErr"></div>
         <button class="lbtn" onclick="doLogin()">Ingresar al sistema</button>
       </div>
@@ -1131,6 +1132,33 @@ function demo(i) {
   const emails = ['admin@asobodex.com','lectura@asobodex.com'];
   document.getElementById('lEmail').value = emails[i] || '';
   document.getElementById('lPass').focus();
+}
+
+// Recuperar contraseña — usa el flujo nativo de Firebase Auth (envía un correo con el enlace)
+async function recuperarPassword() {
+  var errEl = document.getElementById('lErr');
+  errEl.textContent = '';
+  var email = document.getElementById('lEmail').value.trim();
+  if(!email) {
+    email = (prompt('Escribe tu correo para enviarte el enlace de recuperación:') || '').trim();
+  }
+  if(!email || !email.includes('@')) { errEl.textContent = 'Ingresa un correo válido primero'; return; }
+  try {
+    const { initializeApp, getApps } = await import("https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js");
+    const { getAuth, sendPasswordResetEmail } = await import("https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js");
+    var apps = getApps();
+    var fbapp = apps.length ? apps[0] : initializeApp(FIREBASE_CONFIG);
+    var auth = getAuth(fbapp);
+    await sendPasswordResetEmail(auth, email);
+    toast('✓ Te enviamos un correo a '+email+' con el enlace para restablecer tu contraseña');
+  } catch(err) {
+    const msgs = {
+      'auth/user-not-found':    'No existe una cuenta con ese correo',
+      'auth/invalid-email':     'Correo inválido',
+      'auth/too-many-requests': 'Demasiados intentos. Espera un momento.',
+    };
+    errEl.textContent = msgs[err.code] || ('Error: ' + err.message);
+  }
 }
 function loginOk(u) {
   STATE.user = u;
