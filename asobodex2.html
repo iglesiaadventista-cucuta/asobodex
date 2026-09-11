@@ -374,6 +374,7 @@ textarea.fc{resize:vertical;min-height:70px}
             <div class="fg"><label>Entregado por</label><input type="text" class="fc" id="dResp" placeholder="Nombre de quien entrega"></div>
             <div class="fg"><label>Recibido por / Destino</label><input type="text" class="fc" id="dRecibe" placeholder="Pastor, distrito o persona que recibe"></div>
             <div class="fg"><label>Observación</label><input type="text" class="fc" id="dNota" placeholder="Ej: Pedido aprobado del distrito Sión"></div>
+            <div class="fg"><label>Costo de envío / transporte (opcional)</label><input type="number" class="fc" id="dCostoEnvio" min="0" placeholder="$0"></div>
             <button class="btn bpri" style="width:100%;margin-top:4px" onclick="registrarDespacho()">✓ Confirmar despacho — descontar inventario</button>
           </div></div>
         </div>
@@ -445,6 +446,7 @@ textarea.fc{resize:vertical;min-height:70px}
           <div class="fg"><label>📷 Foto de la guía de envío *</label>
             <input type="file" id="eoFoto" accept="image/*" class="fc" style="padding:8px">
           </div>
+          <div class="fg"><label>Costo de envío / transporte (opcional)</label><input type="number" class="fc" id="eoCostoEnvio" min="0" placeholder="$0"></div>
           <button class="btn bpri" style="width:100%" onclick="enviarEnvioOcasional()">✉️ Enviar correo al pastor</button>
         </div>
       </div>
@@ -664,6 +666,12 @@ textarea.fc{resize:vertical;min-height:70px}
         <div style="padding:0 16px 16px" id="distritoComportamiento"></div>
       </details>
 
+      <details class="panel" style="padding:0;margin-top:12px" id="detallesGastosEnvio" open>
+        <summary style="cursor:pointer;padding:12px 16px;font-size:11px;font-weight:600;color:var(--teal);text-transform:uppercase;letter-spacing:.08em">🚚 Gastos de envío (transporte)</summary>
+        <div style="padding:0 16px 16px;font-size:12px;color:var(--t2);margin-bottom:4px">Costo de transporte de cada despacho — se agrega opcionalmente al momento de despachar, no se cobra a los distritos, solo se registra para control interno.</div>
+        <div style="padding:0 16px 16px" id="gastosEnvioBody"></div>
+      </details>
+
       <details class="panel" style="padding:0;margin-top:12px" id="detallesCierre">
         <summary style="cursor:pointer;padding:12px 16px;font-size:11px;font-weight:600;color:var(--teal);text-transform:uppercase;letter-spacing:.08em">🔒 Ver cierre de período</summary>
         <div style="padding:0 16px 16px">
@@ -836,6 +844,8 @@ textarea.fc{resize:vertical;min-height:70px}
             </div>
             <div style="font-size:12px;font-weight:600;color:var(--t2);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">📦 Entregas en esta distribución (<span id="distCarritoCount">0</span>)</div>
             <div id="distCarritoItems" style="margin-bottom:12px"><div class="empty">Agrega entregas a la lista</div></div>
+            <div class="fg"><label>Costo de envío / transporte de este viaje (opcional)</label><input type="number" class="fc" id="distCostoEnvio" min="0" placeholder="$0"></div>
+            <div style="font-size:11px;color:var(--t2);margin:-6px 0 10px">Si el viaje incluye varios distritos, el costo se reparte en partes iguales entre ellos</div>
             <button class="btn bpri" style="width:100%" onclick="registrarDistribucion()">✓ Registrar distribución</button>
           </div></div>
         </div>
@@ -1157,6 +1167,7 @@ const STATE = {
   remisiones: [],
   distribuciones: [],
   periodosCerrados: {}, // { 'YYYY-MM': {cerradoPor, cerradoEn} }
+  gastosEnvio: [], // costo de transporte/envío por cada despacho, aparte del inventario
 };
 
 // ── HELPERS ──────────────────────────────────────────────────
@@ -1453,6 +1464,17 @@ function startListeners(db) {
       });
     });
     STATE.periodosCerrados = mapa;
+    renderAll();
+  }));
+
+  // Listener para gastos de envío (Tesorería)
+  window._unsubscribers.push(ons(q(col(db,'gastos_envio'), ord('fecha','desc')), function(snap) {
+    STATE.gastosEnvio = snap.docs.map(function(d) {
+      var data = d.data();
+      return Object.assign({id: d.id}, data, {
+        fecha: data.fecha && data.fecha.toDate ? data.fecha.toDate() : new Date()
+      });
+    });
     renderAll();
   }));
 }
@@ -1871,7 +1893,7 @@ function verDetalleSol(btn) {
       '</div>' +
     '</div>' : '') +
     (r.fotoRequerida ? '<div style="margin-top:10px;padding:10px;background:rgba(231,76,60,.1);border-radius:var(--r);font-size:12px;color:var(--red)">Requiere foto del libro de diacono antes de entregar</div>' : '') +
-    (isAdmin && r.estado === 'aprobado' ? '<div style="margin-top:14px;padding:12px;background:var(--navy3);border-radius:var(--r)"><div style="font-size:11px;font-weight:600;color:var(--t2);text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px">📷 Foto de la guía de envío (opcional)</div><input type="file" id="guiaFoto" accept="image/*" class="fc" style="padding:8px"><div id="guiaPreview" style="margin-top:8px"></div></div>' : '') +
+    (isAdmin && r.estado === 'aprobado' ? '<div style="margin-top:14px;padding:12px;background:var(--navy3);border-radius:var(--r)"><div style="font-size:11px;font-weight:600;color:var(--t2);text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px">📷 Foto de la guía de envío (opcional)</div><input type="file" id="guiaFoto" accept="image/*" class="fc" style="padding:8px;margin-bottom:10px"><div id="guiaPreview" style="margin-bottom:10px"></div><label style="font-size:11px;font-weight:600;color:var(--t2);text-transform:uppercase;letter-spacing:.06em;display:block;margin-bottom:5px">Costo de envío / transporte (opcional)</label><input type="number" class="fc" id="guiaCostoEnvio" min="0" placeholder="$0"></div>' : '') +
     (r.guiaUrl ? '<div style="margin-top:10px"><div style="font-size:11px;font-weight:600;color:var(--t2);margin-bottom:6px">📷 Guía de envío adjunta:</div><img src="'+r.guiaUrl+'" style="max-width:100%;border-radius:var(--r);border:1px solid var(--bd)"></div>' : '');
 
   var footHtml = '<button class="btn" onclick="closeM(&apos;mVerSol&apos;)">Cerrar</button>';
@@ -2077,7 +2099,9 @@ async function enviarConGuia(btn) {
 
   var guiaUrl = '';
   var fotoInput = document.getElementById('guiaFoto');
-  
+  var costoEnvioEl = document.getElementById('guiaCostoEnvio');
+  var costoEnvio = costoEnvioEl ? (parseFloat(costoEnvioEl.value)||0) : 0;
+
   // Subir foto a ImgBB si hay una seleccionada
   if(fotoInput && fotoInput.files[0]) {
     try {
@@ -2157,6 +2181,8 @@ async function enviarConGuia(btn) {
       if(sinInventario.length) {
         toast('⚠️ No se descontó stock de: '+sinInventario.join(', ')+' (no coincide con ningún material del inventario)','warn');
       }
+
+      await registrarGastoEnvio(r.distrito, costoEnvio, 'pedido', 'Pedido entregado — '+(r.pastor||''));
 
       // Notificar al pastor con link de la guía
       var msgGuia = guiaUrl ? '\n\n📷 Foto de la guía de envío: ' + guiaUrl : '';
@@ -2745,6 +2771,28 @@ async function generarRemision() {
   renderCarritoRem();
   ['remIglesia','remDistrito','remResp','remCorreo'].forEach(function(x){ document.getElementById(x).value=''; });
   if(btn){ btn.textContent='🖨️ Generar e imprimir remisión'; btn.disabled=false; }
+}
+
+// ── GASTOS DE ENVÍO (costo de transporte/flete, aparte del valor del material) ──
+// Colección propia (gastos_envio) en vez de guardarlo en 'movimientos', porque un
+// mismo despacho puede generar varios movimientos (uno por material) y guardar el
+// costo del viaje en cada uno duplicaría el gasto al sumarlo. Aquí queda UN registro
+// por viaje/envío, ya sea que salga de Despachar, Distribución, Envío Ocasional o al
+// marcar un pedido como enviado. El campo es opcional en los cuatro formularios: si
+// se deja en blanco, no se crea ningún registro.
+async function registrarGastoEnvio(distrito, costo, origen, nota) {
+  if(!costo || costo <= 0) return;
+  if(!window._db || !window._fbOps) return;
+  try {
+    await window._fbOps.addDoc(window._fbOps.collection(window._db,'gastos_envio'), {
+      distrito: distrito || 'Sin distrito', costo: costo, origen: origen || '',
+      responsable: STATE.user ? STATE.user.nombre : 'Admin',
+      nota: nota || '', fecha: window._serverTimestamp()
+    });
+  } catch(e) {
+    console.error('Error registrando gasto de envío:', e);
+    toast('El envío se registró, pero no se pudo guardar el costo de envío','warn');
+  }
 }
 
 // ── AVISO DE COBRO A AUXILIAR (materiales con precio, ej. Talonario de Caja Menor,
@@ -3464,10 +3512,24 @@ async function registrarDistribucion() {
       }
 
       toast('✓ Distribución registrada con '+detalle.length+' entregas');
+
+      // Costo de envío del viaje completo, repartido en partes iguales entre los
+      // distritos distintos que haya en esta misma distribución.
+      var costoEnvioTotal = parseFloat(document.getElementById('distCostoEnvio').value)||0;
+      if(costoEnvioTotal > 0) {
+        var distritosUnicos = [];
+        detalle.forEach(function(d){ if(d.destino && distritosUnicos.indexOf(d.destino)===-1) distritosUnicos.push(d.destino); });
+        var costoPorDistrito = distritosUnicos.length ? costoEnvioTotal/distritosUnicos.length : costoEnvioTotal;
+        for(var di=0; di<distritosUnicos.length; di++) {
+          await registrarGastoEnvio(distritosUnicos[di], costoPorDistrito, 'distribucion', 'Distribución — '+resp+(distritosUnicos.length>1?' (repartido entre '+distritosUnicos.length+' distritos)':''));
+        }
+      }
+
       _carritoDist = [];
       renderCarritoDist();
       document.getElementById('distResp').value = '';
       document.getElementById('distDestino').value = '';
+      document.getElementById('distCostoEnvio').value = '';
       cambiarDistritoDist();
     } else {
       toast('Sin conexión a Firebase','err');
@@ -3801,6 +3863,7 @@ async function registrarDespacho() {
   var resp = document.getElementById('dResp').value.trim();
   var recibe = document.getElementById('dRecibe').value.trim();
   var nota = document.getElementById('dNota').value.trim();
+  var costoEnvio = parseFloat(document.getElementById('dCostoEnvio').value)||0;
   if(!resp){ toast('Ingresa el nombre de quien entrega','warn'); return; }
   if(!_carritoDesp.length){ toast('Agrega al menos un material a la lista','warn'); return; }
 
@@ -3841,10 +3904,11 @@ async function registrarDespacho() {
       var detalle = _carritoDesp.map(function(c){ return {material:c.material, cantidad:c.cantidad, departamento:c.departamento}; });
       toast('✓ Despacho registrado con '+detalle.length+' material'+(detalle.length>1?'es':''));
       notificarEmail('despacho_multiple', {detalle:detalle, responsable:resp, recibe:recibe, bajos:bajos});
+      await registrarGastoEnvio(extraerDistrito(recibe), costoEnvio, 'despacho', 'Despacho — '+recibe);
 
       _carritoDesp = [];
       renderCarritoDesp();
-      ['dItem','dCant','dResp','dRecibe','dNota'].forEach(function(x){
+      ['dItem','dCant','dResp','dRecibe','dNota','dCostoEnvio'].forEach(function(x){
         var el=document.getElementById(x); if(el) el.value='';
       });
       document.getElementById('dAvail').textContent='—';
@@ -4223,6 +4287,7 @@ async function enviarEnvioOcasional() {
   var fotoInput = document.getElementById('eoFoto');
   var iglesia = document.getElementById('eoIglesia').value.trim();
   var observacion = document.getElementById('eoObservacion').value.trim();
+  var costoEnvio = parseFloat(document.getElementById('eoCostoEnvio').value)||0;
 
   if(!pastor){ toast('Ingresa el nombre del pastor','warn'); return; }
   if(!correo || !correo.includes('@')){ toast('Ingresa un correo válido','warn'); return; }
@@ -4285,6 +4350,8 @@ async function enviarEnvioOcasional() {
         console.log('Detectado libro de diáconos en envío ocasional:', iglesia, distrito, codigoIglExistente);
         await registrarLibroDiacono(iglesia, distrito||'No especificado', codigoIglExistente);
       }
+
+      await registrarGastoEnvio(distrito, costoEnvio, 'envio_ocasional', 'Envío ocasional — '+pastor);
     }
 
     // Enviar correo al pastor
@@ -4319,6 +4386,7 @@ async function enviarEnvioOcasional() {
     document.getElementById('eoObservacion').value = '';
     document.getElementById('eoIglesia').value = '';
     document.getElementById('eoIglesiaBlock').style.display = 'none';
+    document.getElementById('eoCostoEnvio').value = '';
     fotoInput.value = '';
     toggleEnvioOcasional();
   } catch(e) {
@@ -4596,6 +4664,56 @@ function renderResumenEjecutivo(rotacion) {
   cont.innerHTML = '👉 ' + frases.join(' ');
 }
 
+function calcularGastosEnvio() {
+  var gastos = STATE.gastosEnvio || [];
+  var ahora = new Date();
+  var claveMesActual = ahora.getFullYear()+'-'+(ahora.getMonth()+1);
+  var anioActual = ahora.getFullYear();
+
+  var totalMes = 0, totalAnio = 0, totalGeneral = 0;
+  var porDistrito = {};
+
+  gastos.forEach(function(g) {
+    var costo = g.costo || 0;
+    totalGeneral += costo;
+    if(g.fecha) {
+      var claveM = g.fecha.getFullYear()+'-'+(g.fecha.getMonth()+1);
+      if(claveM === claveMesActual) totalMes += costo;
+      if(g.fecha.getFullYear() === anioActual) totalAnio += costo;
+    }
+    var d = g.distrito || 'Sin distrito';
+    porDistrito[d] = (porDistrito[d]||0) + costo;
+  });
+
+  var rankingDistrito = Object.keys(porDistrito)
+    .map(function(d){ return {distrito:d, total:porDistrito[d]}; })
+    .sort(function(a,b){ return b.total-a.total; });
+
+  return {totalMes:totalMes, totalAnio:totalAnio, totalGeneral:totalGeneral, rankingDistrito:rankingDistrito, cantidadRegistros:gastos.length};
+}
+
+function renderGastosEnvio() {
+  var cont = document.getElementById('gastosEnvioBody');
+  if(!cont) return;
+  var g = calcularGastosEnvio();
+  if(!g.cantidadRegistros) {
+    cont.innerHTML = '<div class="empty">Sin gastos de envío registrados todavía — se van sumando a medida que se agregue el costo de transporte al hacer un despacho, distribución, envío ocasional o al marcar un pedido como enviado</div>';
+    return;
+  }
+  var rankingHtml = g.rankingDistrito.map(function(r,idx){
+    return '<div class="log"><div class="ldot" style="background:var(--gold)"></div><div class="ltxt"><strong>#'+(idx+1)+' '+r.distrito+'</strong></div><div class="ltime">$'+r.total.toLocaleString('es-CO')+'</div></div>';
+  }).join('');
+
+  cont.innerHTML =
+    '<div class="g3" style="margin-bottom:16px">' +
+      '<div><div class="slbl">Este mes</div><div class="sval" style="color:var(--gold)">$'+g.totalMes.toLocaleString('es-CO')+'</div></div>' +
+      '<div><div class="slbl">Este año</div><div class="sval" style="color:var(--gold)">$'+g.totalAnio.toLocaleString('es-CO')+'</div></div>' +
+      '<div><div class="slbl">Total histórico</div><div class="sval" style="color:var(--gold)">$'+g.totalGeneral.toLocaleString('es-CO')+'</div></div>' +
+    '</div>' +
+    '<div style="font-size:11px;font-weight:600;color:var(--t2);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Gastos por distrito</div>' +
+    rankingHtml;
+}
+
 function renderTesoreria() {
   if(!document.getElementById('rotacionCards')) return;
   var rotacion = calcularRotacion();
@@ -4606,6 +4724,7 @@ function renderTesoreria() {
   renderProyeccionCompra(rotacion);
   renderComportamientoDistrito();
   renderPeriodosCerrados();
+  renderGastosEnvio();
 }
 
 // ── Funcionalidad 2: proyección de compra (solo RÁPIDA y NORMAL) ─────────

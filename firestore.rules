@@ -131,6 +131,15 @@ service cloud.firestore {
       allow delete: if esAdmin();
     }
 
+    // ── gastos_envio: costo de transporte de cada despacho (Tesorería). Un registro
+    // por viaje, no por material, para no duplicar el gasto al sumarlo. Solo lo crea
+    // quien puede despachar; nunca se edita ni se borra desde la app.
+    match /gastos_envio/{id} {
+      allow read: if estaLogueado();
+      allow create: if puedeEditar();
+      allow update, delete: if false;
+    }
+
     // ── periodos_cerrados: solo master/tesorero pueden cerrar un período.
     // Una vez creado, no se actualiza ni se borra desde la app (si algún
     // día hace falta reabrir un mes, se hace manualmente desde la Consola).
