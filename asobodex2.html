@@ -1356,7 +1356,7 @@ function loginOk(u) {
   setTimeout(()=>mostrarBienvenida(u), 300);
   document.querySelectorAll('.admin-tab').forEach(el=>el.style.display=isAdmin?'':'none');
   document.querySelectorAll('.admin-el').forEach(el=>el.style.display=isAdmin?'':'none');
-  document.querySelectorAll('.reader-tab').forEach(el=>el.style.display=(isReader||isFacturador||isTesorero)?'':'none');
+  document.querySelectorAll('.reader-tab').forEach(el=>el.style.display=(isReader||isFacturador||isTesorero||isSecretaria)?'':'none');
   document.querySelectorAll('.fact-tab').forEach(el=>el.style.display=isFacturador?'':'none');
   document.querySelectorAll('.dist-tab').forEach(el=>el.style.display=isFacturador?'':'none');
   document.querySelectorAll('.master-only').forEach(el=>el.style.display=isMasterAdmin?'':'none');
@@ -1378,6 +1378,9 @@ function mostrarBienvenida(u) {
       '<div style="font-size:12px;color:var(--t2);margin-top:4px">Autorización de solicitudes de Biblias</div></div>' +
       '<div style="display:flex;flex-direction:column;gap:8px;font-size:13px">' +
       mkRoleItem('📖','Biblias','Revisa las solicitudes de Biblias de cada pastor, edita la cantidad si hace falta y autoriza o rechaza el envío') +
+      mkRoleItem('📊','Dashboard','Ver inventario actual y alertas') +
+      mkRoleItem('📦','Inventario','Consultar cantidades y estado de cada material') +
+      mkRoleItem('🛒','Solicitud Interna','Pide materiales de bodega para tu departamento') +
       '</div>' +
       '<div style="background:var(--teal-light);border:1px solid var(--bd);border-radius:var(--r);padding:10px 14px;font-size:12px;color:var(--teal);margin-top:12px">Cuando autorizas o rechazas una solicitud, el administrador lo ve automáticamente en ese pedido — ya no hace falta avisarle aparte.</div>';
   } else if (isMaster) {
