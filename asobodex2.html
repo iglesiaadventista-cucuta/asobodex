@@ -622,6 +622,8 @@ textarea.fc{resize:vertical;min-height:70px}
         <button class="btn bgold" onclick="generarInformePDF()">📄 Informe para junta directiva</button>
       </div>
 
+      <div id="resumenEjecutivo" style="background:var(--teal-light);border:1px solid var(--bd);border-radius:var(--r2);padding:14px 18px;margin-bottom:16px;font-size:14px;line-height:1.6"></div>
+
       <div class="sgrid" id="rotacionCards"></div>
 
       <div class="panel"><div class="ph"><span class="pt">📦 Capital dormido</span></div>
@@ -648,33 +650,32 @@ textarea.fc{resize:vertical;min-height:70px}
         </table></div>
       </div>
 
-      <div style="margin:18px 0 8px">
-        <div style="font-size:16px;font-weight:700">📈 Proyección de compra</div>
-        <div style="font-size:12px;color:var(--t2);margin-top:2px">Solo materiales de rotación rápida o normal. Considera la estacionalidad de cada material (ej. enero para sobres de diezmo) — tiempo de espera de compra: 30 días.</div>
-      </div>
-      <div class="panel"><div class="tw"><table>
-        <thead><tr><th>Material</th><th>Stock actual</th><th>Agotamiento estimado</th><th>Comprar antes de</th><th>Necesidad próx. 12 meses</th><th>Confianza</th></tr></thead>
-        <tbody id="proyeccionTbl"></tbody>
-      </table></div></div>
+      <details class="panel" style="padding:0" id="detallesProyeccion">
+        <summary style="cursor:pointer;padding:12px 16px;font-size:11px;font-weight:600;color:var(--teal);text-transform:uppercase;letter-spacing:.08em">📈 Ver proyección de compra (solo rotación rápida/normal)</summary>
+        <div style="padding:0 16px 12px;font-size:12px;color:var(--t2)">Considera la estacionalidad de cada material (ej. enero para sobres de diezmo) — tiempo de espera de compra: 30 días.</div>
+        <div class="tw" style="padding:0 16px 16px"><table>
+          <thead><tr><th>Material</th><th>Stock actual</th><th>Agotamiento estimado</th><th>Comprar antes de</th><th>Necesidad próx. 12 meses</th><th>Confianza</th></tr></thead>
+          <tbody id="proyeccionTbl"></tbody>
+        </table></div>
+      </details>
 
-      <div style="margin:18px 0 8px">
-        <div style="font-size:16px;font-weight:700">📍 Comportamiento por distrito</div>
-        <div style="font-size:12px;color:var(--t2);margin-top:2px">Basado en las solicitudes de pastores/distritos y lo efectivamente despachado.</div>
-      </div>
-      <div id="distritoComportamiento"></div>
+      <details class="panel" style="padding:0;margin-top:12px" id="detallesDistrito">
+        <summary style="cursor:pointer;padding:12px 16px;font-size:11px;font-weight:600;color:var(--teal);text-transform:uppercase;letter-spacing:.08em">📍 Ver comportamiento por distrito</summary>
+        <div style="padding:0 16px 16px" id="distritoComportamiento"></div>
+      </details>
 
-      <div style="margin:18px 0 8px">
-        <div style="font-size:16px;font-weight:700">🔒 Cierre de período</div>
-        <div style="font-size:12px;color:var(--t2);margin-top:2px">Una vez cerrado un mes, no se pueden aprobar ni editar pedidos con fecha de solicitud dentro de ese mes.</div>
-      </div>
-      <div class="panel"><div class="pb">
-        <div class="f2">
-          <div class="fg"><label>Mes a cerrar</label><input type="month" class="fc" id="cierreMes"></div>
-          <div class="fg"><label>&nbsp;</label><button class="btn bred" style="width:100%" onclick="cerrarPeriodoActual()">🔒 Cerrar este mes</button></div>
+      <details class="panel" style="padding:0;margin-top:12px" id="detallesCierre">
+        <summary style="cursor:pointer;padding:12px 16px;font-size:11px;font-weight:600;color:var(--teal);text-transform:uppercase;letter-spacing:.08em">🔒 Ver cierre de período</summary>
+        <div style="padding:0 16px 16px">
+          <div style="font-size:12px;color:var(--t2);margin-bottom:12px">Una vez cerrado un mes, no se pueden aprobar ni editar pedidos con fecha de solicitud dentro de ese mes.</div>
+          <div class="f2">
+            <div class="fg"><label>Mes a cerrar</label><input type="month" class="fc" id="cierreMes"></div>
+            <div class="fg"><label>&nbsp;</label><button class="btn bred" style="width:100%" onclick="cerrarPeriodoActual()">🔒 Cerrar este mes</button></div>
+          </div>
+          <div style="font-size:11px;font-weight:600;color:var(--t2);text-transform:uppercase;letter-spacing:.06em;margin:14px 0 8px">Períodos cerrados</div>
+          <div id="periodosCerradosLista"></div>
         </div>
-        <div style="font-size:11px;font-weight:600;color:var(--t2);text-transform:uppercase;letter-spacing:.06em;margin:14px 0 8px">Períodos cerrados</div>
-        <div id="periodosCerradosLista"></div>
-      </div></div>
+      </details>
     </div>
 
     <!-- SOLICITAR MATERIAL (para consultores/encargados) -->
@@ -4555,7 +4556,11 @@ function renderRotacionTabla() {
   });
 
   if(!filas.length) {
-    tbl.innerHTML = '<tr><td colspan="7" class="empty" style="text-align:center">Sin artículos que coincidan</td></tr>';
+    var textoClase = {RAPIDA:'Rápida', NORMAL:'Normal', LENTA:'Lenta', MUERTO:'Muerto'}[filtroClase];
+    var mensajeVacio = filtroClase
+      ? 'No hay artículos en la categoría "'+textoClase+'" — prueba con "Todas las clasificaciones" arriba'
+      : 'Sin artículos que coincidan con la búsqueda';
+    tbl.innerHTML = '<tr><td colspan="7" class="empty" style="text-align:center">'+mensajeVacio+'</td></tr>';
     return;
   }
 
@@ -4574,9 +4579,27 @@ function renderRotacionTabla() {
   }).join('');
 }
 
+function renderResumenEjecutivo(rotacion) {
+  var cont = document.getElementById('resumenEjecutivo');
+  if(!cont) return;
+  var total = rotacion.length;
+  if(!total) { cont.innerHTML = 'Todavía no hay materiales registrados para analizar.'; return; }
+  var muertos = rotacion.filter(function(r){ return r.clasificacion==='MUERTO'; });
+  var rapidas = rotacion.filter(function(r){ return r.clasificacion==='RAPIDA'; });
+  var pctMuertos = (muertos.length/total*100).toFixed(0);
+
+  var frases = [];
+  frases.push('De tus <strong>'+total+' materiales</strong>, <strong style="color:var(--red)">'+muertos.length+' ('+pctMuertos+'%)</strong> llevan más de 6 meses sin moverse — son candidatos a <strong>dejar de comprar o redistribuir</strong> a otros distritos.');
+  if(rapidas.length) {
+    frases.push('<strong style="color:var(--teal)">'+rapidas.length+' material'+(rapidas.length===1?'':'es')+'</strong> se está'+(rapidas.length===1?'':'n')+' agotando pronto y necesita'+(rapidas.length===1?'':'n')+' reponerse.');
+  }
+  cont.innerHTML = '👉 ' + frases.join(' ');
+}
+
 function renderTesoreria() {
   if(!document.getElementById('rotacionCards')) return;
   var rotacion = calcularRotacion();
+  renderResumenEjecutivo(rotacion);
   renderRotacionCards(rotacion);
   renderCapitalDormido(rotacion);
   renderRotacionTabla();
