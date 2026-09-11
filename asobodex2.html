@@ -677,7 +677,7 @@ textarea.fc{resize:vertical;min-height:70px}
         <summary style="cursor:pointer;padding:12px 16px;font-size:11px;font-weight:600;color:var(--teal);text-transform:uppercase;letter-spacing:.08em">🚚 Gastos de envío (transporte)</summary>
         <div style="padding:0 16px 16px;font-size:12px;color:var(--t2);margin-bottom:4px">Costo de transporte de cada despacho — se agrega opcionalmente al momento de despachar, no se cobra a los distritos, solo se registra para control interno.</div>
         <div style="padding:0 16px 16px" id="gastosEnvioBody"></div>
-        <div style="padding:0 16px 16px;border-top:1px solid var(--bd);margin-top:4px">
+        <div class="master-only" style="padding:0 16px 16px;border-top:1px solid var(--bd);margin-top:4px">
           <div style="font-size:11px;font-weight:600;color:var(--t2);text-transform:uppercase;letter-spacing:.06em;margin:12px 0 8px">➕ Agregar gasto de envío antiguo (para completar el histórico)</div>
           <div class="f2">
             <div class="fg"><label>Distrito</label>
@@ -4764,7 +4764,8 @@ function popGeDistrito() {
 }
 
 async function agregarGastoEnvioHistorico() {
-  if(!permisosDe(STATE.user).tesoreria) { toast('No tienes permiso para esto','err'); return; }
+  var esMaster = STATE.user && STATE.user.uid === '7k3swOaRgLTcO5faxjp5dx4iPkR2';
+  if(!esMaster) { toast('No tienes permiso para esto','err'); return; }
   var distrito = document.getElementById('geDistrito').value;
   var fechaStr = document.getElementById('geFecha').value;
   var costo = parseFloat(document.getElementById('geCosto').value)||0;
