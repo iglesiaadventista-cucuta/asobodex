@@ -1,0 +1,143 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ════════════════════════════════════════════════════════════════
+    // AsoBodex — Reglas de Firestore (propuesta)
+    //
+    // ⚠️ IMPORTANTE ANTES DE PUBLICAR:
+    // 1. No conozco las reglas ACTUALES de este proyecto (no hay archivo
+    //    firestore.rules en el repo y no me las compartiste). Este archivo
+    //    es un set completo recomendado, no un parche — reemplaza lo que
+    //    haya hoy en la Consola. Revísalo con cuidado antes de pegarlo.
+    // 2. Pruébalo primero en el simulador de la Consola de Firebase
+    //    (Firestore Database → Reglas → pestaña "Simulador de reglas")
+    //    antes de publicarlo.
+    // 3. Después de publicar, prueba de inmediato:
+    //    - Que un pastor pueda enviar un pedido desde asobodex_pedidos.html
+    //      SIN iniciar sesión (es la función más fácil de romper por error).
+    //    - Que cada rol pueda iniciar sesión y ver lo que le corresponde.
+    // 4. Guarda una copia de las reglas que tenías ANTES de reemplazarlas,
+    //    para poder revertir rápido si algo se rompe.
+    //
+    // Requiere que exista la colección 'usuarios/{uid}' con el rol real de
+    // cada persona (espejo de la constante ROLES del código). Esa colección
+    // la sincroniza automáticamente asobodex2.html cada vez que el admin
+    // maestro inicia sesión (función sincronizarRolesFirestore()) — así que
+    // antes de depender de reglas basadas en rol, el admin debe haber
+    // iniciado sesión al menos una vez con el código ya actualizado.
+    // ════════════════════════════════════════════════════════════════
+
+    function estaLogueado() {
+      return request.auth != null;
+    }
+
+    // get()/exists() dentro de una regla no necesitan permiso de lectura
+    // aparte sobre el documento consultado — es una excepción del propio
+    // motor de reglas de Firestore, no hace falta abrir 'usuarios' a todos.
+    function rolDe() {
+      return get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.role;
+    }
+    function esAdmin() {
+      return estaLogueado() && rolDe() == 'admin';
+    }
+    function esTesorero() {
+      return estaLogueado() && rolDe() == 'tesorero';
+    }
+    function esFacturador() {
+      return estaLogueado() && rolDe() == 'facturador';
+    }
+    // Refleja PERMISOS.editar (admin y facturador pueden modificar inventario:
+    // Registrar/Despachar es admin, Distribución/Remisiones es facturador).
+    function puedeEditar() {
+      return esAdmin() || esFacturador();
+    }
+    // Refleja PERMISOS.cerrarPeriodo (solo master y tesorero).
+    function puedeCerrarPeriodo() {
+      return esAdmin() || esTesorero();
+    }
+
+    // Arma la clave 'YYYY-MM' de un Timestamp para consultar periodos_cerrados.
+    // ⚠️ Verificar en el simulador: la sintaxis de fecha.year()/.month() del
+    // lenguaje de reglas puede variar según la versión; si falla, avísame y
+    // la ajustamos juntos con el simulador abierto.
+    function claveMes(fecha) {
+      return string(fecha.year()) + '-' + (fecha.month() < 10 ? ('0' + string(fecha.month())) : string(fecha.month()));
+    }
+    function mesCerrado(fecha) {
+      return fecha != null && exists(/databases/$(database)/documents/periodos_cerrados/$(claveMes(fecha)));
+    }
+
+    // ── usuarios: espejo de roles — solo el admin maestro (UID fijo, igual
+    // que en el cliente) puede escribirlo. Cada quien puede leer su propio
+    // documento (no es necesario para las reglas, pero no hace daño).
+    match /usuarios/{uid} {
+      allow read: if estaLogueado() && request.auth.uid == uid;
+      allow write: if request.auth != null && request.auth.uid == '7k3swOaRgLTcO5faxjp5dx4iPkR2';
+    }
+
+    // ── materiales: inventario. Todos los roles logueados lo leen
+    // (Dashboard/Inventario/Tesorería lo necesitan); solo quien puede
+    // editar inventario (admin/facturador) puede escribirlo.
+    match /materiales/{id} {
+      allow read: if estaLogueado();
+      allow write: if puedeEditar();
+    }
+
+    // ── movimientos: historial de entradas/salidas. Es de solo-agregar:
+    // nunca se actualiza ni se borra un movimiento ya creado en el código
+    // actual, así que las reglas lo reflejan explícitamente.
+    match /movimientos/{id} {
+      allow read: if estaLogueado();
+      allow create: if puedeEditar();
+      allow update, delete: if false;
+    }
+
+    // ── pedidos: el formulario público del pastor (asobodex_pedidos.html)
+    // NO inicia sesión — por eso 'create' queda abierto. Leer/aprobar/
+    // rechazar/marcar como enviado sí requiere ser admin, y además respeta
+    // el cierre de período (Funcionalidad 4): si el mes de la fecha del
+    // pedido está cerrado, ni el admin puede modificarlo desde aquí.
+    match /pedidos/{id} {
+      allow create: if true;
+      allow read: if estaLogueado();
+      allow update: if esAdmin() && !mesCerrado(resource.data.fecha);
+      allow delete: if esAdmin();
+    }
+
+    // ── distribuciones: registradas por facturador (o admin), y también
+    // editadas (detalle recortado) al eliminar una entrega puntual.
+    match /distribuciones/{id} {
+      allow read: if estaLogueado();
+      allow create: if puedeEditar();
+      allow update: if puedeEditar();
+      allow delete: if esAdmin();
+    }
+
+    // ── libros_diaconos: seguimiento de talonarios por iglesia. Solo el
+    // admin lo escribe hoy (se crea al aprobar/enviar pedidos o desde el
+    // botón de reenvío manual, ambos en pantallas solo de admin).
+    match /libros_diaconos/{id} {
+      allow read: if estaLogueado();
+      allow write: if esAdmin();
+    }
+
+    // ── remisiones: facturación a iglesias — exclusivo del rol facturador
+    // (y el admin, por si necesita corregir algo).
+    match /remisiones/{id} {
+      allow read: if estaLogueado();
+      allow create: if esFacturador() || esAdmin();
+      allow update: if esFacturador() || esAdmin();
+      allow delete: if esAdmin();
+    }
+
+    // ── periodos_cerrados: solo master/tesorero pueden cerrar un período.
+    // Una vez creado, no se actualiza ni se borra desde la app (si algún
+    // día hace falta reabrir un mes, se hace manualmente desde la Consola).
+    match /periodos_cerrados/{mes} {
+      allow read: if estaLogueado();
+      allow create: if puedeCerrarPeriodo();
+      allow update, delete: if false;
+    }
+  }
+}

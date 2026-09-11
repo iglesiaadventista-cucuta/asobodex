@@ -977,6 +977,24 @@ function permisosDe(u) {
   return PERMISOS[u.role] || PERMISOS.reader;
 }
 
+// Espejo de ROLES en Firestore (colección 'usuarios/{uid}') — necesario para que las
+// reglas de seguridad del servidor puedan saber el rol real de quien escribe, ya que
+// hoy ROLES solo existe en este archivo (el cliente). Solo el admin maestro puede
+// escribir esta colección (así lo exigen las reglas), así que se sincroniza en su login.
+async function sincronizarRolesFirestore() {
+  if(!window._db || !window._fbOps) return;
+  try {
+    for(var uid in ROLES) {
+      await window._fbOps.setDoc(window._fbOps.doc(window._db,'usuarios',uid), {
+        nombre: ROLES[uid].nombre, role: ROLES[uid].role, sincronizadoEn: window._serverTimestamp()
+      });
+    }
+    console.log('✓ Roles sincronizados con Firestore ('+Object.keys(ROLES).length+' usuarios)');
+  } catch(e) {
+    console.error('Error sincronizando roles con Firestore (revisa las reglas de la colección usuarios):', e);
+  }
+}
+
 // EmailJS config (cuenta nueva)
 const EJS = { service:'service_rz1zuqt', template:'template_ei39t1d', key:'knIHuPbNBsPazGON_', email:'mensajeria@asonoreste.org' };
 function initEmailJS() { if(window.emailjs) { emailjs.init(EJS.key); console.log('EmailJS inicializado OK'); } else { console.warn('EmailJS no cargó'); } }
@@ -1217,6 +1235,9 @@ async function doLogin() {
     const userData = ROLES[uid] || { nombre: email, role: 'reader' };
     startListeners(db);
     loginOk({ uid, email, ...userData });
+    // Solo el admin maestro puede escribir la colección 'usuarios' (ver reglas de
+    // Firestore) — se aprovecha su login para mantener el espejo de roles al día.
+    if(uid === '7k3swOaRgLTcO5faxjp5dx4iPkR2') { sincronizarRolesFirestore(); }
     var btnL = document.querySelector('.lbtn');
     if(btnL){ btnL.textContent = 'Ingresar al sistema'; btnL.disabled = false; }
   } catch(err) {
