@@ -282,6 +282,7 @@ const EJS_SERVICE  = 'service_rz1zuqt';
 const EJS_TEMPLATE = 'template_ei39t1d';
 const EJS_KEY      = 'knIHuPbNBsPazGON_';
 const MASTER_EMAIL = 'mensajeria@asonoreste.org';
+const SECRETARIA_EMAIL = 'secretaria@asonoreste.org';
 
 document.addEventListener('DOMContentLoaded', function() {
   if(window.emailjs) { emailjs.init(EJS_KEY); console.log('✓ EmailJS inicializado'); }
@@ -339,6 +340,24 @@ function enviarNotificacionEmail(pastor, correo, distrito, items, otros) {
       console.log('✓ Email pastor enviado OK:', r.status);
     }).catch(function(e) {
       console.error('✗ Email pastor ERROR:', e);
+    });
+  }
+
+  // Si el pedido incluye Biblias, avisar aparte a Secretaría — es quien autoriza el envío
+  var itemBiblias = items.find(function(i){ return i.nombre === 'Biblias'; });
+  if (itemBiblias) {
+    var msgSecretaria = 'Llegó una nueva solicitud de Biblias.\n\nPastor: ' + pastor + '\nDistrito: ' + distrito + '\nCantidad solicitada: ' + itemBiblias.cantidad + '\nFecha: ' + fecha + '\n\nIngresa a AsoBodex, pestaña "Biblias", para revisar la cantidad y autorizar o rechazar el envío.';
+    console.log('Enviando email a Secretaría:', SECRETARIA_EMAIL);
+    emailjs.send(EJS_SERVICE, EJS_TEMPLATE, {
+      to_email: SECRETARIA_EMAIL,
+      asunto: '📖 Solicitud de Biblias — ' + distrito,
+      mensaje: msgSecretaria,
+      name: pastor,
+      email: correo || MASTER_EMAIL
+    }).then(function(r) {
+      console.log('✓ Email Secretaría enviado OK:', r.status);
+    }).catch(function(e) {
+      console.error('✗ Email Secretaría ERROR:', e);
     });
   }
 }

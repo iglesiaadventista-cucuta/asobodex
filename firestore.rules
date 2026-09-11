@@ -47,6 +47,9 @@ service cloud.firestore {
     function esFacturador() {
       return estaLogueado() && rolDe() == 'facturador';
     }
+    function esSecretaria() {
+      return estaLogueado() && rolDe() == 'secretaria';
+    }
     // Refleja PERMISOS.editar (admin y facturador pueden modificar inventario:
     // Registrar/Despachar es admin, Distribución/Remisiones es facturador).
     function puedeEditar() {
@@ -98,10 +101,13 @@ service cloud.firestore {
     // rechazar/marcar como enviado sí requiere ser admin, y además respeta
     // el cierre de período (Funcionalidad 4): si el mes de la fecha del
     // pedido está cerrado, ni el admin puede modificarlo desde aquí.
+    // Secretaría también puede actualizar (autorizar/rechazar Biblias) —
+    // su cambio se limita en el cliente al ítem "Biblias", y no depende del
+    // cierre de período porque no es una acción financiera.
     match /pedidos/{id} {
       allow create: if true;
       allow read: if estaLogueado();
-      allow update: if esAdmin() && !mesCerrado(resource.data.fecha);
+      allow update: if (esAdmin() && !mesCerrado(resource.data.fecha)) || esSecretaria();
       allow delete: if esAdmin();
     }
 

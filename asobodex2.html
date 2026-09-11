@@ -233,6 +233,7 @@ textarea.fc{resize:vertical;min-height:70px}
       <button class="tab admin-tab" data-view="registrar">➕ <span>Registrar</span></button>
       <button class="tab admin-tab" data-view="despachar">📤 <span>Despachar</span></button>
       <button class="tab master-only" data-view="solicitudes">📋 <span>Solicitudes</span> <span class="tbadge" id="reqBadge" style="display:none">0</span></button>
+      <button class="tab biblias-tab" data-view="biblias" style="display:none">📖 <span>Biblias</span> <span class="tbadge" id="bibliasBadge" style="display:none">0</span></button>
       <button class="tab master-only" data-view="verdistribucion">📦 <span>Distribuciones</span> <span class="tbadge" id="distBadge" style="display:none">0</span></button>
       <button class="tab reader-tab" data-view="solicitar">🛒 <span>Solicitud Interna</span></button>
       <button class="tab tesoreria-tab" data-view="tesoreria" style="display:none">💰 <span>Tesorería</span></button>
@@ -454,6 +455,19 @@ textarea.fc{resize:vertical;min-height:70px}
       </div>
 
       <div id="solsContainer"></div>
+    </div>
+
+    <!-- BIBLIAS (secretaría) -->
+    <div class="view" id="view-biblias">
+      <div style="margin-bottom:14px">
+        <div style="font-size:16px;font-weight:700">📖 Solicitudes de Biblias</div>
+        <div style="font-size:12px;color:var(--t2);margin-top:2px">Revisa cada solicitud, ajusta la cantidad si hace falta, y autoriza o rechaza el envío. El administrador lo ve automáticamente en el pedido.</div>
+      </div>
+      <div id="bibliasPendientes"></div>
+      <details class="panel" style="padding:0;margin-top:16px">
+        <summary style="cursor:pointer;padding:12px 16px;font-size:11px;font-weight:600;color:var(--teal);text-transform:uppercase;letter-spacing:.08em">Ver decisiones recientes</summary>
+        <div style="padding:0 16px 16px" id="bibliasHistorial"></div>
+      </details>
     </div>
 
     <!-- HISTORIAL -->
@@ -991,7 +1005,7 @@ const ROLES = {
   'g9m1YyFGy8QwCCSh9FSXtxFIza53': { nombre:'Eliana Pedrozo', role:'facturador' },
   'bfKgWkv6y5cMgcaQ04Bgz2TmLov1': { nombre:'Samuel Marín',  role:'reader' },
   'gkiy9BFcC0PWZehKwGtc8Pc0t663': { nombre:'José Romero',    role:'reader' },
-  'qlsgXUnwUkQhXHz1eYiLFZOBVGw2': { nombre:'Secretaría',     role:'reader' },
+  'qlsgXUnwUkQhXHz1eYiLFZOBVGw2': { nombre:'Secretaría',     role:'secretaria' },
   'Ljm4oG7l4iXx7hTtrfOyqNJgT3K3': { nombre:'Fanny Martínez', role:'reader' },
   'WugcxNhI0Bf2G50C5rbcw9rx3773': { nombre:'Tesorero',       role:'tesorero' }
 };
@@ -1000,11 +1014,12 @@ const ROLES = {
 // "master" cubre tanto al admin por rol como al UID exacto de administrador —
 // hoy son la misma persona, pero se dejan separados por si algún día no lo son.
 const PERMISOS = {
-  master:     { verCostos:true,  editar:true,  despachar:true,  cerrarPeriodo:true,  tesoreria:true  },
-  tesorero:   { verCostos:true,  editar:false, despachar:false, cerrarPeriodo:true,  tesoreria:true  },
-  facturador: { verCostos:false, editar:true,  despachar:true,  cerrarPeriodo:false, tesoreria:false },
-  reader:     { verCostos:false, editar:false, despachar:false, cerrarPeriodo:false, tesoreria:false },
-  admin:      { verCostos:true,  editar:true,  despachar:true,  cerrarPeriodo:true,  tesoreria:true  }
+  master:     { verCostos:true,  editar:true,  despachar:true,  cerrarPeriodo:true,  tesoreria:true,  autorizarBiblias:true  },
+  tesorero:   { verCostos:true,  editar:false, despachar:false, cerrarPeriodo:true,  tesoreria:true,  autorizarBiblias:false },
+  facturador: { verCostos:false, editar:true,  despachar:true,  cerrarPeriodo:false, tesoreria:false, autorizarBiblias:false },
+  reader:     { verCostos:false, editar:false, despachar:false, cerrarPeriodo:false, tesoreria:false, autorizarBiblias:false },
+  admin:      { verCostos:true,  editar:true,  despachar:true,  cerrarPeriodo:true,  tesoreria:true,  autorizarBiblias:true  },
+  secretaria: { verCostos:false, editar:false, despachar:false, cerrarPeriodo:false, tesoreria:false, autorizarBiblias:true  }
 };
 function permisosDe(u) {
   if(!u) return PERMISOS.reader;
@@ -1326,11 +1341,12 @@ function loginOk(u) {
   document.getElementById('app').classList.add('show');
   // Logo shown in avatar - no initials needed
   document.getElementById('uNm').textContent=u.nombre;
-  document.getElementById('uRl').textContent={admin:'Administrador',reader:'Consultor',facturador:'Facturador',tesorero:'Tesorero'}[u.role]||u.role;
+  document.getElementById('uRl').textContent={admin:'Administrador',reader:'Consultor',facturador:'Facturador',tesorero:'Tesorero',secretaria:'Secretaría'}[u.role]||u.role;
   const isAdmin = u.role==='admin';
   const isReader = u.role==='reader';
   const isFacturador = u.role==='facturador';
   const isTesorero = u.role==='tesorero';
+  const isSecretaria = u.role==='secretaria';
   const isMasterAdmin = u.uid === '7k3swOaRgLTcO5faxjp5dx4iPkR2';
   var dl = document.getElementById('dataLoading');
   if(dl){
@@ -1345,15 +1361,26 @@ function loginOk(u) {
   document.querySelectorAll('.dist-tab').forEach(el=>el.style.display=isFacturador?'':'none');
   document.querySelectorAll('.master-only').forEach(el=>el.style.display=isMasterAdmin?'':'none');
   document.querySelectorAll('.tesoreria-tab').forEach(el=>el.style.display=(isTesorero||isMasterAdmin)?'':'none');
+  document.querySelectorAll('.biblias-tab').forEach(el=>el.style.display=(isSecretaria||isMasterAdmin)?'':'none');
   renderAll();
   buildPedidoForm();
   if(isTesorero) { setTimeout(function(){ showView('tesoreria'); }, 0); }
+  if(isSecretaria) { setTimeout(function(){ showView('biblias'); }, 0); }
 }
 function mostrarBienvenida(u) {
   var isMaster = u.role === 'admin';
   var isFacturador = u.role === 'facturador';
+  var isSecretaria = u.role === 'secretaria';
   var contenido = '';
-  if (isMaster) {
+  if (isSecretaria) {
+    contenido = '<div style="text-align:center;margin-bottom:20px"><div style="font-size:40px;margin-bottom:8px">📖</div>' +
+      '<div style="font-size:18px;font-weight:700;color:var(--teal)">Bienvenida, '+u.nombre+'</div>' +
+      '<div style="font-size:12px;color:var(--t2);margin-top:4px">Autorización de solicitudes de Biblias</div></div>' +
+      '<div style="display:flex;flex-direction:column;gap:8px;font-size:13px">' +
+      mkRoleItem('📖','Biblias','Revisa las solicitudes de Biblias de cada pastor, edita la cantidad si hace falta y autoriza o rechaza el envío') +
+      '</div>' +
+      '<div style="background:var(--teal-light);border:1px solid var(--bd);border-radius:var(--r);padding:10px 14px;font-size:12px;color:var(--teal);margin-top:12px">Cuando autorizas o rechazas una solicitud, el administrador lo ve automáticamente en ese pedido — ya no hace falta avisarle aparte.</div>';
+  } else if (isMaster) {
     contenido = '<div style="text-align:center;margin-bottom:20px"><div style="font-size:40px;margin-bottom:8px">👑</div>' +
       '<div style="font-size:18px;font-weight:700;color:var(--teal)">Bienvenido, Administrador</div>' +
       '<div style="font-size:12px;color:var(--t2);margin-top:4px">Tienes acceso completo al sistema</div></div>' +
@@ -1541,6 +1568,7 @@ function showView(v) {
   var adminBlockedViews = ['solicitar','distribucion'];
   if(adminBlockedViews.indexOf(v) !== -1 && isMasterAdmin) { return; }
   if(v === 'tesoreria' && !(isMasterAdmin || (STATE.user && STATE.user.role==='tesorero'))) { return; }
+  if(v === 'biblias' && !(isMasterAdmin || (STATE.user && STATE.user.role==='secretaria'))) { return; }
   document.querySelectorAll('.view').forEach(el=>el.classList.remove('active'));
   document.querySelectorAll('.tab').forEach(el=>el.classList.remove('active'));
   document.getElementById('view-'+v)?.classList.add('active');
@@ -1550,7 +1578,7 @@ function showView(v) {
 }
 
 // ── RENDER ───────────────────────────────────────────────────
-function renderAll() { renderDash(); renderInv(); renderDesp(); renderSols(); renderHist(); renderPedidos(); renderMisSolicitudes(); renderLibros(); renderRemisiones(); renderDistribuciones(); popSelects(); updBadges(); renderTesoreria(); }
+function renderAll() { renderDash(); renderInv(); renderDesp(); renderSols(); renderHist(); renderPedidos(); renderMisSolicitudes(); renderLibros(); renderRemisiones(); renderDistribuciones(); popSelects(); updBadges(); renderTesoreria(); renderBiblias(); }
 
 var _chartMain = null, _chartDona = null;
 var _dashActiveTab = 'resumen';
@@ -1784,7 +1812,7 @@ function renderSols() {
     var libroDuplicado = null;
     for (var ii = 0; ii < items.length; ii++) {
       var item = items[ii];
-      itemsHtml += '<span class="rtag">' + (item.nombre||'') + ' x' + (item.cantidad||'') + (item.iglesia ? ' (' + item.iglesia + ')' : '') + (item.codigoIglesia ? ' — Cód: ' + item.codigoIglesia : '') + (item.fotoUrl ? ' 📷' : '') + '</span>';
+      itemsHtml += '<span class="rtag">' + (item.nombre||'') + ' x' + (item.cantidad||'') + (item.iglesia ? ' (' + item.iglesia + ')' : '') + (item.codigoIglesia ? ' — Cód: ' + item.codigoIglesia : '') + (item.fotoUrl ? ' 📷' : '') + bibliaBadgeCorto(item) + '</span>';
       var nombreSinTildesIt2 = (item.nombre||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
       if(!libroDuplicado && item.iglesia && nombreSinTildesIt2.indexOf('diacono')!==-1) {
         libroDuplicado = libroReciente(item.iglesia);
@@ -1824,6 +1852,155 @@ function renderSols() {
   }
 
   document.getElementById('solsContainer').innerHTML = html;
+}
+
+// ── SOLICITUDES DE BIBLIAS (autorización de Secretaría) ──────────────────
+// Secretaría decide si se envían las Biblias que pide un pastor — antes se le
+// preguntaba aparte; ahora queda directamente en el pedido: si aprueba, la
+// cantidad autorizada se guarda en item.cantidad; si rechaza, se reutiliza el
+// mismo mecanismo de rechazo por ítem que ya usa el administrador
+// (item.rechazado / item.motivoRechazo), así que Solicitudes lo refleja solo.
+function itemBiblia(r) {
+  return (r.items||[]).find(function(it){ return it.nombre === 'Biblias'; });
+}
+function pedidosBibliaPendientes() {
+  return STATE.requests.filter(function(r) {
+    var it = itemBiblia(r);
+    return it && !it.secretaria;
+  });
+}
+// Los Timestamp de Firestore dentro de arrays no se convierten automáticamente
+// a Date como sí pasa con el campo 'fecha' de nivel superior (ver startListeners)
+function fechaSecretaria(it) {
+  var f = it && it.secretaria ? it.secretaria.fecha : null;
+  if(!f) return null;
+  return f.toDate ? f.toDate() : f;
+}
+function pedidosBibliaDecididos() {
+  return STATE.requests.filter(function(r) {
+    var it = itemBiblia(r);
+    return it && it.secretaria;
+  }).sort(function(a,b){
+    return (fechaSecretaria(itemBiblia(b))||0) - (fechaSecretaria(itemBiblia(a))||0);
+  }).slice(0, 20);
+}
+
+// Insignia corta para el tag del material en la tarjeta de Solicitudes
+function bibliaBadgeCorto(item) {
+  if(item.nombre !== 'Biblias') return '';
+  if(!item.secretaria) return ' ⏳';
+  return item.secretaria.estado === 'aprobado' ? ' ✅' : ' 🚫';
+}
+// Insignia completa dentro del detalle de la solicitud (la ve el administrador)
+function bibliaBadgeLargo(it) {
+  if(it.nombre !== 'Biblias') return '';
+  if(!it.secretaria) {
+    return '<div style="margin-top:8px;padding:8px 10px;background:rgba(245,166,35,.12);border-radius:var(--r);font-size:11px;color:var(--amber)">⏳ Pendiente de autorización de Secretaría</div>';
+  }
+  if(it.secretaria.estado === 'aprobado') {
+    var cambio = (it.secretaria.cantidadOriginal !== it.secretaria.cantidadAprobada) ? ' (ajustada de '+it.secretaria.cantidadOriginal+' a '+it.secretaria.cantidadAprobada+')' : '';
+    return '<div style="margin-top:8px;padding:8px 10px;background:rgba(46,204,113,.12);border-radius:var(--r);font-size:11px;color:var(--green)">✅ Autorizada por Secretaría'+cambio+'</div>';
+  }
+  return '<div style="margin-top:8px;padding:8px 10px;background:rgba(231,76,60,.12);border-radius:var(--r);font-size:11px;color:var(--red)">🚫 Rechazada por Secretaría'+(it.secretaria.motivo?' — Motivo: '+it.secretaria.motivo:'')+'</div>';
+}
+
+function renderBiblias() {
+  var contP = document.getElementById('bibliasPendientes');
+  if(!contP) return;
+  var pendientes = pedidosBibliaPendientes();
+  contP.innerHTML = pendientes.length ? pendientes.map(function(r) {
+    var it = itemBiblia(r);
+    return '<div class="rcard">' +
+      '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:10px">' +
+        '<div><div style="font-size:13px;font-weight:700">' + (r.pastor||'') + '</div>' +
+        '<div style="font-size:11px;color:var(--teal);font-weight:600">' + (r.distrito||'') + '</div></div>' +
+        '<div style="font-size:10px;color:var(--t3)">' + fmtD(r.fecha) + '</div>' +
+      '</div>' +
+      '<div class="fg" style="margin-bottom:10px"><label>Cantidad de Biblias solicitadas</label>' +
+        '<input type="number" class="fc" id="bibCant_'+r.id+'" value="'+(it.cantidad||0)+'" min="1" style="width:120px">' +
+      '</div>' +
+      '<div style="display:flex;gap:8px;flex-wrap:wrap">' +
+        '<button class="btn bgrn bsm" onclick="autorizarBiblia(\''+r.id+'\')">✓ Autorizar envío</button>' +
+        '<button class="btn bred bsm" onclick="rechazarBiblia(\''+r.id+'\')">✗ Rechazar</button>' +
+      '</div>' +
+    '</div>';
+  }).join('') : '<div class="empty" style="padding:48px">Sin solicitudes de Biblias pendientes 🎉</div>';
+
+  var contH = document.getElementById('bibliasHistorial');
+  if(!contH) return;
+  var decididos = pedidosBibliaDecididos();
+  contH.innerHTML = decididos.length ? decididos.map(function(r) {
+    var it = itemBiblia(r);
+    var aprobado = it.secretaria.estado === 'aprobado';
+    return '<div class="log"><div class="ldot" style="background:'+(aprobado?'var(--green)':'var(--red)')+'"></div>' +
+      '<div class="ltxt"><strong>'+(r.pastor||'')+'</strong> — '+(r.distrito||'')+
+      '<div class="lsub">'+(aprobado ? '✅ Autorizada ('+it.secretaria.cantidadAprobada+' und)' : '🚫 Rechazada'+(it.secretaria.motivo?': '+it.secretaria.motivo:''))+'</div></div>' +
+      '<div class="ltime">'+fmtD(fechaSecretaria(it))+'</div></div>';
+  }).join('') : '<div class="empty">Sin decisiones registradas todavía</div>';
+}
+
+async function autorizarBiblia(pedidoId) {
+  if(!permisosDe(STATE.user).autorizarBiblias) { toast('No tienes permiso para esto','err'); return; }
+  var r = STATE.requests.find(function(x){ return x.id===pedidoId; });
+  if(!r) return;
+  var idx = (r.items||[]).findIndex(function(x){ return x.nombre==='Biblias'; });
+  if(idx===-1) return;
+  var input = document.getElementById('bibCant_'+pedidoId);
+  var cant = input ? (parseInt(input.value)||0) : r.items[idx].cantidad;
+  if(cant < 1) { toast('Ingresa una cantidad válida','warn'); return; }
+
+  var itemsActualizados = r.items.map(function(it, i){ return i===idx ? Object.assign({}, it) : it; });
+  var original = itemsActualizados[idx].cantidad;
+  itemsActualizados[idx].cantidad = cant;
+  itemsActualizados[idx].rechazado = false;
+  itemsActualizados[idx].motivoRechazo = '';
+  itemsActualizados[idx].secretaria = {
+    estado: 'aprobado', cantidadOriginal: original, cantidadAprobada: cant,
+    por: STATE.user ? STATE.user.nombre : 'Secretaría', fecha: new Date()
+  };
+
+  try {
+    if(window._db && window._fbOps) {
+      await window._fbOps.updateDoc(window._fbOps.doc(window._db,'pedidos',pedidoId), { items: itemsActualizados });
+      toast('✓ Biblias autorizadas ('+cant+' und) para '+(r.pastor||''));
+    } else {
+      toast('Sin conexión a Firebase','err');
+    }
+  } catch(e) {
+    toast('Error: '+e.message,'err');
+    console.error(e);
+  }
+}
+
+async function rechazarBiblia(pedidoId) {
+  if(!permisosDe(STATE.user).autorizarBiblias) { toast('No tienes permiso para esto','err'); return; }
+  var r = STATE.requests.find(function(x){ return x.id===pedidoId; });
+  if(!r) return;
+  var idx = (r.items||[]).findIndex(function(x){ return x.nombre==='Biblias'; });
+  if(idx===-1) return;
+  var motivo = prompt('¿Por qué se rechaza la solicitud de Biblias? (se incluye en el correo al pastor)');
+  if(motivo === null) return;
+  motivo = motivo.trim();
+
+  var itemsActualizados = r.items.map(function(it, i){ return i===idx ? Object.assign({}, it) : it; });
+  itemsActualizados[idx].rechazado = true;
+  itemsActualizados[idx].motivoRechazo = 'Rechazado por Secretaría' + (motivo ? ': '+motivo : '');
+  itemsActualizados[idx].secretaria = {
+    estado: 'rechazado', motivo: motivo,
+    por: STATE.user ? STATE.user.nombre : 'Secretaría', fecha: new Date()
+  };
+
+  try {
+    if(window._db && window._fbOps) {
+      await window._fbOps.updateDoc(window._fbOps.doc(window._db,'pedidos',pedidoId), { items: itemsActualizados });
+      toast('Solicitud de Biblias rechazada');
+    } else {
+      toast('Sin conexión a Firebase','err');
+    }
+  } catch(e) {
+    toast('Error: '+e.message,'err');
+    console.error(e);
+  }
 }
 
 // Pide el motivo (opcional) y rechaza el pedido completo — se incluye en el correo al pastor
@@ -1889,7 +2066,7 @@ function verDetalleSol(btn) {
       '<div><div style="font-size:13px;font-weight:600">' + (it.nombre||'') + '</div>' +
       (it.iglesia ? '<div style="font-size:11px;color:var(--teal)">Iglesia: ' + it.iglesia + '</div>' : '') + '</div>' +
       '<div style="display:flex;align-items:center;gap:12px">' + checkHtml + cantHtml + '</div></div>' +
-      motivoHtml + libroInfo + alertaReciente + '</div>';
+      motivoHtml + libroInfo + alertaReciente + bibliaBadgeLargo(it) + '</div>';
   }
 
   document.getElementById('mSolTitle').textContent = 'Pedido — ' + (r.distrito||'');
@@ -2182,6 +2359,9 @@ async function enviarConGuia(btn) {
           origenPedido:true, pedidoId:id,
           fecha:st()
         });
+        if(pedItem.nombre === 'Biblias') {
+          await descontarCertificadosPorBiblias(pedItem.cantidad, {distrito:r.distrito, responsable:STATE.user?STATE.user.nombre:'Admin', recibe:r.pastor+' — '+r.distrito});
+        }
         var nombreSinTildes = pedItem.nombre.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
         if(nombreSinTildes.indexOf('diacono')!==-1) {
           var iglesia = pedItem.iglesia || r.pastor || 'No especificada';
@@ -2322,6 +2502,9 @@ function updBadges() {
   const nd=STATE.distribuciones.filter(d=>!d.revisado).length;
   const bd=document.getElementById('distBadge');
   if(bd){ bd.textContent=nd; bd.style.display=nd>0?'':'none'; }
+  const nb=pedidosBibliaPendientes().length;
+  const bb=document.getElementById('bibliasBadge');
+  if(bb){ bb.textContent=nb; bb.style.display=nb>0?'':'none'; }
 }
 function popSelects() {
   const opts=STATE.items.map(function(i){ return '<option value="'+i.id+'">'+i.nombre+' ('+i.cantidad+' und)</option>'; }).join('');
@@ -2800,6 +2983,38 @@ async function generarRemision() {
   renderCarritoRem();
   ['remIglesia','remDistrito','remResp','remCorreo'].forEach(function(x){ document.getElementById(x).value=''; });
   if(btn){ btn.textContent='🖨️ Generar e imprimir remisión'; btn.disabled=false; }
+}
+
+// ── BIBLIAS → CERTIFICADOS DE BAUTISMO (descuento automático) ────────────
+// Cada vez que se entregan Biblias, se entrega la misma cantidad de Certificados
+// de Bautismo — siempre van juntos — así que se descuentan solos del inventario,
+// sin que el pastor tenga que pedirlos aparte ni el despachador acordarse de hacerlo.
+// contexto: {distrito, responsable, recibe}
+async function descontarCertificadosPorBiblias(cantidadBiblias, contexto) {
+  if(!cantidadBiblias || cantidadBiblias <= 0) return;
+  if(!window._db || !window._fbOps) return;
+  var cert = STATE.items.find(function(i){ return i.nombre === 'Certificados de Bautismo'; });
+  if(!cert) { toast('⚠️ Se despacharon Biblias pero no existe "Certificados de Bautismo" en el inventario para descontar','warn'); return; }
+
+  var aDescontar = Math.min(cantidadBiblias, cert.cantidad);
+  if(aDescontar <= 0) { toast('⚠️ No quedan Certificados de Bautismo para descontar (se pidieron '+cantidadBiblias+' Biblias)','warn'); return; }
+
+  try {
+    await window._fbOps.updateDoc(window._fbOps.doc(window._db,'materiales',cert.id), {cantidad: cert.cantidad - aDescontar});
+    await window._fbOps.addDoc(window._fbOps.collection(window._db,'movimientos'), {
+      tipo:'despacho', material:cert.nombre, cantidad:aDescontar,
+      departamento:cert.departamento, responsable:(contexto&&contexto.responsable)||(STATE.user?STATE.user.nombre:'Admin'),
+      recibe:(contexto&&contexto.recibe)||'', distrito:(contexto&&contexto.distrito)||'',
+      nota:'Descuento automático — se entrega junto con '+cantidadBiblias+' Biblia(s)',
+      fecha: window._serverTimestamp()
+    });
+    if(aDescontar < cantidadBiblias) {
+      toast('⚠️ Solo había '+cert.cantidad+' Certificados de Bautismo — se descontaron todos, faltan '+(cantidadBiblias-aDescontar),'warn');
+    }
+  } catch(e) {
+    console.error('Error descontando Certificados de Bautismo:', e);
+    toast('Las Biblias se despacharon, pero no se pudo descontar Certificados de Bautismo','warn');
+  }
 }
 
 // ── GASTOS DE ENVÍO (costo de transporte/flete, aparte del valor del material) ──
@@ -3928,6 +4143,11 @@ async function registrarDespacho() {
           nota:nota||'Despacho de material', fecha:st()
         });
         if(nuevaCant < (item2.minimo||50)) bajos.push({material:item2.nombre, cantidad:nuevaCant});
+      }
+
+      var itemBibliasDesp = STATE.items.find(function(i){ return i.nombre === 'Biblias'; });
+      if(itemBibliasDesp && totalesPorMaterial[itemBibliasDesp.id]) {
+        await descontarCertificadosPorBiblias(totalesPorMaterial[itemBibliasDesp.id], {distrito:extraerDistrito(recibe), responsable:resp, recibe:recibe});
       }
 
       var detalle = _carritoDesp.map(function(c){ return {material:c.material, cantidad:c.cantidad, departamento:c.departamento}; });
