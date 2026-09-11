@@ -644,6 +644,15 @@ textarea.fc{resize:vertical;min-height:70px}
           <tbody id="rotacionTbl"></tbody>
         </table></div>
       </div>
+
+      <div style="margin:18px 0 8px">
+        <div style="font-size:16px;font-weight:700">📈 Proyección de compra</div>
+        <div style="font-size:12px;color:var(--t2);margin-top:2px">Solo materiales de rotación rápida o normal. Considera la estacionalidad de cada material (ej. enero para sobres de diezmo) — tiempo de espera de compra: 30 días.</div>
+      </div>
+      <div class="panel"><div class="tw"><table>
+        <thead><tr><th>Material</th><th>Stock actual</th><th>Agotamiento estimado</th><th>Comprar antes de</th><th>Necesidad próx. 12 meses</th><th>Confianza</th></tr></thead>
+        <tbody id="proyeccionTbl"></tbody>
+      </table></div></div>
     </div>
 
     <!-- SOLICITAR MATERIAL (para consultores/encargados) -->
@@ -4507,6 +4516,111 @@ function renderTesoreria() {
   renderRotacionCards(rotacion);
   renderCapitalDormido(rotacion);
   renderRotacionTabla();
+  renderProyeccionCompra(rotacion);
+}
+
+// ── Funcionalidad 2: proyección de compra (solo RÁPIDA y NORMAL) ─────────
+const LEAD_TIME_DIAS = 30; // tiempo de espera de compra, fijo por ahora
+
+// Índice de estacionalidad por mes calendario (1-12), agregando todos los años de
+// histórico disponibles para ese material. Con menos de 3 meses de histórico total,
+// se marca bajaConfianza y quien la use debe ignorar los índices (promedio simple).
+function calcularEstacionalidad(nombreMaterial) {
+  var porAnioMes = {};
+  var tiposSalida = {despacho:true, distribucion:true, envio_ocasional:true};
+  (STATE.movements||[]).forEach(function(m) {
+    if(!tiposSalida[m.tipo] || m.material !== nombreMaterial || !m.fecha) return;
+    var clave = m.fecha.getFullYear()+'-'+(m.fecha.getMonth()+1);
+    porAnioMes[clave] = (porAnioMes[clave]||0) + (m.cantidad||0);
+  });
+  var claves = Object.keys(porAnioMes);
+  var numMesesHistoricos = claves.length;
+
+  var sumaPorMes = {}, conteoPorMes = {};
+  claves.forEach(function(clave) {
+    var mes = parseInt(clave.split('-')[1]);
+    sumaPorMes[mes] = (sumaPorMes[mes]||0) + porAnioMes[clave];
+    conteoPorMes[mes] = (conteoPorMes[mes]||0) + 1;
+  });
+
+  var promedioGeneral = numMesesHistoricos>0 ? (claves.reduce(function(s,k){return s+porAnioMes[k];},0) / numMesesHistoricos) : 0;
+  var indices = {};
+  for(var mes=1; mes<=12; mes++) {
+    var promedioDeEseMes = conteoPorMes[mes] ? sumaPorMes[mes]/conteoPorMes[mes] : promedioGeneral;
+    indices[mes] = promedioGeneral>0 ? (promedioDeEseMes/promedioGeneral) : 1;
+  }
+  return {indices:indices, promedioGeneral:promedioGeneral, numMesesHistoricos:numMesesHistoricos, bajaConfianza: numMesesHistoricos<3};
+}
+
+// Proyecta los próximos 12 meses aplicando el índice de estacionalidad al consumo
+// mensual base (ya calculado en calcularRotacion), y simula mes a mes cuándo se
+// agotaría el stock actual para sugerir una fecha de compra con el lead time restado.
+function proyectarNecesidad(itemRotacion) {
+  var estac = calcularEstacionalidad(itemRotacion.nombre);
+  var proyeccion = [];
+  var ahora = new Date();
+  for(var i=1; i<=12; i++) {
+    var fechaMes = new Date(ahora.getFullYear(), ahora.getMonth()+i, 1);
+    var mesCal = fechaMes.getMonth()+1;
+    var indice = estac.bajaConfianza ? 1 : estac.indices[mesCal];
+    proyeccion.push({fecha:fechaMes, unidadesEsperadas: itemRotacion.consumoMensual*indice});
+  }
+
+  var stockRestante = itemRotacion.stock;
+  var mesAgotamiento = null;
+  for(var j=0; j<proyeccion.length; j++) {
+    stockRestante -= proyeccion[j].unidadesEsperadas;
+    if(stockRestante <= 0) { mesAgotamiento = proyeccion[j].fecha; break; }
+  }
+  var fechaSugeridaCompra = null;
+  if(mesAgotamiento) {
+    fechaSugeridaCompra = new Date(mesAgotamiento);
+    fechaSugeridaCompra.setDate(fechaSugeridaCompra.getDate() - LEAD_TIME_DIAS);
+  }
+
+  return {
+    nombre: itemRotacion.nombre, mesAgotamiento: mesAgotamiento, fechaSugeridaCompra: fechaSugeridaCompra,
+    bajaConfianza: estac.bajaConfianza, numMesesHistoricos: estac.numMesesHistoricos,
+    totalProyectado12m: proyeccion.reduce(function(s,p){ return s+p.unidadesEsperadas; }, 0)
+  };
+}
+
+function renderProyeccionCompra(rotacion) {
+  var tbl = document.getElementById('proyeccionTbl');
+  if(!tbl) return;
+  var candidatos = rotacion.filter(function(r){ return r.clasificacion==='RAPIDA' || r.clasificacion==='NORMAL'; });
+  if(!candidatos.length) {
+    tbl.innerHTML = '<tr><td colspan="6" class="empty" style="text-align:center">Sin artículos de rotación rápida o normal</td></tr>';
+    return;
+  }
+  var filas = candidatos.map(function(r){ return Object.assign({stock:r.stock}, proyectarNecesidad(r)); });
+  filas.sort(function(a,b) {
+    if(!a.fechaSugeridaCompra) return 1;
+    if(!b.fechaSugeridaCompra) return -1;
+    return a.fechaSugeridaCompra - b.fechaSugeridaCompra;
+  });
+
+  var hoy = new Date();
+  tbl.innerHTML = filas.map(function(f) {
+    var agotamientoTxt = f.mesAgotamiento ? nombreMesEs(f.mesAgotamiento) : 'No se agota en 12 meses';
+    var compraTxt = '—';
+    if(f.fechaSugeridaCompra) {
+      compraTxt = f.fechaSugeridaCompra < hoy
+        ? '<strong style="color:var(--red)">Ya — se está agotando</strong>'
+        : fmtD(f.fechaSugeridaCompra);
+    }
+    var confianzaTxt = f.bajaConfianza
+      ? '<span class="b bwn" title="Menos de 3 meses de histórico">⚠️ Baja confianza</span>'
+      : '<span class="b bok">Normal</span>';
+    return '<tr>' +
+      '<td style="font-weight:600">'+f.nombre+'</td>' +
+      '<td style="font-family:monospace">'+f.stock+'</td>' +
+      '<td>'+agotamientoTxt+'</td>' +
+      '<td>'+compraTxt+'</td>' +
+      '<td style="font-family:monospace">'+f.totalProyectado12m.toFixed(0)+' und</td>' +
+      '<td>'+confianzaTxt+'</td>' +
+      '</tr>';
+  }).join('');
 }
 
 </script>
