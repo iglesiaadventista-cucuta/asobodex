@@ -1601,17 +1601,21 @@ function drawResumen(items) {
   var combined = bottom5.concat(top5);
   var nombresCompletos = combined.map(function(i){return i.nombre;});
   var labels = combined.map(function(i){return i.nombre.length>18?i.nombre.substring(0,18)+'..':i.nombre;});
-  var values = combined.map(function(i){return i.cantidad;});
+  var valoresReales = combined.map(function(i){return i.cantidad;});
+  // Escala logarítmica para que un artículo con mucho más stock que el resto (ej. Sobres
+  // de Diezmos) no aplaste visualmente a los demás. Log no admite 0, así que se usa un
+  // piso de 1 solo para poder dibujar la barra — el tooltip sigue mostrando la cantidad real.
+  var values = valoresReales.map(function(v){ return v>0 ? v : 1; });
   var colors = combined.map(function(i,idx){return idx<6?'#e74c3c':'#2dd4a8';});
 
   var ctx = document.getElementById('chartMain');
   if(_chartMain) _chartMain.destroy();
   _chartMain = new Chart(ctx, {
     type:'bar', data:{labels:labels, datasets:[{data:values, backgroundColor:colors, borderRadius:6, borderSkipped:false, maxBarThickness:32}]},
-    options:{responsive:true, plugins:{legend:{display:false}, title:{display:true,text:'🔴 Menor stock          🟢 Mayor stock',color:'#5a7a8a',font:{size:12}},
+    options:{responsive:true, plugins:{legend:{display:false}, title:{display:true,text:'🔴 Menor stock          🟢 Mayor stock (escala logarítmica)',color:'#5a7a8a',font:{size:12}},
       tooltip:{backgroundColor:'#0f2b3c',titleColor:'#1a9aaa',bodyColor:'#e8edf3',titleFont:{size:14},bodyFont:{size:13},padding:12,
-        callbacks:{title:function(ctx){return nombresCompletos[ctx[0].dataIndex];},label:function(ctx){return '  Stock: '+ctx.raw+' unidades';}}}},
-      scales:{x:{ticks:{color:'#8899aa',font:{size:12},maxRotation:50,minRotation:50},grid:{display:false}},y:{ticks:{color:'#5a7a8a',font:{size:12}},grid:{color:'rgba(26,154,170,0.08)'}}}}
+        callbacks:{title:function(ctx){return nombresCompletos[ctx[0].dataIndex];},label:function(ctx){return '  Stock: '+valoresReales[ctx.dataIndex]+' unidades';}}}},
+      scales:{x:{ticks:{color:'#8899aa',font:{size:12},maxRotation:50,minRotation:50},grid:{display:false}},y:{type:'logarithmic',ticks:{color:'#5a7a8a',font:{size:12}},grid:{color:'rgba(26,154,170,0.08)'}}}}
   });
 
   var normal=items.filter(function(i){return i.cantidad>=50&&diasEnBodega(i.fechaIngreso)<120;}).length;
