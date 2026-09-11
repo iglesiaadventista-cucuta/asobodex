@@ -612,6 +612,40 @@ textarea.fc{resize:vertical;min-height:70px}
       </div>
     </div>
 
+    <!-- TESORERÍA -->
+    <div class="view" id="view-tesoreria">
+      <div style="margin-bottom:14px">
+        <div style="font-size:16px;font-weight:700">💰 Tesorería — Rotación de inventario</div>
+        <div style="font-size:12px;color:var(--t2);margin-top:2px">Clasificación de cada material según sus salidas de los últimos 12 meses. Clic en una tarjeta para filtrar la tabla.</div>
+      </div>
+
+      <div class="sgrid" id="rotacionCards"></div>
+
+      <div class="panel"><div class="ph"><span class="pt">📦 Capital dormido</span></div>
+        <div class="pb" id="capitalDormidoBody"></div>
+      </div>
+
+      <div class="panel">
+        <div class="ph">
+          <span class="pt">Detalle de rotación</span>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <input type="text" class="fc" id="rotBuscar" placeholder="Buscar material..." oninput="renderRotacionTabla()" style="width:180px;padding:6px 10px;font-size:12px">
+            <select class="fc" id="rotFiltroClase" onchange="renderRotacionTabla()" style="width:auto;padding:6px 10px;font-size:12px">
+              <option value="">Todas las clasificaciones</option>
+              <option value="RAPIDA">Rápida</option>
+              <option value="NORMAL">Normal</option>
+              <option value="LENTA">Lenta</option>
+              <option value="MUERTO">Muerto</option>
+            </select>
+          </div>
+        </div>
+        <div class="tw"><table>
+          <thead><tr><th>Material</th><th>Stock</th><th>Última salida</th><th>Consumo mensual</th><th>Meses de inventario</th><th>Clasificación</th><th>Recomendación</th></tr></thead>
+          <tbody id="rotacionTbl"></tbody>
+        </table></div>
+      </div>
+    </div>
+
     <!-- SOLICITAR MATERIAL (para consultores/encargados) -->
     <div class="view" id="view-solicitar">
       <div style="margin-bottom:14px">
@@ -1403,7 +1437,7 @@ function showView(v) {
 }
 
 // ── RENDER ───────────────────────────────────────────────────
-function renderAll() { renderDash(); renderInv(); renderDesp(); renderSols(); renderHist(); renderPedidos(); renderMisSolicitudes(); renderLibros(); renderRemisiones(); renderDistribuciones(); popSelects(); updBadges(); }
+function renderAll() { renderDash(); renderInv(); renderDesp(); renderSols(); renderHist(); renderPedidos(); renderMisSolicitudes(); renderLibros(); renderRemisiones(); renderDistribuciones(); popSelects(); updBadges(); renderTesoreria(); }
 
 var _chartMain = null, _chartDona = null;
 var _dashActiveTab = 'resumen';
@@ -4291,6 +4325,188 @@ function exportarPDF() {
   w.document.close();
   w.onload = function(){ w.print(); };
   toast('PDF generado — usa Ctrl+P para guardar como PDF');
+}
+
+// ════════════════════════════════════════════════════════════
+// ── MÓDULO DE TESORERÍA ──────────────────────────────────────
+// Todo lo que sigue es autocontenido: no modifica ni depende de
+// funciones de renderizado de otros módulos, solo lee STATE.
+// ════════════════════════════════════════════════════════════
+
+// ── Funcionalidad 1: análisis de rotación ─────────────────────
+var _rotacionCache = null;
+
+function nombreMesEs(date) {
+  return date.toLocaleDateString('es-CO', {month:'long', year:'numeric'});
+}
+
+// Clasifica cada material de STATE.items según sus salidas (despacho/distribución/
+// envío ocasional) de los últimos 12 meses. No lanza ni produce NaN/Infinity:
+// - Sin ninguna salida en 12 meses -> consumoMensual=0 -> MUERTO (no se divide por 0).
+// - Sin ninguna salida en los últimos 6 meses -> MUERTO, aunque haya tenido salidas antes.
+function calcularRotacion() {
+  var ahora = new Date();
+  var hace12Meses = new Date(ahora); hace12Meses.setMonth(hace12Meses.getMonth()-12);
+  var hace6Meses = new Date(ahora); hace6Meses.setMonth(hace6Meses.getMonth()-6);
+  var tiposSalida = {despacho:true, distribucion:true, envio_ocasional:true};
+
+  // Un solo recorrido de movimientos, agrupado por nombre de material (evita recorrer
+  // todos los movimientos una vez por cada uno de los ~137 artículos).
+  var porMaterial = {};
+  (STATE.movements||[]).forEach(function(m) {
+    if(!tiposSalida[m.tipo] || !m.material) return;
+    if(!porMaterial[m.material]) porMaterial[m.material] = {salidas12m:0, fechaUltima:null};
+    var reg = porMaterial[m.material];
+    if(!reg.fechaUltima || m.fecha > reg.fechaUltima) reg.fechaUltima = m.fecha;
+    if(m.fecha >= hace12Meses) reg.salidas12m += (m.cantidad||0);
+  });
+
+  var resultado = (STATE.items||[]).map(function(item) {
+    var reg = porMaterial[item.nombre];
+    var salidas12m = reg ? reg.salidas12m : 0;
+    var fechaUltimaSalida = reg ? reg.fechaUltima : null;
+    var consumoMensual = salidas12m / 12;
+    var diasDesdeUltimaSalida = fechaUltimaSalida ? Math.floor((ahora - fechaUltimaSalida)/(1000*60*60*24)) : null;
+    var sinSalidaEn6m = !fechaUltimaSalida || fechaUltimaSalida < hace6Meses;
+
+    var clasificacion, mesesInventario = null;
+    if(consumoMensual <= 0 || sinSalidaEn6m) {
+      clasificacion = 'MUERTO';
+    } else {
+      mesesInventario = (item.cantidad||0) / consumoMensual;
+      if(mesesInventario < 2) clasificacion = 'RAPIDA';
+      else if(mesesInventario < 6) clasificacion = 'NORMAL';
+      else clasificacion = 'LENTA'; // 6+ meses, incluye sobrestock extremo (ej. 50+ meses)
+    }
+
+    return {
+      id: item.id, nombre: item.nombre, departamento: item.departamento||'',
+      stock: item.cantidad||0, precio: item.precio||0,
+      consumoMensual: consumoMensual, mesesInventario: mesesInventario,
+      fechaUltimaSalida: fechaUltimaSalida, diasDesdeUltimaSalida: diasDesdeUltimaSalida,
+      clasificacion: clasificacion
+    };
+  });
+
+  _rotacionCache = resultado;
+  return resultado;
+}
+
+function recomendacionRotacion(r) {
+  if(r.clasificacion === 'MUERTO') {
+    return r.stock > 0 ? 'No volver a comprar — redistribuir a distritos activos' : 'No volver a comprar';
+  }
+  if(r.clasificacion === 'LENTA') {
+    return 'No comprar más por ahora — se mueve muy despacio (' + r.mesesInventario.toFixed(0) + ' meses de stock)';
+  }
+  if(r.clasificacion === 'RAPIDA') {
+    var fechaAgotamiento = new Date();
+    fechaAgotamiento.setMonth(fechaAgotamiento.getMonth() + Math.max(r.mesesInventario, 0));
+    return 'Reponer antes de ' + nombreMesEs(fechaAgotamiento);
+  }
+  return 'Nivel saludable — seguir monitoreando';
+}
+
+function badgeClasificacion(clase) {
+  var map = {RAPIDA:'btl', NORMAL:'bok', LENTA:'bwn', MUERTO:'bre'};
+  var texto = {RAPIDA:'Rápida', NORMAL:'Normal', LENTA:'Lenta', MUERTO:'Muerto'};
+  return '<span class="b '+(map[clase]||'bgr')+'">'+(texto[clase]||clase)+'</span>';
+}
+
+var _rotFiltroActivo = '';
+function filtrarRotacionPorClase(clase) {
+  _rotFiltroActivo = (_rotFiltroActivo === clase) ? '' : clase;
+  var sel = document.getElementById('rotFiltroClase');
+  if(sel) sel.value = _rotFiltroActivo;
+  renderRotacionTabla();
+}
+
+function renderRotacionCards(rotacion) {
+  var cont = document.getElementById('rotacionCards');
+  if(!cont) return;
+  var conteos = {RAPIDA:0, NORMAL:0, LENTA:0, MUERTO:0};
+  rotacion.forEach(function(r){ conteos[r.clasificacion]++; });
+  var defs = [
+    {clase:'RAPIDA', label:'Rápida', color:'', icon:'⚡'},
+    {clase:'NORMAL', label:'Normal', color:'green', icon:'✅'},
+    {clase:'LENTA',  label:'Lenta',  color:'gold',  icon:'🐢'},
+    {clase:'MUERTO', label:'Muerto', color:'red',   icon:'💀'}
+  ];
+  cont.innerHTML = defs.map(function(d) {
+    var activo = _rotFiltroActivo === d.clase;
+    return '<div class="scard'+(d.color?' '+d.color:'')+'" style="cursor:pointer;'+(activo?'outline:2px solid var(--teal)':'')+'" onclick="filtrarRotacionPorClase(\''+d.clase+'\')">' +
+      '<div class="slbl">'+d.icon+' '+d.label+'</div>' +
+      '<div class="sval">'+conteos[d.clase]+'</div>' +
+      '<div class="ssub">artículo'+(conteos[d.clase]===1?'':'s')+'</div></div>';
+  }).join('');
+}
+
+function renderCapitalDormido(rotacion) {
+  var cont = document.getElementById('capitalDormidoBody');
+  if(!cont) return;
+  var muertos = rotacion.filter(function(r){ return r.clasificacion==='MUERTO'; });
+  var totalUnidadesMuertas = muertos.reduce(function(s,r){ return s+r.stock; }, 0);
+  var totalUnidadesBodega = rotacion.reduce(function(s,r){ return s+r.stock; }, 0);
+  var pct = totalUnidadesBodega>0 ? (totalUnidadesMuertas/totalUnidadesBodega*100) : 0;
+  var conPrecio = muertos.filter(function(r){ return r.precio>0; });
+  var valorEstimado = conPrecio.reduce(function(s,r){ return s + r.stock*r.precio; }, 0);
+
+  var html = '<div class="g3">' +
+    '<div><div class="slbl">Artículos muertos</div><div class="sval" style="color:var(--red)">'+muertos.length+'</div><div class="ssub">de '+rotacion.length+' en total</div></div>' +
+    '<div><div class="slbl">Unidades inmovilizadas</div><div class="sval" style="color:var(--red)">'+totalUnidadesMuertas.toLocaleString('es-CO')+'</div><div class="ssub">'+pct.toFixed(1)+'% del inventario total</div></div>' +
+    (conPrecio.length ? '<div><div class="slbl">Valor estimado (solo con precio)</div><div class="sval" style="color:var(--amber)">$'+valorEstimado.toLocaleString('es-CO')+'</div><div class="ssub">'+conPrecio.length+' artículo(s) con precio registrado</div></div>'
+      : '<div><div class="slbl">Valor estimado</div><div class="sval" style="color:var(--t2);font-size:14px">Sin dato de costo</div><div class="ssub">ningún artículo muerto tiene precio de compra registrado</div></div>') +
+    '</div>';
+  cont.innerHTML = html;
+}
+
+function renderRotacionTabla() {
+  var tbl = document.getElementById('rotacionTbl');
+  if(!tbl) return;
+  var rotacion = _rotacionCache || calcularRotacion();
+  var filtroClase = document.getElementById('rotFiltroClase') ? document.getElementById('rotFiltroClase').value : '';
+  var q = (document.getElementById('rotBuscar') ? document.getElementById('rotBuscar').value : '').trim().toLowerCase();
+
+  var filas = rotacion.filter(function(r) {
+    if(filtroClase && r.clasificacion !== filtroClase) return false;
+    if(q && r.nombre.toLowerCase().indexOf(q)===-1) return false;
+    return true;
+  });
+
+  // Orden por gravedad: muerto primero, luego lenta, normal, rápida; dentro de cada
+  // grupo, más unidades paradas / más días sin salida primero.
+  var pesoClase = {MUERTO:0, LENTA:1, NORMAL:2, RAPIDA:3};
+  filas.sort(function(a,b) {
+    if(pesoClase[a.clasificacion] !== pesoClase[b.clasificacion]) return pesoClase[a.clasificacion]-pesoClase[b.clasificacion];
+    return b.stock - a.stock;
+  });
+
+  if(!filas.length) {
+    tbl.innerHTML = '<tr><td colspan="7" class="empty" style="text-align:center">Sin artículos que coincidan</td></tr>';
+    return;
+  }
+
+  tbl.innerHTML = filas.map(function(r) {
+    var ultimaSalidaTxt = r.fechaUltimaSalida ? fmtD(r.fechaUltimaSalida) : 'Nunca';
+    var mesesTxt = r.mesesInventario!=null ? r.mesesInventario.toFixed(1)+' meses' : '—';
+    return '<tr>' +
+      '<td style="font-weight:600">'+r.nombre+'</td>' +
+      '<td style="font-family:monospace">'+r.stock+'</td>' +
+      '<td style="font-size:11px;color:var(--t2)">'+ultimaSalidaTxt+'</td>' +
+      '<td style="font-family:monospace">'+r.consumoMensual.toFixed(1)+'/mes</td>' +
+      '<td style="font-family:monospace">'+mesesTxt+'</td>' +
+      '<td>'+badgeClasificacion(r.clasificacion)+'</td>' +
+      '<td style="font-size:11px;color:var(--t2)">'+recomendacionRotacion(r)+'</td>' +
+      '</tr>';
+  }).join('');
+}
+
+function renderTesoreria() {
+  if(!document.getElementById('rotacionCards')) return;
+  var rotacion = calcularRotacion();
+  renderRotacionCards(rotacion);
+  renderCapitalDormido(rotacion);
+  renderRotacionTabla();
 }
 
 </script>
