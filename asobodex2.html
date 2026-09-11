@@ -653,6 +653,12 @@ textarea.fc{resize:vertical;min-height:70px}
         <thead><tr><th>Material</th><th>Stock actual</th><th>Agotamiento estimado</th><th>Comprar antes de</th><th>Necesidad próx. 12 meses</th><th>Confianza</th></tr></thead>
         <tbody id="proyeccionTbl"></tbody>
       </table></div></div>
+
+      <div style="margin:18px 0 8px">
+        <div style="font-size:16px;font-weight:700">📍 Comportamiento por distrito</div>
+        <div style="font-size:12px;color:var(--t2);margin-top:2px">Basado en las solicitudes de pastores/distritos y lo efectivamente despachado.</div>
+      </div>
+      <div id="distritoComportamiento"></div>
     </div>
 
     <!-- SOLICITAR MATERIAL (para consultores/encargados) -->
@@ -4517,6 +4523,7 @@ function renderTesoreria() {
   renderCapitalDormido(rotacion);
   renderRotacionTabla();
   renderProyeccionCompra(rotacion);
+  renderComportamientoDistrito();
 }
 
 // ── Funcionalidad 2: proyección de compra (solo RÁPIDA y NORMAL) ─────────
@@ -4621,6 +4628,115 @@ function renderProyeccionCompra(rotacion) {
       '<td>'+confianzaTxt+'</td>' +
       '</tr>';
   }).join('');
+}
+
+// ── Funcionalidad 3: comportamiento por distrito ─────────────────────────
+function calcularComportamientoDistrito() {
+  var pedidos = STATE.requests || [];
+  var ahora = new Date();
+  var UMBRAL_DESVIACIONES = 2;
+
+  var conteoPorDistrito = {}, ultimaSolicitudPorDistrito = {};
+  pedidos.forEach(function(r) {
+    var d = r.distrito; if(!d) return;
+    conteoPorDistrito[d] = (conteoPorDistrito[d]||0) + 1;
+    if(!ultimaSolicitudPorDistrito[d] || r.fecha > ultimaSolicitudPorDistrito[d]) ultimaSolicitudPorDistrito[d] = r.fecha;
+  });
+
+  // Unidades recibidas: se toman de movimientos reales (lo que efectivamente salió),
+  // no de lo solicitado, para no contar pedidos rechazados o aún pendientes.
+  var unidadesRecibidasPorDistrito = {};
+  var tiposSalida = {despacho:true, distribucion:true, envio_ocasional:true};
+  (STATE.movements||[]).forEach(function(m) {
+    if(!tiposSalida[m.tipo] || !m.distrito) return;
+    unidadesRecibidasPorDistrito[m.distrito] = (unidadesRecibidasPorDistrito[m.distrito]||0) + (m.cantidad||0);
+  });
+
+  var rankingSolicitudes = Object.keys(conteoPorDistrito)
+    .map(function(d){ return {distrito:d, cantidad:conteoPorDistrito[d]}; })
+    .sort(function(a,b){ return b.cantidad-a.cantidad; });
+  var rankingUnidades = Object.keys(unidadesRecibidasPorDistrito)
+    .map(function(d){ return {distrito:d, unidades:unidadesRecibidasPorDistrito[d]}; })
+    .sort(function(a,b){ return b.unidades-a.unidades; });
+
+  // Distritos sin solicitudes en 3 / 6 meses, sobre la lista completa de distritos conocidos
+  // (incluye los que nunca han pedido nada, no solo los que dejaron de pedir).
+  var hace3Meses = new Date(ahora); hace3Meses.setMonth(hace3Meses.getMonth()-3);
+  var hace6Meses = new Date(ahora); hace6Meses.setMonth(hace6Meses.getMonth()-6);
+  var sinSolicitud3m = [], sinSolicitud6m = [];
+  DISTRITOS.forEach(function(d) {
+    var ultima = ultimaSolicitudPorDistrito[d];
+    if(!ultima || ultima < hace3Meses) sinSolicitud3m.push({distrito:d, ultima:ultima});
+    if(!ultima || ultima < hace6Meses) sinSolicitud6m.push({distrito:d, ultima:ultima});
+  });
+
+  // Anomalías: unidades solicitadas por el distrito este mes calendario vs. su propio
+  // promedio histórico mensual — solo con al menos 2 meses previos para comparar,
+  // para no marcar como "anómalo" a un distrito del que apenas hay un dato.
+  var anomalias = [];
+  var porDistritoMes = {};
+  pedidos.forEach(function(r) {
+    if(!r.distrito || !r.fecha) return;
+    var clave = r.fecha.getFullYear()+'-'+(r.fecha.getMonth()+1);
+    var unidadesPedido = (r.items||[]).filter(function(it){ return !it.rechazado; }).reduce(function(s,it){ return s+(it.cantidad||0); }, 0);
+    if(!porDistritoMes[r.distrito]) porDistritoMes[r.distrito] = {};
+    porDistritoMes[r.distrito][clave] = (porDistritoMes[r.distrito][clave]||0) + unidadesPedido;
+  });
+  var claveMesActual = ahora.getFullYear()+'-'+(ahora.getMonth()+1);
+  Object.keys(porDistritoMes).forEach(function(d) {
+    var meses = porDistritoMes[d];
+    var totalMesActual = meses[claveMesActual] || 0;
+    var historicos = Object.keys(meses).filter(function(k){ return k!==claveMesActual; }).map(function(k){ return meses[k]; });
+    if(historicos.length < 2 || totalMesActual === 0) return;
+    var promedio = historicos.reduce(function(s,v){ return s+v; }, 0) / historicos.length;
+    var varianza = historicos.reduce(function(s,v){ return s+Math.pow(v-promedio,2); }, 0) / historicos.length;
+    var desviacion = Math.sqrt(varianza);
+    if(desviacion > 0 && totalMesActual > promedio + UMBRAL_DESVIACIONES*desviacion) {
+      anomalias.push({distrito:d, totalMesActual:totalMesActual, promedio:promedio, desviacion:desviacion});
+    }
+  });
+
+  return {
+    rankingSolicitudes: rankingSolicitudes, rankingUnidades: rankingUnidades,
+    sinSolicitud3m: sinSolicitud3m, sinSolicitud6m: sinSolicitud6m, anomalias: anomalias
+  };
+}
+
+function renderComportamientoDistrito() {
+  var cont = document.getElementById('distritoComportamiento');
+  if(!cont) return;
+  var d = calcularComportamientoDistrito();
+
+  var rankingSolHtml = d.rankingSolicitudes.length
+    ? d.rankingSolicitudes.slice(0,15).map(function(r,idx){ return '<div class="log"><div class="ldot" style="background:var(--teal)"></div><div class="ltxt"><strong>#'+(idx+1)+' '+r.distrito+'</strong></div><div class="ltime">'+r.cantidad+' solicitud'+(r.cantidad===1?'':'es')+'</div></div>'; }).join('')
+    : '<div class="empty">Sin solicitudes registradas</div>';
+
+  var rankingUnidHtml = d.rankingUnidades.length
+    ? d.rankingUnidades.slice(0,15).map(function(r,idx){ return '<div class="log"><div class="ldot" style="background:var(--gold)"></div><div class="ltxt"><strong>#'+(idx+1)+' '+r.distrito+'</strong></div><div class="ltime">'+r.unidades.toLocaleString('es-CO')+' unidades</div></div>'; }).join('')
+    : '<div class="empty">Sin movimientos con distrito registrado</div>';
+
+  var inactivos6mHtml = d.sinSolicitud6m.length
+    ? d.sinSolicitud6m.map(function(x){ return '<span class="rtag" style="border-color:var(--red);color:var(--red)">'+x.distrito+(x.ultima?' — desde '+fmtD(x.ultima):' — nunca')+'</span>'; }).join('')
+    : '<div class="empty">Todos los distritos han pedido en los últimos 6 meses</div>';
+
+  var inactivos3mHtml = d.sinSolicitud3m.length
+    ? d.sinSolicitud3m.map(function(x){ return '<span class="rtag" style="border-color:var(--amber);color:var(--amber)">'+x.distrito+(x.ultima?' — desde '+fmtD(x.ultima):' — nunca')+'</span>'; }).join('')
+    : '<div class="empty">Todos los distritos han pedido en los últimos 3 meses</div>';
+
+  var anomaliasHtml = d.anomalias.length
+    ? d.anomalias.map(function(a){ return '<div style="padding:8px 12px;background:rgba(231,76,60,.1);border-radius:var(--r);font-size:12px;color:var(--red);margin-bottom:6px">⚠️ <strong>'+a.distrito+'</strong> pidió '+a.totalMesActual+' unidades este mes — su promedio histórico es '+a.promedio.toFixed(1)+' (±'+a.desviacion.toFixed(1)+'). Solo informativo, no bloquea nada.</div>'; }).join('')
+    : '<div class="empty">Sin solicitudes fuera de patrón este mes</div>';
+
+  cont.innerHTML =
+    '<div class="g2">' +
+      '<div class="panel"><div class="ph"><span class="pt">Ranking por número de solicitudes</span></div><div class="pb" style="padding:6px 16px">'+rankingSolHtml+'</div></div>' +
+      '<div class="panel"><div class="ph"><span class="pt">Ranking por unidades recibidas</span></div><div class="pb" style="padding:6px 16px">'+rankingUnidHtml+'</div></div>' +
+    '</div>' +
+    '<div class="g2">' +
+      '<div class="panel"><div class="ph"><span class="pt">Sin solicitudes en 6+ meses</span></div><div class="pb">'+inactivos6mHtml+'</div></div>' +
+      '<div class="panel"><div class="ph"><span class="pt">Sin solicitudes en 3+ meses</span></div><div class="pb">'+inactivos3mHtml+'</div></div>' +
+    '</div>' +
+    '<div class="panel"><div class="ph"><span class="pt">⚠️ Solicitudes fuera de patrón</span></div><div class="pb">'+anomaliasHtml+'</div></div>';
 }
 
 </script>
