@@ -659,6 +659,19 @@ textarea.fc{resize:vertical;min-height:70px}
         <div style="font-size:12px;color:var(--t2);margin-top:2px">Basado en las solicitudes de pastores/distritos y lo efectivamente despachado.</div>
       </div>
       <div id="distritoComportamiento"></div>
+
+      <div style="margin:18px 0 8px">
+        <div style="font-size:16px;font-weight:700">🔒 Cierre de período</div>
+        <div style="font-size:12px;color:var(--t2);margin-top:2px">Una vez cerrado un mes, no se pueden aprobar ni editar pedidos con fecha de solicitud dentro de ese mes.</div>
+      </div>
+      <div class="panel"><div class="pb">
+        <div class="f2">
+          <div class="fg"><label>Mes a cerrar</label><input type="month" class="fc" id="cierreMes"></div>
+          <div class="fg"><label>&nbsp;</label><button class="btn bred" style="width:100%" onclick="cerrarPeriodoActual()">🔒 Cerrar este mes</button></div>
+        </div>
+        <div style="font-size:11px;font-weight:600;color:var(--t2);text-transform:uppercase;letter-spacing:.06em;margin:14px 0 8px">Períodos cerrados</div>
+        <div id="periodosCerradosLista"></div>
+      </div></div>
     </div>
 
     <!-- SOLICITAR MATERIAL (para consultores/encargados) -->
@@ -1121,6 +1134,7 @@ const STATE = {
   libros: [],
   remisiones: [],
   distribuciones: [],
+  periodosCerrados: {}, // { 'YYYY-MM': {cerradoPor, cerradoEn} }
 };
 
 // ── HELPERS ──────────────────────────────────────────────────
@@ -1401,6 +1415,19 @@ function startListeners(db) {
         fecha: data.fecha && data.fecha.toDate ? data.fecha.toDate() : new Date()
       });
     });
+    renderAll();
+  }));
+
+  // Listener para períodos cerrados (Tesorería)
+  window._unsubscribers.push(ons(col(db,'periodos_cerrados'), function(snap) {
+    var mapa = {};
+    snap.docs.forEach(function(d) {
+      var data = d.data();
+      mapa[d.id] = Object.assign({}, data, {
+        cerradoEn: data.cerradoEn && data.cerradoEn.toDate ? data.cerradoEn.toDate() : new Date()
+      });
+    });
+    STATE.periodosCerrados = mapa;
     renderAll();
   }));
 }
@@ -1952,6 +1979,7 @@ async function aprobarConItems(btn) {
   var id = btn.getAttribute('data-id');
   var r = STATE.requests.find(function(x){ return x.id===id; });
   if(!r) return;
+  if(bloqueadoPorCierre(r)) return;
 
   var checks = document.querySelectorAll('.item-check');
   var items = r.items || [];
@@ -2013,6 +2041,7 @@ async function enviarConGuia(btn) {
   var id = btn.getAttribute('data-id');
   var r = STATE.requests.find(function(x){ return x.id===id; });
   if(!r) return;
+  if(bloqueadoPorCierre(r)) return;
 
   btn.textContent = 'Enviando...';
   btn.disabled = true;
@@ -4021,6 +4050,7 @@ async function enviarPedido() {
 async function accionSol(id, nuevoEstado, motivo) {
   var r = STATE.requests.find(function(x){ return x.id===id; });
   if(!r) return;
+  if(bloqueadoPorCierre(r)) return;
   try {
     if(window._db && window._fbOps) {
       var updateData = {estado:nuevoEstado};
@@ -4524,6 +4554,7 @@ function renderTesoreria() {
   renderRotacionTabla();
   renderProyeccionCompra(rotacion);
   renderComportamientoDistrito();
+  renderPeriodosCerrados();
 }
 
 // ── Funcionalidad 2: proyección de compra (solo RÁPIDA y NORMAL) ─────────
@@ -4737,6 +4768,68 @@ function renderComportamientoDistrito() {
       '<div class="panel"><div class="ph"><span class="pt">Sin solicitudes en 3+ meses</span></div><div class="pb">'+inactivos3mHtml+'</div></div>' +
     '</div>' +
     '<div class="panel"><div class="ph"><span class="pt">⚠️ Solicitudes fuera de patrón</span></div><div class="pb">'+anomaliasHtml+'</div></div>';
+}
+
+// ── Funcionalidad 4: cierre de período ────────────────────────────────
+// Exclusivo de master y tesorero (permisosDe().cerrarPeriodo). Bloquea aprobar,
+// aprobar por ítems o marcar como enviado cualquier pedido cuya fecha de solicitud
+// caiga dentro de un mes ya cerrado — así el reporte de ese mes deja de moverse.
+function claveMes(fecha) {
+  return fecha.getFullYear() + '-' + String(fecha.getMonth()+1).padStart(2,'0');
+}
+function mesEstaCerrado(fecha) {
+  if(!fecha || !STATE.periodosCerrados) return false;
+  return !!STATE.periodosCerrados[claveMes(fecha)];
+}
+// Punto único de bloqueo — usar antes de aprobar/editar/marcar como enviado un pedido
+function bloqueadoPorCierre(pedido) {
+  if(!pedido || !pedido.fecha) return false;
+  if(mesEstaCerrado(pedido.fecha)) {
+    toast('🔒 El período '+claveMes(pedido.fecha)+' está cerrado — no se puede aprobar ni editar este pedido','err');
+    return true;
+  }
+  return false;
+}
+
+async function cerrarPeriodoActual() {
+  if(!permisosDe(STATE.user).cerrarPeriodo) { toast('No tienes permiso para cerrar períodos','err'); return; }
+  var input = document.getElementById('cierreMes');
+  var valor = input ? input.value : ''; // formato 'YYYY-MM' del <input type="month">
+  if(!valor) { toast('Selecciona el mes a cerrar','warn'); return; }
+  if(STATE.periodosCerrados && STATE.periodosCerrados[valor]) { toast('Ese período ya está cerrado','warn'); return; }
+  if(!confirm('¿Cerrar el período '+valor+'?\n\nYa no se podrán aprobar ni editar pedidos con fecha de solicitud dentro de ese mes. Esta acción no se puede deshacer desde aquí.')) return;
+
+  var btn = document.querySelector('[onclick="cerrarPeriodoActual()"]');
+  if(btn){ btn.textContent='Cerrando...'; btn.disabled=true; }
+  try {
+    if(window._db && window._fbOps) {
+      await window._fbOps.setDoc(window._fbOps.doc(window._db,'periodos_cerrados',valor), {
+        cerradoPor: STATE.user ? STATE.user.nombre : 'Desconocido',
+        cerradoEn: window._serverTimestamp()
+      });
+      toast('🔒 Período '+valor+' cerrado');
+    } else {
+      toast('Sin conexión a Firebase','err');
+    }
+  } catch(e) {
+    toast('Error: '+e.message,'err');
+  } finally {
+    if(btn){ btn.textContent='🔒 Cerrar este mes'; btn.disabled=false; }
+  }
+}
+
+function renderPeriodosCerrados() {
+  var cont = document.getElementById('periodosCerradosLista');
+  if(!cont) return;
+  var mapa = STATE.periodosCerrados || {};
+  var claves = Object.keys(mapa).sort().reverse();
+  if(!claves.length) { cont.innerHTML = '<div class="empty">Ningún período cerrado todavía</div>'; return; }
+  cont.innerHTML = claves.map(function(k) {
+    var info = mapa[k];
+    return '<div class="log"><div class="ldot" style="background:var(--red)"></div>' +
+      '<div class="ltxt"><strong>'+k+'</strong><div class="lsub">Cerrado por '+(info.cerradoPor||'—')+'</div></div>' +
+      '<div class="ltime">'+(info.cerradoEn?fmtD(info.cerradoEn):'')+'</div></div>';
+  }).join('');
 }
 
 </script>
