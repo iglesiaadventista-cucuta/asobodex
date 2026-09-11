@@ -1698,12 +1698,14 @@ function verDetalleSol(btn) {
         alertaReciente = '<div style="margin-top:8px;padding:8px 10px;background:rgba(231,76,60,.12);border-radius:var(--r);font-size:11px;color:var(--red)">⚠️ '+it.iglesia+' ya recibió un libro hace '+reciente.meses+' mes'+(reciente.meses===1?'':'es')+' ('+fmtD(reciente.fecha)+') — verifica si de verdad necesita uno nuevo antes de aprobar</div>';
       }
     }
+    var cantHtml = (isAdmin && r.estado === 'pendiente')
+      ? '<input type="number" class="fc" id="cant_'+i+'" value="'+(it.cantidad||0)+'" min="1" style="width:64px;text-align:center;font-weight:700;color:var(--teal);padding:4px 6px;font-size:14px" onclick="event.stopPropagation()">'
+      : '<div style="font-size:18px;font-weight:700;color:var(--teal)">' + (it.cantidad||'') + '</div>';
     itemsHtml += '<div style="padding:8px 12px;background:var(--navy3);border-radius:var(--r);margin-bottom:6px;opacity:'+(rechazado && r.estado!=='pendiente'?'0.5':'1')+'">' +
       '<div style="display:flex;justify-content:space-between;align-items:center">' +
       '<div><div style="font-size:13px;font-weight:600">' + (it.nombre||'') + '</div>' +
       (it.iglesia ? '<div style="font-size:11px;color:var(--teal)">Iglesia: ' + it.iglesia + '</div>' : '') + '</div>' +
-      '<div style="display:flex;align-items:center;gap:12px">' + checkHtml +
-      '<div style="font-size:18px;font-weight:700;color:var(--teal)">' + (it.cantidad||'') + '</div></div></div>' +
+      '<div style="display:flex;align-items:center;gap:12px">' + checkHtml + cantHtml + '</div></div>' +
       motivoHtml + libroInfo + alertaReciente + '</div>';
   }
 
@@ -1718,7 +1720,7 @@ function verDetalleSol(btn) {
     (isAdmin && r.estado === 'pendiente' ? '<div style="font-size:11px;color:var(--amber);margin-bottom:8px">💡 Desmarca los items que quieras rechazar antes de aprobar</div>' : '') +
     '<div style="font-size:11px;font-weight:600;color:var(--t2);text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px">Materiales</div>' +
     itemsHtml +
-    (r.otros ? '<div style="padding:8px 12px;background:rgba(245,166,35,.1);border-radius:var(--r);font-size:12px;color:var(--amber);margin-top:6px">Otro: ' + r.otros + (r.otrosCantidad?' x'+r.otrosCantidad:'') + (r.otrosVinculado?' <span style="color:var(--green)">✓ vinculado a inventario</span>':'') + '</div>' : '') +
+    (r.otros ? otrosHtmlSol(r, isAdmin) : '') +
     (r.otros && !r.otrosVinculado && isAdmin ? '<div style="background:var(--navy3);border-radius:var(--r);padding:12px;margin-top:8px">' +
       '<div style="font-size:11px;font-weight:600;color:var(--amber);margin-bottom:8px">⚠️ Vincular "Otro" a un material del inventario para descontar stock</div>' +
       '<div style="position:relative;margin-bottom:8px">' +
@@ -1837,6 +1839,34 @@ function toggleMotivoRechazo(chk) {
   if(box) box.style.display = chk.checked ? 'none' : 'block';
 }
 
+// El "Otro" (material fuera del catálogo) también se puede rechazar con motivo,
+// igual que cualquier ítem — por ejemplo cuando ese material no existe o no hay stock.
+function toggleMotivoOtros(chk) {
+  var box = document.getElementById('motivoOtrosBox');
+  if(box) box.style.display = chk.checked ? 'none' : 'block';
+}
+
+function otrosHtmlSol(r, isAdmin) {
+  var otrosRechazado = r.otrosRechazado === true;
+  var checkHtml = '';
+  if(isAdmin && r.estado === 'pendiente') {
+    checkHtml = '<label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:11px;color:'+(otrosRechazado?'var(--red)':'var(--green)')+'"><input type="checkbox" id="otrosCheck" '+(otrosRechazado?'':'checked')+' onchange="toggleMotivoOtros(this)" style="width:16px;height:16px"> '+(otrosRechazado?'Rechazado':'Aprobado')+'</label>';
+  } else if(otrosRechazado) {
+    checkHtml = '<span style="font-size:11px;color:var(--red);font-weight:600">RECHAZADO</span>';
+  }
+  var motivoHtml = '';
+  if(isAdmin && r.estado === 'pendiente') {
+    motivoHtml = '<div id="motivoOtrosBox" style="display:'+(otrosRechazado?'block':'none')+';margin-top:8px">' +
+      '<input type="text" class="fc" id="motivoOtros" placeholder="Motivo (ej: no hay stock de ese material)" value="'+(r.otrosMotivoRechazo||'').replace(/"/g,'&quot;')+'" style="font-size:12px"></div>';
+  } else if(otrosRechazado && r.otrosMotivoRechazo) {
+    motivoHtml = '<div style="margin-top:6px;font-size:11px">Motivo: '+r.otrosMotivoRechazo+'</div>';
+  }
+  return '<div style="padding:8px 12px;background:rgba(245,166,35,.1);border-radius:var(--r);font-size:12px;color:var(--amber);margin-top:6px;opacity:'+(otrosRechazado && r.estado!=='pendiente'?'0.5':'1')+'">' +
+    '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px">' +
+    '<div>Otro: ' + r.otros + (r.otrosCantidad?' x'+r.otrosCantidad:'') + (r.otrosVinculado?' <span style="color:var(--green)">✓ vinculado a inventario</span>':'') + '</div>' +
+    checkHtml + '</div>' + motivoHtml + '</div>';
+}
+
 async function aprobarConItems(btn) {
   var id = btn.getAttribute('data-id');
   var r = STATE.requests.find(function(x){ return x.id===id; });
@@ -1850,6 +1880,11 @@ async function aprobarConItems(btn) {
 
   checks.forEach(function(chk, idx) {
     var item = Object.assign({}, items[idx]);
+    var cantEl = document.getElementById('cant_'+idx);
+    if(cantEl) {
+      var nuevaCant = parseInt(cantEl.value);
+      if(nuevaCant > 0) item.cantidad = nuevaCant;
+    }
     if(!chk.checked) {
       var motivoEl = document.getElementById('motivo_'+idx);
       var motivo = motivoEl ? motivoEl.value.trim() : '';
@@ -1863,12 +1898,24 @@ async function aprobarConItems(btn) {
     itemsActualizados.push(item);
   });
 
+  var updateData = { estado: 'aprobado', items: itemsActualizados };
+
+  // El "Otro" también se puede rechazar con motivo, si el checkbox correspondiente existe
+  var otrosCheckEl = document.getElementById('otrosCheck');
+  if(otrosCheckEl) {
+    var otrosMotivoEl = document.getElementById('motivoOtros');
+    var otrosMotivo = otrosMotivoEl ? otrosMotivoEl.value.trim() : '';
+    updateData.otrosRechazado = !otrosCheckEl.checked;
+    updateData.otrosMotivoRechazo = otrosCheckEl.checked ? '' : otrosMotivo;
+    if(!otrosCheckEl.checked) {
+      rechazados.push('Otro: '+r.otros);
+      rechazadosDetalle.push({nombre:'Otro: '+r.otros, motivo:otrosMotivo});
+    }
+  }
+
   try {
     if(window._db && window._fbOps) {
-      await window._fbOps.updateDoc(window._fbOps.doc(window._db,'pedidos',id), {
-        estado: 'aprobado',
-        items: itemsActualizados
-      });
+      await window._fbOps.updateDoc(window._fbOps.doc(window._db,'pedidos',id), updateData);
       var msg = rechazados.length ? 'Aprobado parcialmente. Rechazados: ' + rechazados.join(', ') : 'Pedido aprobado completamente';
       toast(msg);
       notificarEmail('pedido_aprobado', {distrito:r.distrito, correo:r.correo||r.email, rechazadosDetalle:rechazadosDetalle});
