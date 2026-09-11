@@ -333,6 +333,8 @@ textarea.fc{resize:vertical;min-height:70px}
 <option value="Ministerio de la Mujer">Ministerio de la Mujer</option>
 <option value="Niños y Adolescentes">Niños y Adolescentes</option></select>
             </div>
+            <div class="fg"><label>Precio de compra por unidad (opcional)</label><input type="number" class="fc" id="rPrecio" placeholder="$0" min="0" step="0.01"></div>
+            <div style="font-size:11px;color:var(--t2);margin:-8px 0 12px">Se usa en Tesorería para calcular el valor del inventario — déjalo en blanco si no lo sabes todavía.</div>
             <div class="fg"><label>Notas adicionales</label><textarea class="fc" id="rNota" placeholder="Información adicional sobre este material..."></textarea></div>
             <button class="btn bpri" style="width:100%" onclick="registrarMaterial()">✓ Registrar material</button>
           </div></div>
@@ -632,6 +634,11 @@ textarea.fc{resize:vertical;min-height:70px}
         <div class="pb" id="capitalDormidoBody"></div>
       </div>
 
+      <div class="panel"><div class="ph"><span class="pt">💵 Valor de inventario por material</span></div>
+        <div style="padding:0 16px;font-size:12px;color:var(--t2);margin-bottom:4px">Cantidad en existencia × precio de compra registrado — solo incluye materiales con precio. Se va completando a medida que se registra el precio al registrar o agregar stock.</div>
+        <div class="pb" id="valorInventarioBody"></div>
+      </div>
+
       <div class="panel">
         <div class="ph">
           <span class="pt">Detalle de rotación</span>
@@ -670,6 +677,21 @@ textarea.fc{resize:vertical;min-height:70px}
         <summary style="cursor:pointer;padding:12px 16px;font-size:11px;font-weight:600;color:var(--teal);text-transform:uppercase;letter-spacing:.08em">🚚 Gastos de envío (transporte)</summary>
         <div style="padding:0 16px 16px;font-size:12px;color:var(--t2);margin-bottom:4px">Costo de transporte de cada despacho — se agrega opcionalmente al momento de despachar, no se cobra a los distritos, solo se registra para control interno.</div>
         <div style="padding:0 16px 16px" id="gastosEnvioBody"></div>
+        <div style="padding:0 16px 16px;border-top:1px solid var(--bd);margin-top:4px">
+          <div style="font-size:11px;font-weight:600;color:var(--t2);text-transform:uppercase;letter-spacing:.06em;margin:12px 0 8px">➕ Agregar gasto de envío antiguo (para completar el histórico)</div>
+          <div class="f2">
+            <div class="fg"><label>Distrito</label>
+              <select class="fc" id="geDistrito"><option value="">Sin distrito</option></select>
+            </div>
+            <div class="fg"><label>Fecha del envío</label><input type="date" class="fc" id="geFecha"></div>
+          </div>
+          <div class="f2">
+            <div class="fg"><label>Costo</label><input type="number" class="fc" id="geCosto" min="0" step="0.01" placeholder="$0"></div>
+            <div class="fg"><label>Origen (opcional)</label><input type="text" class="fc" id="geOrigen" placeholder="Ej: despacho, distribución..."></div>
+          </div>
+          <div class="fg"><label>Nota (opcional)</label><input type="text" class="fc" id="geNota" placeholder="Ej: Envío de enero, registrado tarde"></div>
+          <button class="btn bgold" style="width:100%" onclick="agregarGastoEnvioHistorico()">＋ Agregar gasto histórico</button>
+        </div>
       </details>
 
       <details class="panel" style="padding:0;margin-top:12px" id="detallesCierre">
@@ -899,6 +921,8 @@ textarea.fc{resize:vertical;min-height:70px}
   </div>
   <div class="fg"><label>Cantidad a agregar</label><input type="number" class="fc" id="asCant" min="1" placeholder="¿Cuántas unidades llegaron?"></div>
   <div class="fg"><label>Responsable</label><input type="text" class="fc" id="asResp" placeholder="¿Quién registra el ingreso?"></div>
+  <div class="fg"><label>Precio de compra por unidad (opcional)</label><input type="number" class="fc" id="asPrecio" min="0" step="0.01" placeholder="$0"></div>
+  <div style="font-size:11px;color:var(--t2);margin:-8px 0 12px" id="asPrecioHint">Actualiza el valor de este material en Tesorería — déjalo en blanco para no cambiarlo.</div>
   <div class="fg"><label>Nota (opcional)</label><input type="text" class="fc" id="asNota" placeholder="Ej: Compra mensual, donación..."></div>
   <div style="background:var(--teal-light);border-radius:var(--r);padding:10px 14px;font-size:12px;color:var(--teal);margin-bottom:8px" id="asPreview">Nuevo total: —</div>
   <div class="mf"><button class="btn" onclick="closeM(&apos;mAddStock&apos;)">Cancelar</button><button class="btn bgrn" id="asSaveBtn" onclick="saveAddStock()">＋ Agregar stock</button></div>
@@ -2360,6 +2384,7 @@ async function registrarMaterial() {
   var c    = parseInt(document.getElementById('rCant').value)||0;
   var min  = parseInt(document.getElementById('rMin').value)||0;
   var dept = document.getElementById('rDept').value;
+  var precio = parseFloat(document.getElementById('rPrecio').value)||0;
   var nota = document.getElementById('rNota').value.trim();
   if(!n||!dept||c<1){ toast('Completa nombre, departamento y cantidad','warn'); return; }
 
@@ -2376,17 +2401,21 @@ async function registrarMaterial() {
   try {
     if(window._db && window._fbOps) {
       var st = window._serverTimestamp;
-      await window._fbOps.addDoc(window._fbOps.collection(window._db,'materiales'), {
+      var datosMaterial = {
         nombre:n, departamento:dept, cantidad:c, minimo:min,
         nota:nota, fechaIngreso:st(), creadoEn:st()
-      });
-      await window._fbOps.addDoc(window._fbOps.collection(window._db,'movimientos'), {
+      };
+      if(precio>0) datosMaterial.precio = precio;
+      await window._fbOps.addDoc(window._fbOps.collection(window._db,'materiales'), datosMaterial);
+      var datosMovimiento = {
         tipo:'ingreso', material:n, cantidad:c, departamento:dept, distrito:'',
         responsable:STATE.user?STATE.user.nombre:'Admin',
         nota:nota||'Registro inicial', fecha:st()
-      });
+      };
+      if(precio>0) { datosMovimiento.precioUnitario = precio; datosMovimiento.costoTotal = precio*c; }
+      await window._fbOps.addDoc(window._fbOps.collection(window._db,'movimientos'), datosMovimiento);
       toast('Material registrado: '+n);
-      ['rNom','rCant','rMin','rNota'].forEach(function(x){ document.getElementById(x).value=''; });
+      ['rNom','rCant','rMin','rPrecio','rNota'].forEach(function(x){ document.getElementById(x).value=''; });
       document.getElementById('rDept').value='';
     } else {
       toast('Sin conexion a Firebase','err');
@@ -3935,6 +3964,10 @@ function openAddStockBtn(btn) {
   document.getElementById('asActual').textContent = item.cantidad;
   document.getElementById('asCant').value = '';
   document.getElementById('asResp').value = STATE.user ? STATE.user.nombre : '';
+  document.getElementById('asPrecio').value = '';
+  document.getElementById('asPrecioHint').textContent = item.precio > 0
+    ? 'Precio actual registrado: $'+item.precio.toLocaleString('es-CO')+' — déjalo en blanco para no cambiarlo.'
+    : 'Este material todavía no tiene precio registrado — se usa en Tesorería para calcular el valor del inventario.';
   document.getElementById('asNota').value = '';
   document.getElementById('asPreview').textContent = 'Nuevo total: ' + item.cantidad + ' und';
   // Live preview
@@ -3949,6 +3982,7 @@ async function saveAddStock() {
   var id   = document.getElementById('asId').value;
   var cant = parseInt(document.getElementById('asCant').value)||0;
   var resp = document.getElementById('asResp').value.trim();
+  var precio = parseFloat(document.getElementById('asPrecio').value)||0;
   var nota = document.getElementById('asNota').value.trim();
   if(!cant || cant<1){ toast('Ingresa una cantidad válida','warn'); return; }
   if(!resp){ toast('Ingresa el responsable','warn'); return; }
@@ -3962,12 +3996,16 @@ async function saveAddStock() {
   try {
     if(window._db && window._fbOps) {
       var st = window._serverTimestamp;
-      await window._fbOps.updateDoc(window._fbOps.doc(window._db,'materiales',id), {cantidad: nuevaCant});
-      await window._fbOps.addDoc(window._fbOps.collection(window._db,'movimientos'), {
+      var datosMaterial = {cantidad: nuevaCant};
+      if(precio>0) datosMaterial.precio = precio;
+      await window._fbOps.updateDoc(window._fbOps.doc(window._db,'materiales',id), datosMaterial);
+      var datosMovimiento = {
         tipo:'ingreso', material:item.nombre, cantidad:cant,
         departamento:item.departamento, responsable:resp, distrito:'',
         nota:nota||'Ingreso desde inventario', fecha:st()
-      });
+      };
+      if(precio>0) { datosMovimiento.precioUnitario = precio; datosMovimiento.costoTotal = precio*cant; }
+      await window._fbOps.addDoc(window._fbOps.collection(window._db,'movimientos'), datosMovimiento);
       toast('✓ '+item.nombre+': '+item.cantidad+' + '+cant+' = '+nuevaCant+' und');
       closeM('mAddStock');
     } else {
@@ -4602,6 +4640,32 @@ function renderCapitalDormido(rotacion) {
   cont.innerHTML = html;
 }
 
+// Valor de inventario por material (cantidad × precio), sobre TODA la rotación (no solo
+// muertos como Capital dormido) — responde "qué material vale más / hay mucho en existencia".
+function renderValorInventario(rotacion) {
+  var cont = document.getElementById('valorInventarioBody');
+  if(!cont) return;
+  var conPrecio = rotacion.filter(function(r){ return r.precio>0; });
+  if(!conPrecio.length) {
+    cont.innerHTML = '<div class="empty">Todavía ningún material tiene precio de compra registrado — se va llenando al registrar materiales nuevos o agregar stock.</div>';
+    return;
+  }
+  var valorados = conPrecio.map(function(r){ return Object.assign({}, r, {valor: r.stock*r.precio}); })
+    .sort(function(a,b){ return b.valor-a.valor; });
+  var valorTotal = valorados.reduce(function(s,r){ return s+r.valor; }, 0);
+
+  var filas = valorados.slice(0,20).map(function(r,idx){
+    return '<div class="log"><div class="ldot" style="background:var(--gold)"></div><div class="ltxt"><strong>#'+(idx+1)+' '+r.nombre+'</strong> '+badgeClasificacion(r.clasificacion)+
+      '<div style="font-size:11px;color:var(--t2)">'+r.stock.toLocaleString('es-CO')+' und × $'+r.precio.toLocaleString('es-CO')+'</div></div>' +
+      '<div class="ltime">$'+r.valor.toLocaleString('es-CO')+'</div></div>';
+  }).join('');
+
+  cont.innerHTML =
+    '<div class="g3" style="margin-bottom:14px">' +
+      '<div><div class="slbl">Valor total en inventario</div><div class="sval" style="color:var(--gold)">$'+valorTotal.toLocaleString('es-CO')+'</div><div class="ssub">'+conPrecio.length+' de '+rotacion.length+' material(es) con precio</div></div>' +
+    '</div>' + filas;
+}
+
 function renderRotacionTabla() {
   var tbl = document.getElementById('rotacionTbl');
   if(!tbl) return;
@@ -4692,9 +4756,52 @@ function calcularGastosEnvio() {
   return {totalMes:totalMes, totalAnio:totalAnio, totalGeneral:totalGeneral, rankingDistrito:rankingDistrito, cantidadRegistros:gastos.length};
 }
 
+function popGeDistrito() {
+  var sel = document.getElementById('geDistrito');
+  if(!sel || sel.options.length > 1) return;
+  var opts = DISTRITOS.map(function(d){ return '<option value="'+d+'">'+d+'</option>'; }).join('');
+  sel.innerHTML = '<option value="">Sin distrito</option>' + opts;
+}
+
+async function agregarGastoEnvioHistorico() {
+  if(!permisosDe(STATE.user).tesoreria) { toast('No tienes permiso para esto','err'); return; }
+  var distrito = document.getElementById('geDistrito').value;
+  var fechaStr = document.getElementById('geFecha').value;
+  var costo = parseFloat(document.getElementById('geCosto').value)||0;
+  var origen = document.getElementById('geOrigen').value.trim();
+  var nota = document.getElementById('geNota').value.trim();
+  if(!fechaStr){ toast('Selecciona la fecha del envío','warn'); return; }
+  if(!costo || costo<=0){ toast('Ingresa un costo válido','warn'); return; }
+
+  var btn = document.querySelector('[onclick="agregarGastoEnvioHistorico()"]');
+  if(btn){ btn.textContent='Guardando...'; btn.disabled=true; }
+  try {
+    if(window._db && window._fbOps) {
+      await window._fbOps.addDoc(window._fbOps.collection(window._db,'gastos_envio'), {
+        distrito: distrito || 'Sin distrito', costo: costo, origen: origen || 'histórico',
+        responsable: STATE.user ? STATE.user.nombre : 'Admin',
+        nota: nota || 'Agregado manualmente para completar el histórico',
+        fecha: new Date(fechaStr + 'T12:00:00')
+      });
+      toast('✓ Gasto histórico agregado');
+      ['geCosto','geOrigen','geNota'].forEach(function(x){ document.getElementById(x).value=''; });
+      document.getElementById('geFecha').value='';
+      document.getElementById('geDistrito').value='';
+    } else {
+      toast('Sin conexión a Firebase','err');
+    }
+  } catch(e) {
+    toast('Error: '+e.message,'err');
+    console.error(e);
+  } finally {
+    if(btn){ btn.textContent='＋ Agregar gasto histórico'; btn.disabled=false; }
+  }
+}
+
 function renderGastosEnvio() {
   var cont = document.getElementById('gastosEnvioBody');
   if(!cont) return;
+  popGeDistrito();
   var g = calcularGastosEnvio();
   if(!g.cantidadRegistros) {
     cont.innerHTML = '<div class="empty">Sin gastos de envío registrados todavía — se van sumando a medida que se agregue el costo de transporte al hacer un despacho, distribución, envío ocasional o al marcar un pedido como enviado</div>';
@@ -4720,6 +4827,7 @@ function renderTesoreria() {
   renderResumenEjecutivo(rotacion);
   renderRotacionCards(rotacion);
   renderCapitalDormido(rotacion);
+  renderValorInventario(rotacion);
   renderRotacionTabla();
   renderProyeccionCompra(rotacion);
   renderComportamientoDistrito();
@@ -4846,11 +4954,17 @@ function calcularComportamientoDistrito() {
 
   // Unidades recibidas: se toman de movimientos reales (lo que efectivamente salió),
   // no de lo solicitado, para no contar pedidos rechazados o aún pendientes.
-  var unidadesRecibidasPorDistrito = {};
+  // El valor ($) usa el precio ACTUAL del material (STATE.items), no el precio vigente
+  // al momento del movimiento — es una aproximación que mejora a medida que se registran precios.
+  var preciosPorMaterial = {};
+  (STATE.items||[]).forEach(function(i){ preciosPorMaterial[i.nombre] = i.precio||0; });
+  var unidadesRecibidasPorDistrito = {}, valorRecibidoPorDistrito = {};
   var tiposSalida = {despacho:true, distribucion:true, envio_ocasional:true};
   (STATE.movements||[]).forEach(function(m) {
     if(!tiposSalida[m.tipo] || !m.distrito) return;
     unidadesRecibidasPorDistrito[m.distrito] = (unidadesRecibidasPorDistrito[m.distrito]||0) + (m.cantidad||0);
+    var precio = preciosPorMaterial[m.material]||0;
+    if(precio>0) valorRecibidoPorDistrito[m.distrito] = (valorRecibidoPorDistrito[m.distrito]||0) + precio*(m.cantidad||0);
   });
 
   var rankingSolicitudes = Object.keys(conteoPorDistrito)
@@ -4859,6 +4973,9 @@ function calcularComportamientoDistrito() {
   var rankingUnidades = Object.keys(unidadesRecibidasPorDistrito)
     .map(function(d){ return {distrito:d, unidades:unidadesRecibidasPorDistrito[d]}; })
     .sort(function(a,b){ return b.unidades-a.unidades; });
+  var rankingValor = Object.keys(valorRecibidoPorDistrito)
+    .map(function(d){ return {distrito:d, valor:valorRecibidoPorDistrito[d]}; })
+    .sort(function(a,b){ return b.valor-a.valor; });
 
   // Distritos sin solicitudes en 3 / 6 meses, sobre la lista completa de distritos conocidos
   // (incluye los que nunca han pedido nada, no solo los que dejaron de pedir).
@@ -4898,7 +5015,7 @@ function calcularComportamientoDistrito() {
   });
 
   return {
-    rankingSolicitudes: rankingSolicitudes, rankingUnidades: rankingUnidades,
+    rankingSolicitudes: rankingSolicitudes, rankingUnidades: rankingUnidades, rankingValor: rankingValor,
     sinSolicitud3m: sinSolicitud3m, sinSolicitud6m: sinSolicitud6m, anomalias: anomalias
   };
 }
@@ -4915,6 +5032,10 @@ function renderComportamientoDistrito() {
   var rankingUnidHtml = d.rankingUnidades.length
     ? d.rankingUnidades.slice(0,15).map(function(r,idx){ return '<div class="log"><div class="ldot" style="background:var(--gold)"></div><div class="ltxt"><strong>#'+(idx+1)+' '+r.distrito+'</strong></div><div class="ltime">'+r.unidades.toLocaleString('es-CO')+' unidades</div></div>'; }).join('')
     : '<div class="empty">Sin movimientos con distrito registrado</div>';
+
+  var rankingValorHtml = d.rankingValor.length
+    ? d.rankingValor.slice(0,15).map(function(r,idx){ return '<div class="log"><div class="ldot" style="background:var(--amber)"></div><div class="ltxt"><strong>#'+(idx+1)+' '+r.distrito+'</strong></div><div class="ltime">$'+r.valor.toLocaleString('es-CO')+'</div></div>'; }).join('')
+    : '<div class="empty">Sin materiales con precio registrado todavía</div>';
 
   var inactivos6mHtml = d.sinSolicitud6m.length
     ? d.sinSolicitud6m.map(function(x){ return '<span class="rtag" style="border-color:var(--red);color:var(--red)">'+x.distrito+(x.ultima?' — desde '+fmtD(x.ultima):' — nunca')+'</span>'; }).join('')
@@ -4933,6 +5054,7 @@ function renderComportamientoDistrito() {
       '<div class="panel"><div class="ph"><span class="pt">Ranking por número de solicitudes</span></div><div class="pb" style="padding:6px 16px">'+rankingSolHtml+'</div></div>' +
       '<div class="panel"><div class="ph"><span class="pt">Ranking por unidades recibidas</span></div><div class="pb" style="padding:6px 16px">'+rankingUnidHtml+'</div></div>' +
     '</div>' +
+    '<div class="panel"><div class="ph"><span class="pt">Ranking por valor recibido ($)</span></div><div class="pb" style="padding:6px 16px">'+rankingValorHtml+'</div></div>' +
     '<div class="g2">' +
       '<div class="panel"><div class="ph"><span class="pt">Sin solicitudes en 6+ meses</span></div><div class="pb">'+inactivos6mHtml+'</div></div>' +
       '<div class="panel"><div class="ph"><span class="pt">Sin solicitudes en 3+ meses</span></div><div class="pb">'+inactivos3mHtml+'</div></div>' +
