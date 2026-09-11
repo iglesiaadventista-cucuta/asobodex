@@ -614,9 +614,12 @@ textarea.fc{resize:vertical;min-height:70px}
 
     <!-- TESORERÍA -->
     <div class="view" id="view-tesoreria">
-      <div style="margin-bottom:14px">
-        <div style="font-size:16px;font-weight:700">💰 Tesorería — Rotación de inventario</div>
-        <div style="font-size:12px;color:var(--t2);margin-top:2px">Clasificación de cada material según sus salidas de los últimos 12 meses. Clic en una tarjeta para filtrar la tabla.</div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px">
+        <div>
+          <div style="font-size:16px;font-weight:700">💰 Tesorería — Rotación de inventario</div>
+          <div style="font-size:12px;color:var(--t2);margin-top:2px">Clasificación de cada material según sus salidas de los últimos 12 meses. Clic en una tarjeta para filtrar la tabla.</div>
+        </div>
+        <button class="btn bgold" onclick="generarInformePDF()">📄 Informe para junta directiva</button>
       </div>
 
       <div class="sgrid" id="rotacionCards"></div>
@@ -4830,6 +4833,118 @@ function renderPeriodosCerrados() {
       '<div class="ltxt"><strong>'+k+'</strong><div class="lsub">Cerrado por '+(info.cerradoPor||'—')+'</div></div>' +
       '<div class="ltime">'+(info.cerradoEn?fmtD(info.cerradoEn):'')+'</div></div>';
   }).join('');
+}
+
+// ── Funcionalidad 5: informe de una página para junta directiva ─────────
+// Reutiliza el mismo patrón que remisiones/aviso de cobro: arma el HTML con el
+// logo y los colores de la asociación, lo captura con html2canvas y lo manda a
+// imprimir (Ctrl+P -> Guardar como PDF), igual que el resto del sistema.
+async function generarInformePDF() {
+  var btn = document.querySelector('[onclick="generarInformePDF()"]');
+  if(btn){ btn.textContent='Generando...'; btn.disabled=true; }
+  try {
+    var rotacion = _rotacionCache || calcularRotacion();
+    var conteos = {RAPIDA:0, NORMAL:0, LENTA:0, MUERTO:0};
+    rotacion.forEach(function(r){ conteos[r.clasificacion]++; });
+    var muertos = rotacion.filter(function(r){ return r.clasificacion==='MUERTO'; });
+    var totalUnidadesMuertas = muertos.reduce(function(s,r){ return s+r.stock; }, 0);
+    var totalUnidadesBodega = rotacion.reduce(function(s,r){ return s+r.stock; }, 0);
+    var pctInmovilizado = totalUnidadesBodega>0 ? (totalUnidadesMuertas/totalUnidadesBodega*100) : 0;
+
+    // Top 10 materiales más despachados (últimos 12 meses)
+    var hace12Meses = new Date(); hace12Meses.setMonth(hace12Meses.getMonth()-12);
+    var tiposSalida = {despacho:true, distribucion:true, envio_ocasional:true};
+    var porMaterial = {};
+    (STATE.movements||[]).forEach(function(m) {
+      if(!tiposSalida[m.tipo] || !m.material || m.fecha < hace12Meses) return;
+      porMaterial[m.material] = (porMaterial[m.material]||0) + (m.cantidad||0);
+    });
+    var top10 = Object.keys(porMaterial).map(function(n){ return {nombre:n, cantidad:porMaterial[n]}; })
+      .sort(function(a,b){ return b.cantidad-a.cantidad; }).slice(0,10);
+
+    var comportamiento = calcularComportamientoDistrito();
+    var top5Activos = comportamiento.rankingSolicitudes.slice(0,5);
+    var top5Inactivos = comportamiento.sinSolicitud6m.slice(0,5);
+
+    // Compras sugeridas del próximo trimestre (próximos 90 días)
+    var en90Dias = new Date(); en90Dias.setDate(en90Dias.getDate()+90);
+    var candidatosCompra = rotacion.filter(function(r){ return r.clasificacion==='RAPIDA' || r.clasificacion==='NORMAL'; });
+    var comprasProximoTrimestre = candidatosCompra.map(proyectarNecesidad)
+      .filter(function(p){ return p.fechaSugeridaCompra && p.fechaSugeridaCompra <= en90Dias; })
+      .sort(function(a,b){ return a.fechaSugeridaCompra - b.fechaSugeridaCompra; });
+
+    var fecha = new Date().toLocaleString('es-CO');
+    var filasTop10 = top10.map(function(t,idx){ return '<tr><td>'+(idx+1)+'</td><td>'+t.nombre+'</td><td>'+t.cantidad+'</td></tr>'; }).join('') || '<tr><td colspan="3">Sin movimientos</td></tr>';
+    var filasCompras = comprasProximoTrimestre.map(function(c){ return '<tr><td>'+c.nombre+'</td><td>'+fmtD(c.fechaSugeridaCompra)+'</td></tr>'; }).join('') || '<tr><td colspan="2">Nada urgente en los próximos 90 días</td></tr>';
+    var listaActivos = top5Activos.map(function(a){ return '<li>'+a.distrito+' — '+a.cantidad+' solicitud'+(a.cantidad===1?'':'es')+'</li>'; }).join('') || '<li>Sin datos</li>';
+    var listaInactivos = top5Inactivos.map(function(a){ return '<li>'+a.distrito+'</li>'; }).join('') || '<li>Ninguno</li>';
+
+    var htmlBody =
+      '<div class="header"><div style="display:flex;align-items:center;gap:14px"><img src="https://iglesiaadventista-cucuta.github.io/asobodex/logo_iglesia.jpeg" style="width:50px;height:50px;object-fit:contain"><div><h1>Asociación del Noreste Colombiano</h1><h2>Informe de bodega para junta directiva</h2></div></div><div style="text-align:right;font-size:11px;color:#666">'+fecha+'</div></div>' +
+      '<div class="kpis">' +
+        '<div class="kpi"><div class="kn">'+rotacion.length+'</div><div class="kl">Total artículos</div></div>' +
+        '<div class="kpi"><div class="kn" style="color:#2ecc71">'+conteos.RAPIDA+'</div><div class="kl">Rápida</div></div>' +
+        '<div class="kpi"><div class="kn" style="color:#1a9aaa">'+conteos.NORMAL+'</div><div class="kl">Normal</div></div>' +
+        '<div class="kpi"><div class="kn" style="color:#f5a623">'+conteos.LENTA+'</div><div class="kl">Lenta</div></div>' +
+        '<div class="kpi"><div class="kn" style="color:#e74c3c">'+conteos.MUERTO+'</div><div class="kl">Muerta</div></div>' +
+      '</div>' +
+      '<div class="cap"><strong>Capital dormido:</strong> '+totalUnidadesMuertas.toLocaleString('es-CO')+' unidades inmovilizadas ('+pctInmovilizado.toFixed(1)+'% del inventario total) en '+muertos.length+' artículo(s) sin salida en 6+ meses.</div>' +
+      '<div class="cols">' +
+        '<div><h3>Top 10 más despachados (12 meses)</h3><table><thead><tr><th>#</th><th>Material</th><th>Unid.</th></tr></thead><tbody>'+filasTop10+'</tbody></table></div>' +
+        '<div><h3>Compras sugeridas — próx. trimestre</h3><table><thead><tr><th>Material</th><th>Antes de</th></tr></thead><tbody>'+filasCompras+'</tbody></table></div>' +
+      '</div>' +
+      '<div class="cols">' +
+        '<div><h3>Distritos más activos</h3><ul>'+listaActivos+'</ul></div>' +
+        '<div><h3>Distritos inactivos (6+ meses)</h3><ul>'+listaInactivos+'</ul></div>' +
+      '</div>' +
+      '<div class="footer">AsoBodex · Sistema de Bodega · Informe generado automáticamente</div>';
+
+    var contenedor = document.createElement('div');
+    contenedor.style.position = 'fixed';
+    contenedor.style.left = '-9999px';
+    contenedor.style.top = '0';
+    contenedor.style.width = '780px';
+    contenedor.style.background = '#ffffff';
+    contenedor.style.fontFamily = 'Arial,sans-serif';
+    contenedor.style.fontSize = '11px';
+    contenedor.style.padding = '24px';
+    contenedor.innerHTML =
+      '<style>' +
+      'h1{font-size:16px;margin:0;color:#0f2b3c}h2{font-size:12px;color:#1a9aaa;margin:0;font-weight:normal}' +
+      'h3{font-size:11px;color:#0f2b3c;text-transform:uppercase;letter-spacing:.5px;margin:0 0 6px;border-bottom:1px solid #ddd;padding-bottom:4px}' +
+      '.header{display:flex;justify-content:space-between;align-items:center;border-bottom:2px solid #1a9aaa;padding-bottom:10px;margin-bottom:14px}' +
+      '.kpis{display:flex;gap:8px;margin-bottom:14px}' +
+      '.kpi{flex:1;background:#f5f7fa;border-radius:6px;padding:10px;text-align:center}' +
+      '.kn{font-size:20px;font-weight:bold;color:#0f2b3c}.kl{font-size:9px;color:#666;text-transform:uppercase}' +
+      '.cap{background:#fff3e0;border-left:3px solid #f5a623;padding:8px 12px;font-size:11px;margin-bottom:14px;border-radius:4px}' +
+      '.cols{display:flex;gap:16px;margin-bottom:14px}.cols>div{flex:1;min-width:0}' +
+      'table{width:100%;border-collapse:collapse;font-size:10px}' +
+      'th{background:#0f2b3c;color:#fff;padding:5px 6px;text-align:left}td{padding:4px 6px;border-bottom:1px solid #eee}' +
+      'ul{margin:0;padding-left:16px;font-size:10px}li{margin-bottom:3px}' +
+      '.footer{margin-top:10px;font-size:9px;color:#999;text-align:center;border-top:1px solid #ddd;padding-top:8px}' +
+      '</style>' + htmlBody;
+    document.body.appendChild(contenedor);
+
+    var imgs = contenedor.querySelectorAll('img');
+    await Promise.all(Array.from(imgs).map(function(img){
+      return new Promise(function(resolve){ if(img.complete) resolve(); else { img.onload = resolve; img.onerror = resolve; } });
+    }));
+
+    var canvas = await html2canvas(contenedor, {scale:2, backgroundColor:'#ffffff'});
+    document.body.removeChild(contenedor);
+    var dataUrl = canvas.toDataURL('image/png');
+
+    var w = window.open('', '_blank');
+    w.document.write('<!DOCTYPE html><html><head><title>Informe AsoBodex</title><style>body{margin:0;padding:0}img{width:100%;display:block}</style></head><body><img src="'+dataUrl+'"></body></html>');
+    w.document.close();
+    w.onload = function(){ w.print(); };
+    toast('✓ Informe generado — usa Ctrl+P para guardar como PDF');
+  } catch(e) {
+    console.error('Error generando informe:', e);
+    toast('Error generando el informe: '+e.message,'err');
+  } finally {
+    if(btn){ btn.textContent='📄 Informe para junta directiva'; btn.disabled=false; }
+  }
 }
 
 </script>
