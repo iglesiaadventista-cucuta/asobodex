@@ -79,11 +79,13 @@ service cloud.firestore {
       allow write: if request.auth != null && request.auth.uid == '7k3swOaRgLTcO5faxjp5dx4iPkR2';
     }
 
-    // ── materiales: inventario. Todos los roles logueados lo leen
-    // (Dashboard/Inventario/Tesorería lo necesitan); solo quien puede
-    // editar inventario (admin/facturador) puede escribirlo.
+    // ── materiales: inventario. Lectura pública porque el formulario del pastor
+    // (asobodex_pedidos.html) no inicia sesión y necesita mostrar la foto de cada
+    // material — no es información sensible (nombre, cantidad, foto, etc.), solo
+    // el catálogo de inventario. Solo quien puede editar inventario
+    // (admin/facturador) puede escribirlo.
     match /materiales/{id} {
-      allow read: if estaLogueado();
+      allow read: if true;
       allow write: if puedeEditar();
     }
 

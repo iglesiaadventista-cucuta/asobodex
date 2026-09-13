@@ -292,7 +292,34 @@ document.addEventListener('DOMContentLoaded', function() {
   if(dl) {
     dl.innerHTML = PASTORES.map(function(p){ return '<option value="'+p.nombre+'">'; }).join('');
   }
+
+  cargarFotosMateriales();
 });
+
+// Trae la foto de cada material (si tiene) desde el inventario real, para que el
+// pastor vea cuál es antes de pedirlo — ej. reconocer el talonario correcto.
+// No inicia sesión (el formulario público no lo hace), así que requiere que
+// 'materiales' permita lectura pública en las reglas de Firestore.
+var FOTOS_MATERIALES = {};
+async function cargarFotosMateriales() {
+  try {
+    const { initializeApp, getApps } = await import("https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js");
+    const { getFirestore, collection, getDocs } = await import("https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js");
+    const apps  = getApps();
+    const fbapp = apps.length ? apps[0] : initializeApp(FIREBASE_CONFIG);
+    const db    = getFirestore(fbapp);
+    const snap  = await getDocs(collection(db, 'materiales'));
+    snap.forEach(function(d) {
+      var data = d.data();
+      if(data.foto) FOTOS_MATERIALES[data.nombre] = data.foto;
+    });
+    console.log('✓ Fotos de materiales cargadas:', Object.keys(FOTOS_MATERIALES).length);
+    // Si el pastor ya había avanzado al paso 2 (poco probable, pero por si la carga tarda)
+    if(document.getElementById('matList') && document.getElementById('matList').innerHTML) buildMats();
+  } catch(e) {
+    console.warn('No se pudieron cargar las fotos de materiales:', e.message);
+  }
+}
 
 function autocompletarCorreoPastor() {
   var nombre = document.getElementById('pNombre').value.trim().toLowerCase();
@@ -419,9 +446,12 @@ function buildMats() {
     const nota = m.regla
       ? `<div class="${m.tipo==='diacono'?'note-teal':'note-gold'}">${m.regla}</div>`
       : '';
+    const foto = FOTOS_MATERIALES[m.nombre];
+    const fotoHtml = foto ? `<img src="${foto}" style="width:40px;height:40px;object-fit:cover;border-radius:8px;border:1px solid rgba(255,255,255,.15);flex-shrink:0">` : '';
     return `<div class="mat" id="mat_${m.id}">
       <div class="mat-top" onclick="toggleMat('${m.id}')">
         <div class="mat-chk" id="chk_${m.id}">✓</div>
+        ${fotoHtml}
         <div class="mat-label">
           <div class="mat-name">${m.nombre}</div>
           <div class="mat-rule">${rangoTxt}</div>
@@ -653,9 +683,10 @@ async function enviar() {
 
   try {
     // Guardar en Firebase para que el admin lo vea en tiempo real
-    const { initializeApp }   = await import("https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js");
+    const { initializeApp, getApps } = await import("https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js");
     const { getFirestore, collection, addDoc, serverTimestamp } = await import("https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js");
-    const fbapp = initializeApp(FIREBASE_CONFIG);
+    const apps  = getApps();
+    const fbapp = apps.length ? apps[0] : initializeApp(FIREBASE_CONFIG);
     const db    = getFirestore(fbapp);
     await addDoc(collection(db, 'pedidos'), {
       ref, pastor:nombre, correo:correo, distrito:dist, items, otros, otrosCantidad, otrosVinculado:false,

@@ -336,6 +336,10 @@ textarea.fc{resize:vertical;min-height:70px}
             </div>
             <div class="fg"><label>Precio de compra por unidad (opcional)</label><input type="number" class="fc" id="rPrecio" placeholder="$0" min="0" step="0.01"></div>
             <div style="font-size:11px;color:var(--t2);margin:-8px 0 12px">Se usa en Tesorería para calcular el valor del inventario — déjalo en blanco si no lo sabes todavía.</div>
+            <div class="fg"><label>Foto del material (opcional)</label>
+              <input type="file" accept="image/*" class="fc" id="rFoto" style="padding:8px" onchange="previsualizarFoto(this,'rFotoPreview')">
+              <div id="rFotoPreview" style="margin-top:8px"></div>
+            </div>
             <div class="fg"><label>Notas adicionales</label><textarea class="fc" id="rNota" placeholder="Información adicional sobre este material..."></textarea></div>
             <button class="btn bpri" style="width:100%" onclick="registrarMaterial()">✓ Registrar material</button>
           </div></div>
@@ -642,7 +646,13 @@ textarea.fc{resize:vertical;min-height:70px}
 
       <div id="resumenEjecutivo" style="background:var(--teal-light);border:1px solid var(--bd);border-radius:var(--r2);padding:14px 18px;margin-bottom:16px;font-size:14px;line-height:1.6"></div>
 
-      <div class="sgrid" id="rotacionCards"></div>
+      <div class="g2" style="margin-bottom:20px">
+        <div class="sgrid" id="rotacionCards" style="grid-template-columns:1fr 1fr;margin-bottom:0"></div>
+        <div class="panel" style="display:flex;flex-direction:column">
+          <div class="ph"><span class="pt">Clasificación del inventario</span></div>
+          <div class="pb" style="flex:1;display:flex;align-items:center;justify-content:center;min-height:180px"><canvas id="chartRotacionDona"></canvas></div>
+        </div>
+      </div>
 
       <div class="panel"><div class="ph"><span class="pt">📦 Capital dormido</span></div>
         <div class="pb" id="capitalDormidoBody"></div>
@@ -650,7 +660,11 @@ textarea.fc{resize:vertical;min-height:70px}
 
       <div class="panel"><div class="ph"><span class="pt">💵 Valor de inventario por material</span></div>
         <div style="padding:0 16px;font-size:12px;color:var(--t2);margin-bottom:4px">Cantidad en existencia × precio de compra registrado — solo incluye materiales con precio. Se va completando a medida que se registra el precio al registrar o agregar stock.</div>
-        <div class="pb" id="valorInventarioBody"></div>
+        <div class="pb">
+          <div id="valorInventarioResumen"></div>
+          <div style="margin:14px 0"><canvas id="chartValorInventario" height="210"></canvas></div>
+          <div id="valorInventarioBody"></div>
+        </div>
       </div>
 
       <div class="panel">
@@ -909,6 +923,12 @@ textarea.fc{resize:vertical;min-height:70px}
   </div>
   <div class="fg"><label>Precio unitario (COP) — dejar en 0 si no tiene costo</label>
     <input type="number" class="fc" id="ePrecio" min="0" placeholder="0">
+  </div>
+  <div class="fg"><label>Foto del material (opcional)</label>
+    <div id="eFotoActual" style="margin-bottom:8px"></div>
+    <input type="file" accept="image/*" class="fc" id="eFoto" style="padding:8px" onchange="previsualizarFoto(this,'eFotoPreview')">
+    <div id="eFotoPreview" style="margin-top:8px"></div>
+    <div style="font-size:11px;color:var(--t2);margin-top:6px">Ayuda a reconocer el material rápido al despachar o buscarlo — sube una nueva foto solo si quieres cambiarla.</div>
   </div>
   <div class="fg"><label>Departamento</label><select class="fc" id="eDep"><option value="Mayordomía">Mayordomía</option>
 <option value="Evangelismo">Evangelismo</option>
@@ -1747,6 +1767,15 @@ function drawBarList(items, color1, color2) {
 // Panel interactivo del dashboard (legacy)
 function dashShowPanel(tipo) { dashTab(tipo==='todos'?'resumen':tipo); }
 
+// Miniatura de la foto del material (o un ícono neutro si todavía no tiene) —
+// se reutiliza en Inventario y en todos los buscadores rápidos de material.
+function fotoThumb(i, size) {
+  size = size || 32;
+  return i.foto
+    ? '<img src="'+i.foto+'" style="width:'+size+'px;height:'+size+'px;object-fit:cover;border-radius:6px;border:1px solid var(--bd);flex-shrink:0">'
+    : '<div style="width:'+size+'px;height:'+size+'px;border-radius:6px;background:var(--navy3);border:1px solid var(--bd);display:flex;align-items:center;justify-content:center;font-size:'+Math.round(size*0.5)+'px;flex-shrink:0">📦</div>';
+}
+
 function renderInv() {
   var dept = document.getElementById('fDept') ? document.getElementById('fDept').value : '';
   var q = document.getElementById('fQ') ? document.getElementById('fQ').value.toLowerCase() : '';
@@ -1767,7 +1796,7 @@ function renderInv() {
     var oldTag = dias>=120 ? '<span class="old-badge">+'+dias+'d</span>' : '<span style="font-size:12px;color:var(--t2)">'+dias+'d</span>';
     var editBtns = isA ? '<td><div style="display:flex;gap:6px"><button class="btn bic bsm" data-id="'+i.id+'" onclick="toggleDestacado(this)" title="'+(i.destacado?'Quitar destacado':'Marcar como destacado')+'" style="'+(i.destacado?'color:gold':'color:var(--t2)')+'">⭐</button><button class="btn bic bsm bgrn" data-id="'+i.id+'" onclick="openAddStockBtn(this)" title="Agregar stock">＋</button><button class="btn bic bsm" data-id="'+i.id+'" onclick="openEditBtn(this)" title="Editar">✏️</button><button class="btn bic bsm bred" data-id="'+i.id+'" onclick="delItemBtn(this)" title="Eliminar">🗑</button></div></td>' : '';
     html += '<tr>' +
-      '<td><div style="font-weight:600">' + (i.destacado?'⭐ ':'') + i.nombre + '</div></td>' +
+      '<td><div style="display:flex;align-items:center;gap:10px">' + fotoThumb(i,32) + '<div style="font-weight:600">' + (i.destacado?'⭐ ':'') + i.nombre + '</div></div></td>' +
       '<td>' + dBadge(i.departamento) + '</td>' +
       '<td>' + qBar(i) + '</td>' +
       '<td style="color:var(--t2);font-family:monospace">' + i.minimo + '</td>' +
@@ -2139,8 +2168,8 @@ function buscarMaterialOtros(texto) {
   }).slice(0, 15);
   if(!items.length) { cont.innerHTML='<div style="padding:10px 14px;font-size:12px;color:var(--t2)">Sin resultados</div>'; cont.style.display='block'; return; }
   cont.innerHTML = items.map(function(i) {
-    return '<div onclick="seleccionarMaterialOtros(\''+i.id+'\',\''+i.nombre.replace(/'/g,"\\'")+'\')" style="padding:8px 14px;font-size:13px;cursor:pointer;border-bottom:1px solid var(--bd)" onmouseover="this.style.background=\'var(--navy3)\'" onmouseout="this.style.background=\'transparent\'">' +
-      '<strong>'+i.nombre+'</strong> <span style="color:var(--teal);font-size:11px">('+i.cantidad+' und)</span></div>';
+    return '<div onclick="seleccionarMaterialOtros(\''+i.id+'\',\''+i.nombre.replace(/'/g,"\\'")+'\')" style="padding:8px 14px;font-size:13px;cursor:pointer;border-bottom:1px solid var(--bd);display:flex;align-items:center;gap:8px" onmouseover="this.style.background=\'var(--navy3)\'" onmouseout="this.style.background=\'transparent\'">' +
+      fotoThumb(i,28) + '<div><strong>'+i.nombre+'</strong> <span style="color:var(--teal);font-size:11px">('+i.cantidad+' und)</span></div></div>';
   }).join('');
   cont.style.display='block';
 }
@@ -2571,6 +2600,7 @@ async function registrarMaterial() {
   var min  = parseInt(document.getElementById('rMin').value)||0;
   var dept = document.getElementById('rDept').value;
   var precio = parseFloat(document.getElementById('rPrecio').value)||0;
+  var fotoInput = document.getElementById('rFoto');
   var nota = document.getElementById('rNota').value.trim();
   if(!n||!dept||c<1){ toast('Completa nombre, departamento y cantidad','warn'); return; }
 
@@ -2592,6 +2622,10 @@ async function registrarMaterial() {
         nota:nota, fechaIngreso:st(), creadoEn:st()
       };
       if(precio>0) datosMaterial.precio = precio;
+      if(fotoInput && fotoInput.files[0]) {
+        toast('Subiendo foto...');
+        datosMaterial.foto = await subirFotoImgbb(fotoInput.files[0]);
+      }
       await window._fbOps.addDoc(window._fbOps.collection(window._db,'materiales'), datosMaterial);
       var datosMovimiento = {
         tipo:'ingreso', material:n, cantidad:c, departamento:dept, distrito:'',
@@ -2601,7 +2635,8 @@ async function registrarMaterial() {
       if(precio>0) { datosMovimiento.precioUnitario = precio; datosMovimiento.costoTotal = precio*c; }
       await window._fbOps.addDoc(window._fbOps.collection(window._db,'movimientos'), datosMovimiento);
       toast('Material registrado: '+n);
-      ['rNom','rCant','rMin','rPrecio','rNota'].forEach(function(x){ document.getElementById(x).value=''; });
+      ['rNom','rCant','rMin','rPrecio','rFoto','rNota'].forEach(function(x){ document.getElementById(x).value=''; });
+      document.getElementById('rFotoPreview').innerHTML='';
       document.getElementById('rDept').value='';
     } else {
       toast('Sin conexion a Firebase','err');
@@ -2639,9 +2674,9 @@ function buscarMaterial(texto) {
   }).slice(0, 15);
   if(!items.length) { cont.innerHTML='<div style="padding:10px 14px;font-size:12px;color:var(--t2)">Sin resultados</div>'; cont.style.display='block'; return; }
   cont.innerHTML = items.map(function(i) {
-    return '<div onclick="seleccionarMaterial(\''+i.id+'\')" style="padding:8px 14px;font-size:13px;cursor:pointer;border-bottom:1px solid var(--bd)" onmouseover="this.style.background=\'var(--navy3)\'" onmouseout="this.style.background=\'transparent\'">' +
-      '<strong>'+i.nombre+'</strong> <span style="color:var(--teal);font-size:11px">('+i.cantidad+' und)</span>' +
-      '<span style="color:var(--t2);font-size:11px;margin-left:8px">'+i.departamento+'</span></div>';
+    return '<div onclick="seleccionarMaterial(\''+i.id+'\')" style="padding:8px 14px;font-size:13px;cursor:pointer;border-bottom:1px solid var(--bd);display:flex;align-items:center;gap:8px" onmouseover="this.style.background=\'var(--navy3)\'" onmouseout="this.style.background=\'transparent\'">' +
+      fotoThumb(i,28) + '<div><strong>'+i.nombre+'</strong> <span style="color:var(--teal);font-size:11px">('+i.cantidad+' und)</span>' +
+      '<span style="color:var(--t2);font-size:11px;margin-left:8px">'+i.departamento+'</span></div></div>';
   }).join('');
   cont.style.display='block';
 }
@@ -2735,9 +2770,9 @@ function buscarMaterialSol(texto) {
   }).slice(0, 15);
   if(!items.length) { cont.innerHTML='<div style="padding:10px 14px;font-size:12px;color:var(--t2)">Sin resultados</div>'; cont.style.display='block'; return; }
   cont.innerHTML = items.map(function(i) {
-    return '<div onclick="seleccionarMaterialSol(\''+i.id+'\')" style="padding:8px 14px;font-size:13px;cursor:pointer;border-bottom:1px solid var(--bd)" onmouseover="this.style.background=\'var(--navy3)\'" onmouseout="this.style.background=\'transparent\'">' +
-      '<strong>'+i.nombre+'</strong> <span style="color:var(--teal);font-size:11px">('+i.cantidad+' und)</span>' +
-      '<span style="color:var(--t2);font-size:11px;margin-left:8px">'+i.departamento+'</span></div>';
+    return '<div onclick="seleccionarMaterialSol(\''+i.id+'\')" style="padding:8px 14px;font-size:13px;cursor:pointer;border-bottom:1px solid var(--bd);display:flex;align-items:center;gap:8px" onmouseover="this.style.background=\'var(--navy3)\'" onmouseout="this.style.background=\'transparent\'">' +
+      fotoThumb(i,28) + '<div><strong>'+i.nombre+'</strong> <span style="color:var(--teal);font-size:11px">('+i.cantidad+' und)</span>' +
+      '<span style="color:var(--t2);font-size:11px;margin-left:8px">'+i.departamento+'</span></div></div>';
   }).join('');
   cont.style.display='block';
 }
@@ -2765,9 +2800,9 @@ function buscarMaterialRem(texto) {
   }).slice(0, 15);
   if(!items.length) { cont.innerHTML='<div style="padding:10px 14px;font-size:12px;color:var(--t2)">Sin materiales con precio</div>'; cont.style.display='block'; return; }
   cont.innerHTML = items.map(function(i) {
-    return '<div onclick="seleccionarMaterialRem(\''+i.id+'\')" style="padding:8px 14px;font-size:13px;cursor:pointer;border-bottom:1px solid var(--bd)" onmouseover="this.style.background=\'var(--navy3)\'" onmouseout="this.style.background=\'transparent\'">' +
-      '<strong>'+i.nombre+'</strong> <span style="color:var(--teal);font-size:11px">('+i.cantidad+' und)</span>' +
-      '<span style="color:var(--amber);font-size:11px;margin-left:8px">$'+Number(i.precio).toLocaleString('es-CO')+' c/u</span></div>';
+    return '<div onclick="seleccionarMaterialRem(\''+i.id+'\')" style="padding:8px 14px;font-size:13px;cursor:pointer;border-bottom:1px solid var(--bd);display:flex;align-items:center;gap:8px" onmouseover="this.style.background=\'var(--navy3)\'" onmouseout="this.style.background=\'transparent\'">' +
+      fotoThumb(i,28) + '<div><strong>'+i.nombre+'</strong> <span style="color:var(--teal);font-size:11px">('+i.cantidad+' und)</span>' +
+      '<span style="color:var(--amber);font-size:11px;margin-left:8px">$'+Number(i.precio).toLocaleString('es-CO')+' c/u</span></div></div>';
   }).join('');
   cont.style.display='block';
 }
@@ -3627,9 +3662,9 @@ function buscarMaterialDist(texto) {
   }).slice(0, 15);
   if(!items.length) { cont.innerHTML='<div style="padding:10px 14px;font-size:12px;color:var(--t2)">Sin resultados</div>'; cont.style.display='block'; return; }
   cont.innerHTML = items.map(function(i) {
-    return '<div onclick="seleccionarMaterialDist(\''+i.id+'\')" style="padding:8px 14px;font-size:13px;cursor:pointer;border-bottom:1px solid var(--bd)" onmouseover="this.style.background=\'var(--navy3)\'" onmouseout="this.style.background=\'transparent\'">' +
-      '<strong>'+i.nombre+'</strong> <span style="color:var(--teal);font-size:11px">('+i.cantidad+' und)</span>' +
-      '<span style="color:var(--t2);font-size:11px;margin-left:8px">'+i.departamento+'</span></div>';
+    return '<div onclick="seleccionarMaterialDist(\''+i.id+'\')" style="padding:8px 14px;font-size:13px;cursor:pointer;border-bottom:1px solid var(--bd);display:flex;align-items:center;gap:8px" onmouseover="this.style.background=\'var(--navy3)\'" onmouseout="this.style.background=\'transparent\'">' +
+      fotoThumb(i,28) + '<div><strong>'+i.nombre+'</strong> <span style="color:var(--teal);font-size:11px">('+i.cantidad+' und)</span>' +
+      '<span style="color:var(--t2);font-size:11px;margin-left:8px">'+i.departamento+'</span></div></div>';
   }).join('');
   cont.style.display='block';
 }
@@ -4243,6 +4278,28 @@ async function saveAddStock() {
 }
 
 // Editar material
+// ── FOTOS DE MATERIALES (ayuda a reconocer el material al buscarlo o despacharlo) ──
+function previsualizarFoto(input, previewId) {
+  var preview = document.getElementById(previewId);
+  if(!preview) return;
+  var file = input.files[0];
+  if(!file) { preview.innerHTML=''; return; }
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    preview.innerHTML = '<img src="'+e.target.result+'" style="max-width:160px;max-height:160px;border-radius:var(--r);border:1px solid var(--bd)">';
+  };
+  reader.readAsDataURL(file);
+}
+async function subirFotoImgbb(file) {
+  var formData = new FormData();
+  formData.append('image', file);
+  formData.append('key', '90ef17531a96e2ba46f944b5987756a4');
+  var resp = await fetch('https://api.imgbb.com/1/upload', { method:'POST', body:formData });
+  var data = await resp.json();
+  if(data.success) return data.data.url;
+  throw new Error('No se pudo subir la foto');
+}
+
 function openEditBtn(btn) {
   var id = btn.getAttribute('data-id');
   var item = STATE.items.find(function(i){ return i.id===id; });
@@ -4254,6 +4311,11 @@ function openEditBtn(btn) {
   document.getElementById('eDep').value = item.departamento||'';
   document.getElementById('ePrecio').value = item.precio||0;
   document.getElementById('eDestacado').checked = item.destacado||false;
+  document.getElementById('eFoto').value = '';
+  document.getElementById('eFotoPreview').innerHTML = '';
+  document.getElementById('eFotoActual').innerHTML = item.foto
+    ? '<img src="'+item.foto+'" style="max-width:120px;max-height:120px;border-radius:var(--r);border:1px solid var(--bd)">'
+    : '<div style="font-size:11px;color:var(--t2)">Sin foto todavía</div>';
   openM('mEditItem');
 }
 
@@ -4265,13 +4327,20 @@ async function saveEdit() {
   var dep  = document.getElementById('eDep').value;
   var precio = parseInt(document.getElementById('ePrecio').value)||0;
   var dest = document.getElementById('eDestacado').checked;
+  var fotoInput = document.getElementById('eFoto');
   if(!id||!nom){ toast('Nombre requerido','warn'); return; }
+
+  var btn = document.querySelector('[onclick="saveEdit()"]');
+  if(btn){ btn.textContent='Guardando...'; btn.disabled=true; }
 
   try {
     if(window._db && window._fbOps) {
-      await window._fbOps.updateDoc(window._fbOps.doc(window._db,'materiales',id), {
-        nombre:nom, cantidad:cant, minimo:min, departamento:dep, precio:precio, destacado:dest
-      });
+      var datos = { nombre:nom, cantidad:cant, minimo:min, departamento:dep, precio:precio, destacado:dest };
+      if(fotoInput && fotoInput.files[0]) {
+        toast('Subiendo foto...');
+        datos.foto = await subirFotoImgbb(fotoInput.files[0]);
+      }
+      await window._fbOps.updateDoc(window._fbOps.doc(window._db,'materiales',id), datos);
       toast('Material actualizado: '+nom);
       closeM('mEditItem');
     } else {
@@ -4280,6 +4349,8 @@ async function saveEdit() {
   } catch(e) {
     toast('Error: '+e.message,'err');
     console.error(e);
+  } finally {
+    if(btn){ btn.textContent='Guardar cambios'; btn.disabled=false; }
   }
 }
 
@@ -4490,8 +4561,8 @@ function buscarMaterialEO(texto) {
   }).slice(0, 15);
   if(!items.length) { cont.innerHTML='<div style="padding:10px 14px;font-size:12px;color:var(--t2)">Sin resultados</div>'; cont.style.display='block'; return; }
   cont.innerHTML = items.map(function(i) {
-    return '<div onclick="seleccionarMaterialEO(\''+i.id+'\')" style="padding:8px 14px;font-size:13px;cursor:pointer;border-bottom:1px solid var(--bd)" onmouseover="this.style.background=\'var(--navy3)\'" onmouseout="this.style.background=\'transparent\'">' +
-      '<strong>'+i.nombre+'</strong> <span style="color:var(--teal);font-size:11px">('+i.cantidad+' und)</span></div>';
+    return '<div onclick="seleccionarMaterialEO(\''+i.id+'\')" style="padding:8px 14px;font-size:13px;cursor:pointer;border-bottom:1px solid var(--bd);display:flex;align-items:center;gap:8px" onmouseover="this.style.background=\'var(--navy3)\'" onmouseout="this.style.background=\'transparent\'">' +
+      fotoThumb(i,28) + '<div><strong>'+i.nombre+'</strong> <span style="color:var(--teal);font-size:11px">('+i.cantidad+' und)</span></div></div>';
   }).join('');
   cont.style.display='block';
 }
@@ -4824,6 +4895,7 @@ function filtrarRotacionPorClase(clase) {
   renderRotacionTabla();
 }
 
+var _chartRotacionDona = null;
 function renderRotacionCards(rotacion) {
   var cont = document.getElementById('rotacionCards');
   if(!cont) return;
@@ -4842,6 +4914,19 @@ function renderRotacionCards(rotacion) {
       '<div class="sval">'+conteos[d.clase]+'</div>' +
       '<div class="ssub">artículo'+(conteos[d.clase]===1?'':'s')+'</div></div>';
   }).join('');
+
+  var ctxDona = document.getElementById('chartRotacionDona');
+  if(ctxDona && window.Chart) {
+    if(_chartRotacionDona) _chartRotacionDona.destroy();
+    _chartRotacionDona = new Chart(ctxDona, {
+      type:'doughnut',
+      data:{ labels:['Rápida','Normal','Lenta','Muerto'],
+        datasets:[{ data:[conteos.RAPIDA, conteos.NORMAL, conteos.LENTA, conteos.MUERTO],
+          backgroundColor:['#1a9aaa','#2dd4a8','#f5a623','#e74c3c'], borderWidth:0, hoverOffset:6 }] },
+      options:{ responsive:true, cutout:'62%',
+        plugins:{ legend:{ position:'bottom', labels:{ color:'#8899aa', padding:10, font:{size:11} } } } }
+    });
+  }
 }
 
 function renderCapitalDormido(rotacion) {
@@ -4865,28 +4950,52 @@ function renderCapitalDormido(rotacion) {
 
 // Valor de inventario por material (cantidad × precio), sobre TODA la rotación (no solo
 // muertos como Capital dormido) — responde "qué material vale más / hay mucho en existencia".
+var _chartValorInventario = null;
 function renderValorInventario(rotacion) {
-  var cont = document.getElementById('valorInventarioBody');
-  if(!cont) return;
+  var contResumen = document.getElementById('valorInventarioResumen');
+  var contBody = document.getElementById('valorInventarioBody');
+  var canvas = document.getElementById('chartValorInventario');
+  if(!contResumen || !contBody) return;
   var conPrecio = rotacion.filter(function(r){ return r.precio>0; });
   if(!conPrecio.length) {
-    cont.innerHTML = '<div class="empty">Todavía ningún material tiene precio de compra registrado — se va llenando al registrar materiales nuevos o agregar stock.</div>';
+    contResumen.innerHTML = '';
+    contBody.innerHTML = '<div class="empty">Todavía ningún material tiene precio de compra registrado — se va llenando al registrar materiales nuevos o agregar stock.</div>';
+    if(_chartValorInventario) { _chartValorInventario.destroy(); _chartValorInventario = null; }
+    if(canvas) canvas.style.display = 'none';
     return;
   }
+  if(canvas) canvas.style.display = '';
   var valorados = conPrecio.map(function(r){ return Object.assign({}, r, {valor: r.stock*r.precio}); })
     .sort(function(a,b){ return b.valor-a.valor; });
   var valorTotal = valorados.reduce(function(s,r){ return s+r.valor; }, 0);
 
-  var filas = valorados.slice(0,20).map(function(r,idx){
+  contResumen.innerHTML =
+    '<div class="g3"><div><div class="slbl">Valor total en inventario</div><div class="sval" style="color:var(--gold)">$'+valorTotal.toLocaleString('es-CO')+'</div><div class="ssub">'+conPrecio.length+' de '+rotacion.length+' material(es) con precio</div></div></div>';
+
+  var top10 = valorados.slice(0,10);
+  if(canvas && window.Chart) {
+    var nombresCompletos = top10.map(function(r){ return r.nombre; });
+    var labels = top10.map(function(r){ return r.nombre.length>18?r.nombre.substring(0,18)+'..':r.nombre; });
+    var values = top10.map(function(r){ return r.valor; });
+    if(_chartValorInventario) _chartValorInventario.destroy();
+    _chartValorInventario = new Chart(canvas, {
+      type:'bar',
+      data:{ labels:labels, datasets:[{ data:values, backgroundColor:'#f5a623', borderRadius:6, borderSkipped:false, maxBarThickness:26 }] },
+      options:{ indexAxis:'y', responsive:true,
+        plugins:{ legend:{display:false},
+          tooltip:{ backgroundColor:'#0f2b3c', titleColor:'#1a9aaa', bodyColor:'#e8edf3', titleFont:{size:14}, bodyFont:{size:13}, padding:12,
+            callbacks:{ title:function(ctx){ return nombresCompletos[ctx[0].dataIndex]; }, label:function(ctx){ return '  $'+ctx.raw.toLocaleString('es-CO'); } } } },
+        scales:{ x:{ ticks:{color:'#8899aa',font:{size:11}}, grid:{color:'rgba(26,154,170,0.08)'} }, y:{ ticks:{color:'#5a7a8a',font:{size:12}}, grid:{display:false} } }
+      }
+    });
+  }
+
+  var filas = valorados.slice(0,5).map(function(r,idx){
     return '<div class="log"><div class="ldot" style="background:var(--gold)"></div><div class="ltxt"><strong>#'+(idx+1)+' '+r.nombre+'</strong> '+badgeClasificacion(r.clasificacion)+
       '<div style="font-size:11px;color:var(--t2)">'+r.stock.toLocaleString('es-CO')+' und × $'+r.precio.toLocaleString('es-CO')+'</div></div>' +
       '<div class="ltime">$'+r.valor.toLocaleString('es-CO')+'</div></div>';
   }).join('');
-
-  cont.innerHTML =
-    '<div class="g3" style="margin-bottom:14px">' +
-      '<div><div class="slbl">Valor total en inventario</div><div class="sval" style="color:var(--gold)">$'+valorTotal.toLocaleString('es-CO')+'</div><div class="ssub">'+conPrecio.length+' de '+rotacion.length+' material(es) con precio</div></div>' +
-    '</div>' + filas;
+  contBody.innerHTML = filas;
 }
 
 function renderRotacionTabla() {
