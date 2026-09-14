@@ -414,6 +414,7 @@ textarea.fc{resize:vertical;min-height:70px}
           <button class="btn bgold bsm admin-el" onclick="toggleEnvioOcasional()" style="font-size:11px;padding:7px 12px">✉️ Envío ocasional</button>
           <button class="btn bgold bsm admin-el" onclick="abrirCobrosPorDistrito()" style="font-size:11px;padding:7px 12px">📧 Cobros por distrito</button>
           <button class="btn bred bsm admin-el" onclick="limpiarSolicitudes()" style="font-size:11px;padding:7px 12px">🗑 Limpiar historial</button>
+          <input type="text" class="fc" id="fReqPastor" placeholder="🔍 Buscar por pastor..." oninput="renderSols()" style="width:180px;padding:7px 10px;font-size:12px">
           <select class="fc" style="width:auto;padding:7px 10px;font-size:12px" id="fReqEstado" onchange="renderSols()">
             <option value="">Todos los estados</option>
             <option value="pendiente">Pendientes</option>
@@ -1843,11 +1844,14 @@ function renderDesp() {
 
 function renderSols() {
   var estado = document.getElementById('fReqEstado') ? document.getElementById('fReqEstado').value : '';
+  var qPastor = (document.getElementById('fReqPastor') ? document.getElementById('fReqPastor').value : '').trim().toLowerCase();
   var reqs = STATE.requests;
   if (estado) reqs = reqs.filter(function(r) { return r.estado === estado; });
+  if (qPastor) reqs = reqs.filter(function(r) { return (r.pastor||'').toLowerCase().indexOf(qPastor) !== -1; });
 
   if (!reqs.length) {
-    document.getElementById('solsContainer').innerHTML = '<div class="empty" style="padding:48px">Sin solicitudes registradas</div>';
+    var msgVacio = qPastor ? 'Sin solicitudes de "'+(document.getElementById('fReqPastor').value.trim())+'"' : 'Sin solicitudes registradas';
+    document.getElementById('solsContainer').innerHTML = '<div class="empty" style="padding:48px">'+msgVacio+'</div>';
     return;
   }
 
