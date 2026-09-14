@@ -688,7 +688,7 @@ textarea.fc{resize:vertical;min-height:70px}
             <option value="RAPIDA">Rápida</option>
             <option value="NORMAL">Normal</option>
             <option value="LENTA">Lenta</option>
-            <option value="MUERTO">Muerto</option>
+            <option value="MUERTO">Inactivo</option>
           </select>
         </div>
         <div class="tw" style="padding:0 16px 16px"><table>
@@ -4899,7 +4899,7 @@ function recomendacionRotacion(r) {
 
 function badgeClasificacion(clase) {
   var map = {RAPIDA:'btl', NORMAL:'bok', LENTA:'bwn', MUERTO:'bre'};
-  var texto = {RAPIDA:'Rápida', NORMAL:'Normal', LENTA:'Lenta', MUERTO:'Muerto'};
+  var texto = {RAPIDA:'Rápida', NORMAL:'Normal', LENTA:'Lenta', MUERTO:'Inactivo'};
   return '<span class="b '+(map[clase]||'bgr')+'">'+(texto[clase]||clase)+'</span>';
 }
 
@@ -4909,8 +4909,14 @@ function filtrarRotacionPorClase(clase) {
   var sel = document.getElementById('rotFiltroClase');
   if(sel) sel.value = _rotFiltroActivo;
   renderRotacionTabla();
+  renderRotacionCards(_rotacionCache || []);
   var det = document.getElementById('detallesRotacionTabla');
-  if(det && _rotFiltroActivo) det.open = true;
+  if(det && _rotFiltroActivo) {
+    det.open = true;
+    // Lleva la vista hasta la tabla filtrada — si no, el clic no parece hacer nada
+    // porque la tabla queda varios paneles más abajo, fuera de lo que se ve.
+    setTimeout(function(){ det.scrollIntoView({behavior:'smooth', block:'start'}); }, 50);
+  }
 }
 
 var _chartRotacionDona = null;
@@ -4923,26 +4929,29 @@ function renderRotacionCards(rotacion) {
     {clase:'RAPIDA', label:'Rápida', color:'', icon:'⚡'},
     {clase:'NORMAL', label:'Normal', color:'green', icon:'✅'},
     {clase:'LENTA',  label:'Lenta',  color:'gold',  icon:'🐢'},
-    {clase:'MUERTO', label:'Muerto', color:'red',   icon:'💀'}
+    {clase:'MUERTO', label:'Inactivo', color:'red',   icon:'😴'}
   ];
   cont.innerHTML = defs.map(function(d) {
     var activo = _rotFiltroActivo === d.clase;
-    return '<div class="scard'+(d.color?' '+d.color:'')+'" style="cursor:pointer;'+(activo?'outline:2px solid var(--teal)':'')+'" onclick="filtrarRotacionPorClase(\''+d.clase+'\')">' +
+    return '<div class="scard'+(d.color?' '+d.color:'')+'" style="cursor:pointer;'+(activo?'outline:2px solid var(--teal)':'')+'" onclick="filtrarRotacionPorClase(\''+d.clase+'\')" title="Ver '+d.label.toLowerCase()+' en el detalle">' +
       '<div class="slbl">'+d.icon+' '+d.label+'</div>' +
       '<div class="sval">'+conteos[d.clase]+'</div>' +
-      '<div class="ssub">artículo'+(conteos[d.clase]===1?'':'s')+'</div></div>';
+      '<div class="ssub">artículo'+(conteos[d.clase]===1?'':'s')+' · Ver detalle →</div></div>';
   }).join('');
 
   var ctxDona = document.getElementById('chartRotacionDona');
   if(ctxDona && window.Chart) {
     if(_chartRotacionDona) _chartRotacionDona.destroy();
     var totalRotacion = rotacion.length;
+    var clasesDona = ['RAPIDA','NORMAL','LENTA','MUERTO'];
     _chartRotacionDona = new Chart(ctxDona, {
       type:'doughnut',
-      data:{ labels:['Rápida','Normal','Lenta','Muerto'],
+      data:{ labels:['Rápida','Normal','Lenta','Inactivo'],
         datasets:[{ data:[conteos.RAPIDA, conteos.NORMAL, conteos.LENTA, conteos.MUERTO],
           backgroundColor:['#1a9aaa','#2dd4a8','#f5a623','#e74c3c'], borderWidth:0, hoverOffset:8 }] },
-      options:{ responsive:true, maintainAspectRatio:false, cutout:'68%',
+      options:{ responsive:true, maintainAspectRatio:false, cutout:'68%', onClick:function(evt, elems) {
+          if(elems && elems.length) filtrarRotacionPorClase(clasesDona[elems[0].index]);
+        }, onHover:function(evt, elems) { evt.native.target.style.cursor = elems.length ? 'pointer' : 'default'; },
         plugins:{ legend:{ position:'bottom', labels:{ color:'#8899aa', padding:10, font:{size:11}, usePointStyle:true, pointStyle:'circle' } },
           tooltip:{ backgroundColor:'#0f2b3c', titleColor:'#1a9aaa', bodyColor:'#e8edf3', padding:10 } } },
       plugins:[{
@@ -4975,10 +4984,10 @@ function renderCapitalDormido(rotacion) {
   var valorEstimado = conPrecio.reduce(function(s,r){ return s + r.stock*r.precio; }, 0);
 
   var html = '<div class="g3">' +
-    '<div><div class="slbl">Artículos muertos</div><div class="sval" style="color:var(--red)">'+muertos.length+'</div><div class="ssub">de '+rotacion.length+' en total</div></div>' +
+    '<div><div class="slbl">Artículos inactivos</div><div class="sval" style="color:var(--red)">'+muertos.length+'</div><div class="ssub">de '+rotacion.length+' en total</div></div>' +
     '<div><div class="slbl">Unidades inmovilizadas</div><div class="sval" style="color:var(--red)">'+totalUnidadesMuertas.toLocaleString('es-CO')+'</div><div class="ssub">'+pct.toFixed(1)+'% del inventario total</div></div>' +
     (conPrecio.length ? '<div><div class="slbl">Valor estimado (solo con precio)</div><div class="sval" style="color:var(--amber)">$'+valorEstimado.toLocaleString('es-CO')+'</div><div class="ssub">'+conPrecio.length+' artículo(s) con precio registrado</div></div>'
-      : '<div><div class="slbl">Valor estimado</div><div class="sval" style="color:var(--t2);font-size:14px">Sin dato de costo</div><div class="ssub">ningún artículo muerto tiene precio de compra registrado</div></div>') +
+      : '<div><div class="slbl">Valor estimado</div><div class="sval" style="color:var(--t2);font-size:14px">Sin dato de costo</div><div class="ssub">ningún artículo inactivo tiene precio de compra registrado</div></div>') +
     '</div>';
   cont.innerHTML = html;
 }
@@ -5070,7 +5079,7 @@ function renderRotacionTabla() {
   });
 
   if(!filas.length) {
-    var textoClase = {RAPIDA:'Rápida', NORMAL:'Normal', LENTA:'Lenta', MUERTO:'Muerto'}[filtroClase];
+    var textoClase = {RAPIDA:'Rápida', NORMAL:'Normal', LENTA:'Lenta', MUERTO:'Inactivo'}[filtroClase];
     var mensajeVacio = filtroClase
       ? 'No hay artículos en la categoría "'+textoClase+'" — prueba con "Todas las clasificaciones" arriba'
       : 'Sin artículos que coincidan con la búsqueda';
@@ -5558,7 +5567,7 @@ async function generarInformePDF() {
         '<div class="kpi"><div class="kn" style="color:#2ecc71">'+conteos.RAPIDA+'</div><div class="kl">Rápida</div></div>' +
         '<div class="kpi"><div class="kn" style="color:#1a9aaa">'+conteos.NORMAL+'</div><div class="kl">Normal</div></div>' +
         '<div class="kpi"><div class="kn" style="color:#f5a623">'+conteos.LENTA+'</div><div class="kl">Lenta</div></div>' +
-        '<div class="kpi"><div class="kn" style="color:#e74c3c">'+conteos.MUERTO+'</div><div class="kl">Muerta</div></div>' +
+        '<div class="kpi"><div class="kn" style="color:#e74c3c">'+conteos.MUERTO+'</div><div class="kl">Inactiva</div></div>' +
       '</div>' +
       '<div class="cap"><strong>Capital dormido:</strong> '+totalUnidadesMuertas.toLocaleString('es-CO')+' unidades inmovilizadas ('+pctInmovilizado.toFixed(1)+'% del inventario total) en '+muertos.length+' artículo(s) sin salida en 6+ meses.</div>' +
       '<div class="cols">' +
