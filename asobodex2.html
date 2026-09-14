@@ -658,8 +658,6 @@ textarea.fc{resize:vertical;min-height:70px}
         <button class="btn bgold" onclick="generarInformePDF()">📄 Informe para junta directiva</button>
       </div>
 
-      <div id="resumenEjecutivo" style="background:var(--teal-light);border:1px solid var(--bd);border-radius:var(--r2);padding:14px 18px;margin-bottom:16px;font-size:14px;line-height:1.6"></div>
-
       <div class="g2" style="margin-bottom:20px;align-items:stretch">
         <div class="sgrid" id="rotacionCards" style="grid-template-columns:1fr 1fr;margin-bottom:0"></div>
         <div class="panel" style="display:flex;flex-direction:column">
@@ -5240,23 +5238,6 @@ function renderRotacionTabla() {
   }).join('');
 }
 
-function renderResumenEjecutivo(rotacion) {
-  var cont = document.getElementById('resumenEjecutivo');
-  if(!cont) return;
-  var total = rotacion.length;
-  if(!total) { cont.innerHTML = 'Todavía no hay materiales registrados para analizar.'; return; }
-  var muertos = rotacion.filter(function(r){ return r.clasificacion==='MUERTO'; });
-  var rapidas = rotacion.filter(function(r){ return r.clasificacion==='RAPIDA'; });
-  var pctMuertos = (muertos.length/total*100).toFixed(0);
-
-  var frases = [];
-  frases.push('De tus <strong>'+total+' materiales</strong>, <strong style="color:var(--red)">'+muertos.length+' ('+pctMuertos+'%)</strong> llevan más de 6 meses sin moverse — son candidatos a <strong>dejar de comprar o redistribuir</strong> a otros distritos.');
-  if(rapidas.length) {
-    frases.push('<strong style="color:var(--teal)">'+rapidas.length+' material'+(rapidas.length===1?'':'es')+'</strong> se está'+(rapidas.length===1?'':'n')+' agotando pronto y necesita'+(rapidas.length===1?'':'n')+' reponerse.');
-  }
-  cont.innerHTML = '👉 ' + frases.join(' ');
-}
-
 function calcularGastosEnvio() {
   var gastos = STATE.gastosEnvio || [];
   var ahora = new Date();
@@ -5354,7 +5335,6 @@ function renderGastosEnvio() {
 function renderTesoreria() {
   if(!document.getElementById('rotacionCards')) return;
   var rotacion = calcularRotacion();
-  renderResumenEjecutivo(rotacion);
   renderRotacionCards(rotacion);
   renderMasSolicitados(rotacion);
   renderCapitalDormido(rotacion);
