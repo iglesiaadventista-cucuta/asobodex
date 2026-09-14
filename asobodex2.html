@@ -666,6 +666,14 @@ textarea.fc{resize:vertical;min-height:70px}
         </div>
       </div>
 
+      <div class="panel"><div class="ph"><span class="pt">🔥 Materiales más solicitados</span></div>
+        <div style="padding:0 16px;font-size:12px;color:var(--t2);margin-bottom:4px">Unidades despachadas en los últimos 12 meses — lo que más se pide, sin importar cuánto stock quede (eso lo ve la clasificación de arriba).</div>
+        <div class="pb">
+          <div style="position:relative;height:280px;margin:14px 0"><canvas id="chartMasSolicitados"></canvas></div>
+          <div id="masSolicitadosBody"></div>
+        </div>
+      </div>
+
       <div class="panel"><div class="ph"><span class="pt">📦 Capital dormido</span></div>
         <div class="pb" id="capitalDormidoBody"></div>
       </div>
@@ -4872,7 +4880,7 @@ function calcularRotacion() {
     return {
       id: item.id, nombre: item.nombre, departamento: item.departamento||'',
       stock: item.cantidad||0, precio: item.precio||0,
-      consumoMensual: consumoMensual, mesesInventario: mesesInventario,
+      consumoMensual: consumoMensual, mesesInventario: mesesInventario, salidas12m: salidas12m,
       fechaUltimaSalida: fechaUltimaSalida, diasDesdeUltimaSalida: diasDesdeUltimaSalida,
       clasificacion: clasificacion
     };
@@ -4971,6 +4979,63 @@ function renderRotacionCards(rotacion) {
       }]
     });
   }
+}
+
+// Materiales más solicitados (unidades despachadas en 12 meses) — distinto de la
+// clasificación Rápida/Normal/Lenta/Inactivo, que mide cuándo se agota el stock,
+// no cuánto se pide. Un material con mucho stock puede pedirse muchísimo y aun
+// así no salir en "Rápida" porque todavía le queda mucho tiempo de inventario.
+var _chartMasSolicitados = null;
+function renderMasSolicitados(rotacion) {
+  var canvas = document.getElementById('chartMasSolicitados');
+  var cont = document.getElementById('masSolicitadosBody');
+  if(!canvas || !cont) return;
+  var conSalidas = rotacion.filter(function(r){ return r.salidas12m > 0; })
+    .sort(function(a,b){ return b.salidas12m - a.salidas12m; });
+  if(!conSalidas.length) {
+    cont.innerHTML = '<div class="empty">Todavía no hay salidas registradas en los últimos 12 meses.</div>';
+    if(_chartMasSolicitados) { _chartMasSolicitados.destroy(); _chartMasSolicitados = null; }
+    canvas.style.display = 'none';
+    return;
+  }
+  canvas.style.display = '';
+  var top10 = conSalidas.slice(0,10);
+  var nombresCompletos = top10.map(function(r){ return r.nombre; });
+  var labels = top10.map(function(r){ return r.nombre.length>18?r.nombre.substring(0,18)+'..':r.nombre; });
+  var values = top10.map(function(r){ return r.salidas12m; });
+  if(_chartMasSolicitados) _chartMasSolicitados.destroy();
+  _chartMasSolicitados = new Chart(canvas, {
+    type:'bar',
+    data:{ labels:labels, datasets:[{ data:values, backgroundColor:'#2dd4a8', borderRadius:6, borderSkipped:false, maxBarThickness:26 }] },
+    options:{ indexAxis:'y', responsive:true, maintainAspectRatio:false,
+      layout:{ padding:{ right:70 } },
+      plugins:{ legend:{display:false},
+        tooltip:{ backgroundColor:'#0f2b3c', titleColor:'#1a9aaa', bodyColor:'#e8edf3', titleFont:{size:14}, bodyFont:{size:13}, padding:12,
+          callbacks:{ title:function(ctx){ return nombresCompletos[ctx[0].dataIndex]; }, label:function(ctx){ return '  '+ctx.raw.toLocaleString('es-CO')+' und en 12 meses'; } } } },
+      scales:{ x:{ ticks:{color:'#8899aa',font:{size:11}}, grid:{color:'rgba(26,154,170,0.08)'} }, y:{ ticks:{color:'#5a7a8a',font:{size:12}}, grid:{display:false} } }
+    },
+    plugins:[{
+      id:'valorAlFinalBarraSolicitados',
+      afterDatasetsDraw:function(chart) {
+        var ctx = chart.ctx;
+        var meta = chart.getDatasetMeta(0);
+        ctx.save();
+        ctx.fillStyle = '#e8edf3'; ctx.font = '600 11px sans-serif';
+        ctx.textBaseline = 'middle'; ctx.textAlign = 'left';
+        meta.data.forEach(function(bar, idx) {
+          ctx.fillText(values[idx].toLocaleString('es-CO')+' und', bar.x+8, bar.y);
+        });
+        ctx.restore();
+      }
+    }]
+  });
+
+  var filas = conSalidas.slice(0,5).map(function(r, idx) {
+    return '<div class="log"><div class="ldot" style="background:var(--green)"></div><div class="ltxt"><strong>#'+(idx+1)+' '+r.nombre+'</strong> '+badgeClasificacion(r.clasificacion)+
+      '<div style="font-size:11px;color:var(--t2)">'+Math.round(r.consumoMensual).toLocaleString('es-CO')+' und/mes en promedio</div></div>' +
+      '<div class="ltime">'+r.salidas12m.toLocaleString('es-CO')+' und</div></div>';
+  }).join('');
+  cont.innerHTML = filas;
 }
 
 function renderCapitalDormido(rotacion) {
@@ -5218,6 +5283,7 @@ function renderTesoreria() {
   var rotacion = calcularRotacion();
   renderResumenEjecutivo(rotacion);
   renderRotacionCards(rotacion);
+  renderMasSolicitados(rotacion);
   renderCapitalDormido(rotacion);
   renderValorInventario(rotacion);
   renderRotacionTabla();
