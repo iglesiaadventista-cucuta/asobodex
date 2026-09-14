@@ -248,7 +248,7 @@ textarea.fc{resize:vertical;min-height:70px}
       <button class="tab biblias-tab" data-view="biblias" title="Biblias" style="display:none">📖 <span>Biblias</span> <span class="tbadge" id="bibliasBadge" style="display:none">0</span></button>
       <button class="tab master-only" data-view="verdistribucion" title="Distribuciones">📦 <span>Distribuciones</span> <span class="tbadge" id="distBadge" style="display:none">0</span></button>
       <button class="tab reader-tab" data-view="solicitar" title="Solicitud Interna">🛒 <span>Solicitud Interna</span></button>
-      <button class="tab tesoreria-tab" data-view="tesoreria" title="Tesorería" style="display:none">💰 <span>Tesorería</span></button>
+      <button class="tab tesoreria-tab" data-view="tesoreria" title="Indicadores de Bodega" style="display:none">📈 <span>Indicadores de Bodega</span></button>
       <button class="tab fact-tab" data-view="remisiones" title="Remisiones">🧾 <span>Remisiones</span></button>
       <button class="tab dist-tab" data-view="distribucion" title="Distribución">📦 <span>Distribución</span></button>
       <button class="tab master-only" data-view="libros" title="Libros">📖 <span>Libros</span></button>
@@ -348,7 +348,7 @@ textarea.fc{resize:vertical;min-height:70px}
 <option value="Niños y Adolescentes">Niños y Adolescentes</option></select>
             </div>
             <div class="fg"><label>Precio de compra por unidad (opcional)</label><input type="number" class="fc" id="rPrecio" placeholder="$0" min="0" step="0.01"></div>
-            <div style="font-size:11px;color:var(--t2);margin:-8px 0 12px">Se usa en Tesorería para calcular el valor del inventario — déjalo en blanco si no lo sabes todavía.</div>
+            <div style="font-size:11px;color:var(--t2);margin:-8px 0 12px">Se usa en Indicadores de Bodega para calcular el valor del inventario — déjalo en blanco si no lo sabes todavía.</div>
             <div class="fg"><label>Foto del material (opcional)</label>
               <input type="file" accept="image/*" class="fc" id="rFoto" style="padding:8px" onchange="previsualizarFoto(this,'rFotoPreview')">
               <div id="rFotoPreview" style="margin-top:8px"></div>
@@ -652,7 +652,7 @@ textarea.fc{resize:vertical;min-height:70px}
     <div class="view" id="view-tesoreria">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px">
         <div>
-          <div style="font-size:16px;font-weight:700">💰 Tesorería — Rotación de inventario</div>
+          <div style="font-size:16px;font-weight:700">📈 Indicadores de Bodega — Rotación de inventario</div>
           <div style="font-size:12px;color:var(--t2);margin-top:2px">Clasificación de cada material según sus salidas de los últimos 12 meses. Clic en una tarjeta para filtrar la tabla.</div>
         </div>
         <button class="btn bgold" onclick="generarInformePDF()">📄 Informe para junta directiva</button>
@@ -976,7 +976,7 @@ textarea.fc{resize:vertical;min-height:70px}
   <div class="fg"><label>Cantidad a agregar</label><input type="number" class="fc" id="asCant" min="1" placeholder="¿Cuántas unidades llegaron?"></div>
   <div class="fg"><label>Responsable</label><input type="text" class="fc" id="asResp" placeholder="¿Quién registra el ingreso?"></div>
   <div class="fg"><label>Precio de compra por unidad (opcional)</label><input type="number" class="fc" id="asPrecio" min="0" step="0.01" placeholder="$0"></div>
-  <div style="font-size:11px;color:var(--t2);margin:-8px 0 12px" id="asPrecioHint">Actualiza el valor de este material en Tesorería — déjalo en blanco para no cambiarlo.</div>
+  <div style="font-size:11px;color:var(--t2);margin:-8px 0 12px" id="asPrecioHint">Actualiza el valor de este material en Indicadores de Bodega — déjalo en blanco para no cambiarlo.</div>
   <div class="fg"><label>Nota (opcional)</label><input type="text" class="fc" id="asNota" placeholder="Ej: Compra mensual, donación..."></div>
   <div style="background:var(--teal-light);border-radius:var(--r);padding:10px 14px;font-size:12px;color:var(--teal);margin-bottom:8px" id="asPreview">Nuevo total: —</div>
   <div class="mf"><button class="btn" onclick="closeM(&apos;mAddStock&apos;)">Cancelar</button><button class="btn bgrn" id="asSaveBtn" onclick="saveAddStock()">＋ Agregar stock</button></div>
@@ -4322,7 +4322,7 @@ function openAddStockBtn(btn) {
   document.getElementById('asPrecio').value = '';
   document.getElementById('asPrecioHint').textContent = item.precio > 0
     ? 'Precio actual registrado: $'+item.precio.toLocaleString('es-CO')+' — déjalo en blanco para no cambiarlo.'
-    : 'Este material todavía no tiene precio registrado — se usa en Tesorería para calcular el valor del inventario.';
+    : 'Este material todavía no tiene precio registrado — se usa en Indicadores de Bodega para calcular el valor del inventario.';
   document.getElementById('asNota').value = '';
   document.getElementById('asPreview').textContent = 'Nuevo total: ' + item.cantidad + ' und';
   // Live preview
