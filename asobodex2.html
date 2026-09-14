@@ -943,10 +943,11 @@ textarea.fc{resize:vertical;min-height:70px}
     <input type="number" class="fc" id="ePrecio" min="0" placeholder="0">
   </div>
   <div class="fg"><label>Foto del material (opcional)</label>
+    <input type="hidden" id="eFotoEliminar" value="0">
     <div id="eFotoActual" style="margin-bottom:8px"></div>
     <input type="file" accept="image/*" class="fc" id="eFoto" style="padding:8px" onchange="previsualizarFoto(this,'eFotoPreview')">
     <div id="eFotoPreview" style="margin-top:8px"></div>
-    <div style="font-size:11px;color:var(--t2);margin-top:6px">Ayuda a reconocer el material rápido al despachar o buscarlo — sube una nueva foto solo si quieres cambiarla.</div>
+    <div style="font-size:11px;color:var(--t2);margin-top:6px">Ayuda a reconocer el material rápido al despachar o buscarlo — clic en la foto para verla en grande, o sube una nueva para cambiarla.</div>
   </div>
   <div class="fg"><label>Departamento</label><select class="fc" id="eDep"><option value="Mayordomía">Mayordomía</option>
 <option value="Evangelismo">Evangelismo</option>
@@ -1027,6 +1028,11 @@ textarea.fc{resize:vertical;min-height:70px}
   <div class="fg"><label>Confirmar contraseña nueva</label><input type="password" class="fc" id="cpConfirmar" placeholder="Repite la contraseña nueva" autocomplete="new-password"></div>
   <div id="cpErr" style="color:var(--red);font-size:12px;margin-bottom:8px;display:none"></div>
   <div class="mf"><button class="btn" onclick="closeM('mCambiarPassword')">Cancelar</button><button class="btn bpri" id="cpSaveBtn" onclick="cambiarPassword()">Guardar nueva contraseña</button></div>
+</div></div>
+
+<div class="mo" id="mVerFoto" onclick="closeM('mVerFoto')"><div class="modal" style="width:auto;max-width:92vw;background:transparent;border:none;padding:0;box-shadow:none" onclick="event.stopPropagation()">
+  <img id="fotoCompletaImg" src="" style="max-width:92vw;max-height:80vh;border-radius:var(--r);display:block;margin:0 auto">
+  <div style="text-align:center;margin-top:14px"><button class="btn" onclick="closeM('mVerFoto')">Cerrar</button></div>
 </div></div>
 
 <script>
@@ -1852,8 +1858,14 @@ function dashShowPanel(tipo) { dashTab(tipo==='todos'?'resumen':tipo); }
 function fotoThumb(i, size) {
   size = size || 32;
   return i.foto
-    ? '<img src="'+i.foto+'" style="width:'+size+'px;height:'+size+'px;object-fit:cover;border-radius:6px;border:1px solid var(--bd);flex-shrink:0">'
+    ? '<img src="'+i.foto+'" style="width:'+size+'px;height:'+size+'px;object-fit:cover;border-radius:6px;border:1px solid var(--bd);flex-shrink:0;cursor:pointer" onclick="event.stopPropagation();verFotoCompleta(\''+i.foto.replace(/'/g,"\\'")+'\')">'
     : '<div style="width:'+size+'px;height:'+size+'px;border-radius:6px;background:var(--navy3);border:1px solid var(--bd);display:flex;align-items:center;justify-content:center;font-size:'+Math.round(size*0.5)+'px;flex-shrink:0">📦</div>';
+}
+// Abre la foto de un material en grande — se usa desde Inventario, los
+// buscadores rápidos y el modal de Editar material.
+function verFotoCompleta(url) {
+  document.getElementById('fotoCompletaImg').src = url;
+  openM('mVerFoto');
 }
 
 function renderInv() {
@@ -4408,10 +4420,24 @@ function openEditBtn(btn) {
   document.getElementById('eDestacado').checked = item.destacado||false;
   document.getElementById('eFoto').value = '';
   document.getElementById('eFotoPreview').innerHTML = '';
-  document.getElementById('eFotoActual').innerHTML = item.foto
-    ? '<img src="'+item.foto+'" style="max-width:120px;max-height:120px;border-radius:var(--r);border:1px solid var(--bd)">'
-    : '<div style="font-size:11px;color:var(--t2)">Sin foto todavía</div>';
+  document.getElementById('eFotoEliminar').value = '0';
+  renderFotoActual(item.foto);
   openM('mEditItem');
+}
+
+function renderFotoActual(foto) {
+  document.getElementById('eFotoActual').innerHTML = foto
+    ? '<div style="display:flex;align-items:center;gap:10px">' +
+        '<img src="'+foto+'" style="max-width:100px;max-height:100px;border-radius:var(--r);border:1px solid var(--bd);cursor:pointer" onclick="verFotoCompleta(\''+foto.replace(/'/g,"\\'")+'\')">' +
+        '<button type="button" class="btn bsm bred" onclick="marcarQuitarFoto()">🗑 Quitar foto</button>' +
+      '</div>'
+    : '<div style="font-size:11px;color:var(--t2)">Sin foto todavía</div>';
+}
+function marcarQuitarFoto() {
+  document.getElementById('eFotoEliminar').value = '1';
+  document.getElementById('eFoto').value = '';
+  document.getElementById('eFotoPreview').innerHTML = '';
+  document.getElementById('eFotoActual').innerHTML = '<div style="font-size:11px;color:var(--amber)">Se quitará la foto al guardar los cambios</div>';
 }
 
 async function saveEdit() {
@@ -4423,6 +4449,7 @@ async function saveEdit() {
   var precio = parseInt(document.getElementById('ePrecio').value)||0;
   var dest = document.getElementById('eDestacado').checked;
   var fotoInput = document.getElementById('eFoto');
+  var quitarFoto = document.getElementById('eFotoEliminar').value === '1';
   if(!id||!nom){ toast('Nombre requerido','warn'); return; }
 
   var btn = document.querySelector('[onclick="saveEdit()"]');
@@ -4434,6 +4461,8 @@ async function saveEdit() {
       if(fotoInput && fotoInput.files[0]) {
         toast('Subiendo foto...');
         datos.foto = await subirFotoImgbb(fotoInput.files[0]);
+      } else if(quitarFoto) {
+        datos.foto = '';
       }
       await window._fbOps.updateDoc(window._fbOps.doc(window._db,'materiales',id), datos);
       toast('Material actualizado: '+nom);
