@@ -1942,7 +1942,7 @@ function renderSols() {
       itemsHtml += '<span class="rtag">' + (item.nombre||'') + ' x' + (item.cantidad||'') + (item.iglesia ? ' (' + item.iglesia + ')' : '') + (item.codigoIglesia ? ' — Cód: ' + item.codigoIglesia : '') + (item.fotoUrl ? ' 📷' : '') + bibliaBadgeCorto(item) + '</span>';
       var nombreSinTildesIt2 = (item.nombre||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
       if(!libroDuplicado && item.iglesia && nombreSinTildesIt2.indexOf('diacono')!==-1) {
-        libroDuplicado = libroReciente(item.iglesia);
+        libroDuplicado = libroReciente(item.iglesia, r.distrito);
       }
     }
     if (r.otros) itemsHtml += '<span class="rtag" style="border-color:var(--gold);color:var(--gold)">Otro: ' + r.otros + '</span>';
@@ -2183,7 +2183,7 @@ function verDetalleSol(btn) {
     var alertaReciente = '';
     var nombreSinTildesIt = (it.nombre||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
     if(it.iglesia && nombreSinTildesIt.indexOf('diacono')!==-1) {
-      var reciente = libroReciente(it.iglesia);
+      var reciente = libroReciente(it.iglesia, r.distrito);
       if(reciente) {
         alertaReciente = '<div style="margin-top:8px;padding:8px 10px;background:rgba(231,76,60,.12);border-radius:var(--r);font-size:11px;color:var(--red)">⚠️ '+it.iglesia+' ya recibió un libro hace '+reciente.meses+' mes'+(reciente.meses===1?'':'es')+' ('+fmtD(reciente.fecha)+') — verifica si de verdad necesita uno nuevo antes de aprobar</div>';
       }
@@ -2499,13 +2499,13 @@ async function enviarConGuia(btn) {
           // El pastor sí puede leer el código en su talonario físico, así que lo que
           // escribió manda; si lo dejó en blanco, se recupera del historial de esa
           // iglesia en Libros (si nunca ha tenido código, queda pendiente de asignar)
-          var codigoIgl = pedItem.codigoIglesia || buscarCodigoIglesiaExistente(iglesia) || '';
+          var codigoIgl = pedItem.codigoIglesia || buscarCodigoIglesiaExistente(iglesia, distrito) || '';
           console.log('Detectado libro de diáconos:', iglesia, distrito, codigoIgl);
 
           // Si esta iglesia ya recibió un libro hace menos de 9 meses, pedir el motivo
           // del reenvío para que quede anotado (ej. pérdida, daño del anterior)
           var motivoLibro = '';
-          var libroReciente_ = libroReciente(iglesia);
+          var libroReciente_ = libroReciente(iglesia, distrito);
           if(libroReciente_) {
             motivoLibro = prompt('⚠️ '+iglesia+' ya recibió un libro de diáconos hace '+libroReciente_.meses+' mes'+(libroReciente_.meses===1?'':'es')+' (el '+fmtD(libroReciente_.fecha)+').\n\n¿Por qué se está enviando de nuevo? (quedará anotado en Libros)') || '';
           }
@@ -3546,33 +3546,49 @@ function normalizarCodigoLibro(codigo) {
   return 'TCN' + limpio.replace(/^tcn/i, '').trim();
 }
 
-// Busca si esa iglesia ya tiene un código de libro asignado en entregas anteriores
-// (el pastor solo escribe el número la primera vez; de ahí en adelante el sistema
-// lo recupera solo a partir de lo que ya se ha registrado)
-function buscarCodigoIglesiaExistente(iglesia) {
+// El mismo nombre de iglesia se repite en distritos distintos (ej. "Iglesia Hermosa"
+// existe tanto en Zulia como en Ocaña) — son congregaciones diferentes con libros
+// diferentes, así que toda coincidencia por nombre debe acotarse también por distrito
+// cuando se conoce. Normaliza el distrito igual en ambas funciones de abajo.
+function distritoNormalizado(distrito) {
+  return distrito ? distrito.replace(' (Solicitud interna)','').trim().toLowerCase() : '';
+}
+
+// Busca si esa iglesia (de ese distrito) ya tiene un código de libro asignado en
+// entregas anteriores (el pastor solo escribe el número la primera vez; de ahí en
+// adelante el sistema lo recupera solo a partir de lo que ya se ha registrado)
+function buscarCodigoIglesiaExistente(iglesia, distrito) {
   if(!iglesia) return '';
   var nombreNorm = iglesia.trim().toLowerCase();
-  var libros = STATE.libros || [];
-  var match = libros.find(function(l){ return (l.iglesia||'').trim().toLowerCase()===nombreNorm && l.codigoIglesia; });
+  var distritoNorm = distritoNormalizado(distrito);
+  var libros = (STATE.libros || []).filter(function(l){
+    return l.codigoIglesia && (!distritoNorm || (l.distrito||'').trim().toLowerCase()===distritoNorm);
+  });
+  var match = libros.find(function(l){ return (l.iglesia||'').trim().toLowerCase()===nombreNorm; });
   if(!match) {
     // Coincidencia parcial (ej. "Iglesia Alfa y Omega" vs "ALFA Y OMEGA")
     match = libros.find(function(l){
       var n = (l.iglesia||'').trim().toLowerCase();
-      return n && l.codigoIglesia && (n.indexOf(nombreNorm)!==-1 || nombreNorm.indexOf(n)!==-1);
+      return n && (n.indexOf(nombreNorm)!==-1 || nombreNorm.indexOf(n)!==-1);
     });
   }
   return match ? match.codigoIglesia : '';
 }
 
-// Detecta si una iglesia ya recibió un libro de diáconos recientemente (menos de 9 meses,
-// el mismo umbral que usa el módulo de Libros para considerar "normal" un reemplazo).
-// Sirve para avisar al admin ANTES de aprobar/enviar un pedido duplicado.
-function libroReciente(iglesia) {
+// Detecta si una iglesia de un distrito ya recibió un libro de diáconos recientemente
+// (menos de 9 meses, el mismo umbral que usa el módulo de Libros para considerar
+// "normal" un reemplazo). Sirve para avisar al admin ANTES de aprobar/enviar un
+// pedido duplicado — acotado por distrito para no confundir iglesias homónimas de
+// distritos distintos (ver distritoNormalizado arriba).
+function libroReciente(iglesia, distrito) {
   if(!iglesia) return null;
   var nombreNorm = iglesia.trim().toLowerCase();
+  var distritoNorm = distritoNormalizado(distrito);
   var libros = (STATE.libros||[]).filter(function(l){
     var n = (l.iglesia||'').trim().toLowerCase();
-    return n && (n===nombreNorm || n.indexOf(nombreNorm)!==-1 || nombreNorm.indexOf(n)!==-1);
+    var nombreMatch = n && (n===nombreNorm || n.indexOf(nombreNorm)!==-1 || nombreNorm.indexOf(n)!==-1);
+    if(!nombreMatch) return false;
+    return !distritoNorm || (l.distrito||'').trim().toLowerCase()===distritoNorm;
   });
   if(!libros.length) return null;
   libros.sort(function(a,b){ return b.fechaEntrega - a.fechaEntrega; });
@@ -4802,7 +4818,7 @@ async function enviarEnvioOcasional() {
       // Si el material es un libro de diáconos, registrar también en el módulo de Libros,
       // recuperando el código ya asignado a esa iglesia si existe
       if(esLibroDiaconos) {
-        var codigoIglExistente = buscarCodigoIglesiaExistente(iglesia);
+        var codigoIglExistente = buscarCodigoIglesiaExistente(iglesia, distrito);
         console.log('Detectado libro de diáconos en envío ocasional:', iglesia, distrito, codigoIglExistente);
         await registrarLibroDiacono(iglesia, distrito||'No especificado', codigoIglExistente);
       }
