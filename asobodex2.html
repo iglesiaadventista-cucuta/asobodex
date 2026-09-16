@@ -2437,8 +2437,9 @@ async function enviarConGuia(btn) {
   if(fotoInput && fotoInput.files[0]) {
     try {
       toast('Subiendo foto de la guía...');
+      var fotoComprimida = await comprimirImagen(fotoInput.files[0]);
       var formData = new FormData();
-      formData.append('image', fotoInput.files[0]);
+      formData.append('image', fotoComprimida, 'guia.jpg');
       formData.append('key', '90ef17531a96e2ba46f944b5987756a4');
       var imgResp = await fetch('https://api.imgbb.com/1/upload', {
         method: 'POST',
@@ -4413,9 +4414,39 @@ function previsualizarFoto(input, previewId) {
   };
   reader.readAsDataURL(file);
 }
+// Las fotos de cámara pueden pesar varios MB — eso es lo que hace que tarden en
+// cargar tanto en el panel como en el correo. Antes de subir, se reduce a máx.
+// 1600px de ancho y se reempaqueta como JPEG — si algo falla, se sube la original
+// tal cual (nunca bloquea el envío por esto).
+function comprimirImagen(file, maxAncho, calidad) {
+  maxAncho = maxAncho || 1600;
+  calidad = calidad || 0.8;
+  return new Promise(function(resolve) {
+    if(!file || !file.type || file.type.indexOf('image/') !== 0) { resolve(file); return; }
+    var img = new Image();
+    var url = URL.createObjectURL(file);
+    img.onload = function() {
+      URL.revokeObjectURL(url);
+      var w = img.width, h = img.height;
+      if(!w || !h) { resolve(file); return; }
+      if(w > maxAncho) { h = Math.round(h * maxAncho / w); w = maxAncho; }
+      var canvas = document.createElement('canvas');
+      canvas.width = w; canvas.height = h;
+      var ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, w, h);
+      canvas.toBlob(function(blob) {
+        resolve(blob || file);
+      }, 'image/jpeg', calidad);
+    };
+    img.onerror = function() { URL.revokeObjectURL(url); resolve(file); };
+    img.src = url;
+  });
+}
+
 async function subirFotoImgbb(file) {
+  var comprimida = await comprimirImagen(file);
   var formData = new FormData();
-  formData.append('image', file);
+  formData.append('image', comprimida, 'foto.jpg');
   formData.append('key', '90ef17531a96e2ba46f944b5987756a4');
   var resp = await fetch('https://api.imgbb.com/1/upload', { method:'POST', body:formData });
   var data = await resp.json();
@@ -4783,8 +4814,9 @@ async function enviarEnvioOcasional() {
     // Subir foto a ImgBB
     toast('Subiendo foto de la guía...');
     var guiaUrl = '';
+    var fotoComprimida = await comprimirImagen(fotoInput.files[0]);
     var formData = new FormData();
-    formData.append('image', fotoInput.files[0]);
+    formData.append('image', fotoComprimida, 'guia.jpg');
     formData.append('key', '90ef17531a96e2ba46f944b5987756a4');
     var imgResp = await fetch('https://api.imgbb.com/1/upload', { method:'POST', body:formData });
     var imgData = await imgResp.json();
