@@ -5354,6 +5354,13 @@ async function agregarGastoEnvioHistorico() {
   }
 }
 
+// Distrito actualmente expandido en "Gastos por distrito" (solo uno a la vez)
+var _distritoGastoExpandido = '';
+function toggleGastoDistrito(distrito) {
+  _distritoGastoExpandido = (_distritoGastoExpandido === distrito) ? '' : distrito;
+  renderGastosEnvio();
+}
+
 function renderGastosEnvio() {
   var cont = document.getElementById('gastosEnvioBody');
   if(!cont) return;
@@ -5364,7 +5371,27 @@ function renderGastosEnvio() {
     return;
   }
   var rankingHtml = g.rankingDistrito.map(function(r,idx){
-    return '<div class="log"><div class="ldot" style="background:var(--gold)"></div><div class="ltxt"><strong>#'+(idx+1)+' '+r.distrito+'</strong></div><div class="ltime">$'+r.total.toLocaleString('es-CO')+'</div></div>';
+    var abierto = _distritoGastoExpandido === r.distrito;
+    var detalleHtml = '';
+    if(abierto) {
+      var envios = (STATE.gastosEnvio||[]).filter(function(x){ return (x.distrito||'Sin distrito')===r.distrito; })
+        .slice().sort(function(a,b){ return b.fecha - a.fecha; });
+      detalleHtml = '<div style="padding:4px 0 10px 26px;display:flex;flex-direction:column;gap:6px">' +
+        envios.map(function(x){
+          return '<div style="display:flex;justify-content:space-between;gap:10px;font-size:12px;padding:6px 10px;background:var(--navy3);border-radius:var(--r)">' +
+            '<div><div style="color:var(--t1)">'+(x.nota||x.origen||'Envío')+'</div><div style="color:var(--t2);font-size:11px">'+fmtD(x.fecha)+' · '+(x.responsable||'')+'</div></div>' +
+            '<div style="color:var(--gold);font-weight:700;white-space:nowrap">$'+(x.costo||0).toLocaleString('es-CO')+'</div>' +
+          '</div>';
+        }).join('') +
+      '</div>';
+    }
+    return '<div>' +
+      '<div class="log" style="cursor:pointer" onclick="toggleGastoDistrito(\''+r.distrito.replace(/'/g,"\\'")+'\')">' +
+        '<div class="ldot" style="background:var(--gold)"></div>' +
+        '<div class="ltxt"><strong>'+(abierto?'▾':'▸')+' #'+(idx+1)+' '+r.distrito+'</strong></div>' +
+        '<div class="ltime">$'+r.total.toLocaleString('es-CO')+'</div>' +
+      '</div>' + detalleHtml +
+    '</div>';
   }).join('');
 
   cont.innerHTML =
@@ -5373,7 +5400,7 @@ function renderGastosEnvio() {
       '<div><div class="slbl">Este año</div><div class="sval" style="color:var(--gold)">$'+g.totalAnio.toLocaleString('es-CO')+'</div></div>' +
       '<div><div class="slbl">Total histórico</div><div class="sval" style="color:var(--gold)">$'+g.totalGeneral.toLocaleString('es-CO')+'</div></div>' +
     '</div>' +
-    '<div style="font-size:11px;font-weight:600;color:var(--t2);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Gastos por distrito</div>' +
+    '<div style="font-size:11px;font-weight:600;color:var(--t2);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Gastos por distrito — clic para ver el detalle</div>' +
     rankingHtml;
 }
 
