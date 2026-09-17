@@ -744,19 +744,6 @@ textarea.fc{resize:vertical;min-height:70px}
           <button class="btn bgold" style="width:100%" onclick="agregarGastoEnvioHistorico()">＋ Agregar gasto histórico</button>
         </div>
       </details>
-
-      <details class="panel" style="padding:0;margin-top:12px" id="detallesCierre">
-        <summary style="cursor:pointer;padding:12px 16px;font-size:11px;font-weight:600;color:var(--teal);text-transform:uppercase;letter-spacing:.08em">🔒 Ver cierre de período</summary>
-        <div style="padding:0 16px 16px">
-          <div style="font-size:12px;color:var(--t2);margin-bottom:12px">Una vez cerrado un mes, no se pueden aprobar ni editar pedidos con fecha de solicitud dentro de ese mes.</div>
-          <div class="f2">
-            <div class="fg"><label>Mes a cerrar</label><input type="month" class="fc" id="cierreMes"></div>
-            <div class="fg"><label>&nbsp;</label><button class="btn bred" style="width:100%" onclick="cerrarPeriodoActual()">🔒 Cerrar este mes</button></div>
-          </div>
-          <div style="font-size:11px;font-weight:600;color:var(--t2);text-transform:uppercase;letter-spacing:.06em;margin:14px 0 8px">Períodos cerrados</div>
-          <div id="periodosCerradosLista"></div>
-        </div>
-      </details>
     </div>
 
     <!-- SOLICITAR MATERIAL (para consultores/encargados) -->
@@ -5518,7 +5505,6 @@ function renderTesoreria() {
   renderRotacionTabla();
   renderProyeccionCompra(rotacion);
   renderComportamientoDistrito();
-  renderPeriodosCerrados();
   renderGastosEnvio();
 }
 
@@ -5768,47 +5754,6 @@ function bloqueadoPorCierre(pedido) {
     return true;
   }
   return false;
-}
-
-async function cerrarPeriodoActual() {
-  if(!permisosDe(STATE.user).cerrarPeriodo) { toast('No tienes permiso para cerrar períodos','err'); return; }
-  var input = document.getElementById('cierreMes');
-  var valor = input ? input.value : ''; // formato 'YYYY-MM' del <input type="month">
-  if(!valor) { toast('Selecciona el mes a cerrar','warn'); return; }
-  if(STATE.periodosCerrados && STATE.periodosCerrados[valor]) { toast('Ese período ya está cerrado','warn'); return; }
-  if(!confirm('¿Cerrar el período '+valor+'?\n\nYa no se podrán aprobar ni editar pedidos con fecha de solicitud dentro de ese mes. Esta acción no se puede deshacer desde aquí.')) return;
-
-  var btn = document.querySelector('[onclick="cerrarPeriodoActual()"]');
-  if(btn){ btn.textContent='Cerrando...'; btn.disabled=true; }
-  try {
-    if(window._db && window._fbOps) {
-      await window._fbOps.setDoc(window._fbOps.doc(window._db,'periodos_cerrados',valor), {
-        cerradoPor: STATE.user ? STATE.user.nombre : 'Desconocido',
-        cerradoEn: window._serverTimestamp()
-      });
-      toast('🔒 Período '+valor+' cerrado');
-    } else {
-      toast('Sin conexión a Firebase','err');
-    }
-  } catch(e) {
-    toast('Error: '+e.message,'err');
-  } finally {
-    if(btn){ btn.textContent='🔒 Cerrar este mes'; btn.disabled=false; }
-  }
-}
-
-function renderPeriodosCerrados() {
-  var cont = document.getElementById('periodosCerradosLista');
-  if(!cont) return;
-  var mapa = STATE.periodosCerrados || {};
-  var claves = Object.keys(mapa).sort().reverse();
-  if(!claves.length) { cont.innerHTML = '<div class="empty">Ningún período cerrado todavía</div>'; return; }
-  cont.innerHTML = claves.map(function(k) {
-    var info = mapa[k];
-    return '<div class="log"><div class="ldot" style="background:var(--red)"></div>' +
-      '<div class="ltxt"><strong>'+k+'</strong><div class="lsub">Cerrado por '+(info.cerradoPor||'—')+'</div></div>' +
-      '<div class="ltime">'+(info.cerradoEn?fmtD(info.cerradoEn):'')+'</div></div>';
-  }).join('');
 }
 
 // ── Funcionalidad 5: informe de una página para junta directiva ─────────
