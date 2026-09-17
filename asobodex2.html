@@ -1462,7 +1462,6 @@ function loginOk(u) {
   document.querySelectorAll('.biblias-tab').forEach(el=>el.style.display=isSecretaria?'':'none');
   renderAll();
   buildPedidoForm();
-  if(isTesorero) { setTimeout(function(){ showView('tesoreria'); }, 0); }
   if(isSecretaria) { setTimeout(function(){ showView('biblias'); }, 0); }
 }
 function mostrarBienvenida(u) {
