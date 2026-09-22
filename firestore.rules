@@ -160,11 +160,10 @@ service cloud.firestore {
     // formulario del pastor le muestra su propio resumen de lo que debe sin
     // iniciar sesión — no incluye datos de pago reales, solo el estado que
     // anota el auxiliar a mano. Solo el auxiliar contable (o el admin) puede
-    // crearlos y cambiar su estado.
+    // crearlos, cambiar su estado, o borrarlos (por si se equivoca al cargar uno).
     match /cobros/{id} {
       allow read: if true;
-      allow create, update: if esAuxiliar() || esAdmin();
-      allow delete: if esAdmin();
+      allow create, update, delete: if esAuxiliar() || esAdmin();
     }
 
     // ── periodos_cerrados: solo master/tesorero pueden cerrar un período.

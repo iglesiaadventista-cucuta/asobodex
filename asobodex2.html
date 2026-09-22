@@ -214,6 +214,7 @@ textarea.fc{resize:vertical;min-height:70px}
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
 <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
 </head>
 <body>
 
@@ -3555,6 +3556,7 @@ function renderCobros() {
         '<select class="fc" style="width:auto;padding:5px 8px;font-size:12px;color:'+estadoColor[estado]+'" onchange="actualizarEstadoCobro(\''+c.id+'\', this.value)">' +
           opcionesEstado.map(function(e){ return '<option value="'+e+'"'+(e===estado?' selected':'')+'>'+estadoLabel[e]+'</option>'; }).join('') +
         '</select>' +
+        '<button class="btn bic bsm bred" onclick="eliminarCobro(\''+c.id+'\')" title="Eliminar">🗑</button>' +
       '</div>' +
     '</div>';
   }).join('');
@@ -3620,17 +3622,102 @@ async function actualizarEstadoCobro(id, estado) {
   }
 }
 
+async function eliminarCobro(id) {
+  if(!permisosDe(STATE.user).gestionarCobros) { toast('No tienes permiso para esto','err'); return; }
+  var cobro = (STATE.cobros||[]).find(function(c){ return c.id===id; });
+  var descripcion = cobro ? (cobro.concepto+' — '+(cobro.pastor||'')) : 'este cobro';
+  if(!confirm('¿Eliminar '+descripcion+'? Esta acción no se puede deshacer.')) return;
+  try {
+    if(window._db && window._fbOps) {
+      await window._fbOps.deleteDoc(window._fbOps.doc(window._db,'cobros',id));
+      toast('🗑 Cobro eliminado');
+    } else {
+      toast('Sin conexión a Firebase','err');
+    }
+  } catch(e) {
+    toast('Error: '+e.message,'err');
+    console.error(e);
+  }
+}
+
 // Plantilla en blanco para que el auxiliar no tenga que adivinar los nombres de columna
-function descargarPlantillaCobros() {
-  if(typeof XLSX === 'undefined') { toast('No se pudo cargar el generador de Excel, intenta de nuevo','err'); return; }
-  var datos = [
-    ['Pastor', 'Distrito', 'Material', 'Cantidad', 'Valor'],
-    ['Pedro Gómez', 'TIBU', 'Libro Misionero 2026', 1, 15000]
-  ];
-  var ws = XLSX.utils.aoa_to_sheet(datos);
-  var wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, 'Cobros');
-  XLSX.writeFile(wb, 'plantilla_cobros_asobodex.xlsx');
+// Usa ExcelJS (no XLSX/SheetJS) para esta porque la versión gratuita de SheetJS no
+// puede escribir colores ni logos — ExcelJS sí. La lectura al importar sigue siendo
+// con XLSX/SheetJS más abajo, que ya está probada; ExcelJS solo se usa para generar
+// esta plantilla bonita.
+async function descargarPlantillaCobros() {
+  if(typeof ExcelJS === 'undefined') { toast('No se pudo cargar el generador de Excel, intenta de nuevo','err'); return; }
+  var btn = document.querySelector('[onclick="descargarPlantillaCobros()"]');
+  if(btn){ btn.textContent='Generando...'; btn.disabled=true; }
+  try {
+    var wb = new ExcelJS.Workbook();
+    wb.creator = 'AsoBodex';
+    var ws = wb.addWorksheet('Cobros', { views:[{showGridLines:false}] });
+    ws.columns = [
+      { key:'pastor', width:26 }, { key:'distrito', width:18 },
+      { key:'material', width:30 }, { key:'cantidad', width:12 }, { key:'valor', width:16 }
+    ];
+
+    // Logo (si no se puede descargar por algún motivo, se sigue sin él — no bloquea la plantilla)
+    try {
+      var resp = await fetch('https://iglesiaadventista-cucuta.github.io/asobodex/logo_iglesia.jpeg');
+      var buf = await resp.arrayBuffer();
+      var imgId = wb.addImage({ buffer: buf, extension: 'jpeg' });
+      ws.addImage(imgId, { tl:{col:0, row:0}, ext:{width:50, height:50} });
+    } catch(e) { console.warn('No se pudo incrustar el logo en la plantilla:', e); }
+
+    ws.getRow(1).height = 26;
+    ws.getRow(2).height = 18;
+    ws.mergeCells('B1:E1');
+    var titulo = ws.getCell('B1');
+    titulo.value = 'AsoBodex — Plantilla de Cobros';
+    titulo.font = { size:16, bold:true, color:{argb:'FF0F2B3C'} };
+    titulo.alignment = { vertical:'middle' };
+
+    ws.mergeCells('B2:E2');
+    var subt = ws.getCell('B2');
+    subt.value = 'Asociación del Noreste Colombiano — una fila por cada cobro';
+    subt.font = { size:10, italic:true, color:{argb:'FF3A8FA3'} };
+    subt.alignment = { vertical:'middle' };
+
+    var encabezados = ['Pastor','Distrito','Material','Cantidad','Valor'];
+    var filaEncabezado = ws.getRow(4);
+    encabezados.forEach(function(texto, idx) {
+      var cell = filaEncabezado.getCell(idx+1);
+      cell.value = texto;
+      cell.font = { bold:true, color:{argb:'FFFFFFFF'} };
+      cell.fill = { type:'pattern', pattern:'solid', fgColor:{argb:'FF0F2B3C'} };
+      cell.alignment = { vertical:'middle' };
+    });
+    filaEncabezado.height = 20;
+
+    var ejemplo = ['Pedro Gómez','TIBU','Libro Misionero 2026',1,15000];
+    var filaEjemplo = ws.getRow(5);
+    ejemplo.forEach(function(valor, idx) {
+      var cell = filaEjemplo.getCell(idx+1);
+      cell.value = valor;
+      cell.font = { italic:true, color:{argb:'FF8899AA'} };
+    });
+    filaEjemplo.getCell(5).numFmt = '#,##0';
+
+    ws.mergeCells('A6:E6');
+    var nota = ws.getCell('A6');
+    nota.value = '⚠️ Borra esta fila de ejemplo antes de subir el archivo';
+    nota.font = { size:9, italic:true, color:{argb:'FFE74C3C'} };
+
+    var buffer = await wb.xlsx.writeBuffer();
+    var blob = new Blob([buffer], {type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url; a.download = 'plantilla_cobros_asobodex.xlsx';
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  } catch(e) {
+    toast('Error generando la plantilla: '+e.message,'err');
+    console.error(e);
+  } finally {
+    if(btn){ btn.textContent='⬇ Descargar plantilla'; btn.disabled=false; }
+  }
 }
 
 // Busca en un objeto de fila de Excel la primera clave que coincida (sin distinguir
@@ -3660,7 +3747,25 @@ async function importarCobrosExcel() {
     var data = await input.files[0].arrayBuffer();
     var wb = XLSX.read(data, {type:'array'});
     var ws = wb.Sheets[wb.SheetNames[0]];
-    var filas = XLSX.utils.sheet_to_json(ws, {defval:''});
+
+    // No se asume que los encabezados están en la fila 1 — la plantilla bonita
+    // (descargarPlantillaCobros) tiene el logo y el título arriba, así que se busca
+    // la fila que de verdad tiene "Pastor" como encabezado, esté donde esté.
+    var filasCrudas = XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
+    var idxEncabezado = filasCrudas.findIndex(function(fila) {
+      return fila.some(function(celda){ return String(celda).trim().toLowerCase()==='pastor'; });
+    });
+    if(idxEncabezado === -1) { toast('No se encontró la columna "Pastor" en el archivo — usa la plantilla para no equivocarte del formato','err'); return; }
+
+    var encabezados = filasCrudas[idxEncabezado].map(function(h){ return String(h).trim().toLowerCase(); });
+    var filas = [];
+    for(var f=idxEncabezado+1; f<filasCrudas.length; f++) {
+      var filaArr = filasCrudas[f];
+      if(!filaArr || !filaArr.length) continue;
+      var obj = {};
+      encabezados.forEach(function(h, idx){ if(h) obj[h] = filaArr[idx]!==undefined ? filaArr[idx] : ''; });
+      filas.push(obj);
+    }
 
     if(!filas.length) { toast('El archivo no tiene filas de datos','warn'); return; }
 
