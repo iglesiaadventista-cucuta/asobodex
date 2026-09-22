@@ -213,6 +213,7 @@ textarea.fc{resize:vertical;min-height:70px}
 <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
 <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 </head>
 <body>
 
@@ -523,6 +524,19 @@ textarea.fc{resize:vertical;min-height:70px}
           </div>
           <div class="fg"><label>Fecha</label><input type="date" class="fc" id="cbFecha"></div>
           <button class="btn bpri" style="width:100%" onclick="agregarCobroManual()">➕ Agregar cobro</button>
+        </div>
+      </div>
+
+      <div class="panel" style="margin-bottom:16px">
+        <div class="ph"><span class="pt">📥 Importar cobros desde Excel</span></div>
+        <div class="pb">
+          <div style="font-size:12px;color:var(--t2);margin-bottom:10px">Columnas: <strong>Pastor, Distrito, Material, Valor</strong> (opcional: Cantidad). El correo NO va en el Excel — se busca solo a partir de los pedidos anteriores de cada pastor.</div>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:8px">
+            <input type="file" id="cbExcelInput" accept=".xlsx,.xls,.csv" class="fc" style="padding:8px;flex:1;min-width:200px">
+            <button class="btn bgrn" onclick="importarCobrosExcel()">📥 Importar</button>
+            <button class="btn bsm" onclick="descargarPlantillaCobros()">⬇ Descargar plantilla</button>
+          </div>
+          <div id="cbImportResultado" style="font-size:12px;color:var(--t2)"></div>
         </div>
       </div>
 
@@ -3534,7 +3548,7 @@ function renderCobros() {
     return '<div style="padding:10px 16px;border-bottom:1px solid var(--bd);display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">' +
       '<div>' +
         '<div style="font-size:13px;font-weight:600">'+(c.pastor||'—')+(c.distrito?' — '+c.distrito:'')+'</div>' +
-        '<div style="font-size:12px;color:var(--t2)">'+c.concepto+' x'+c.cantidad+' · '+fmtD(c.fecha)+(c.origen==='manual'?' · agregado a mano':'')+'</div>' +
+        '<div style="font-size:12px;color:var(--t2)">'+c.concepto+' x'+c.cantidad+' · '+fmtD(c.fecha)+(c.origen==='manual'?' · agregado a mano':c.origen==='excel'?' · importado de Excel':'')+'</div>' +
       '</div>' +
       '<div style="display:flex;align-items:center;gap:10px">' +
         '<span style="font-weight:700;color:var(--gold)">$'+(c.valorTotal||0).toLocaleString('es-CO')+'</span>' +
@@ -3603,6 +3617,93 @@ async function actualizarEstadoCobro(id, estado) {
   } catch(e) {
     toast('Error: '+e.message,'err');
     console.error(e);
+  }
+}
+
+// Plantilla en blanco para que el auxiliar no tenga que adivinar los nombres de columna
+function descargarPlantillaCobros() {
+  if(typeof XLSX === 'undefined') { toast('No se pudo cargar el generador de Excel, intenta de nuevo','err'); return; }
+  var datos = [
+    ['Pastor', 'Distrito', 'Material', 'Cantidad', 'Valor'],
+    ['Pedro Gómez', 'TIBU', 'Libro Misionero 2026', 1, 15000]
+  ];
+  var ws = XLSX.utils.aoa_to_sheet(datos);
+  var wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Cobros');
+  XLSX.writeFile(wb, 'plantilla_cobros_asobodex.xlsx');
+}
+
+// Busca en un objeto de fila de Excel la primera clave que coincida (sin distinguir
+// mayúsculas ni espacios) con alguna de las variantes de nombre de columna aceptadas.
+function _valorColumnaExcel(fila, variantes) {
+  var claves = Object.keys(fila);
+  for(var i=0; i<variantes.length; i++) {
+    var k = claves.find(function(kk){ return kk.trim().toLowerCase()===variantes[i]; });
+    if(k) return fila[k];
+  }
+  return '';
+}
+
+async function importarCobrosExcel() {
+  if(!permisosDe(STATE.user).gestionarCobros) { toast('No tienes permiso para esto','err'); return; }
+  var input = document.getElementById('cbExcelInput');
+  var resultadoEl = document.getElementById('cbImportResultado');
+  if(!input || !input.files[0]) { toast('Selecciona un archivo primero','warn'); return; }
+  if(typeof XLSX === 'undefined') { toast('No se pudo cargar el lector de Excel, intenta de nuevo','err'); return; }
+  if(!window._db || !window._fbOps) { toast('Sin conexión a Firebase','err'); return; }
+
+  var btn = document.querySelector('[onclick="importarCobrosExcel()"]');
+  if(btn){ btn.textContent='Importando...'; btn.disabled=true; }
+  if(resultadoEl) resultadoEl.textContent = '';
+
+  try {
+    var data = await input.files[0].arrayBuffer();
+    var wb = XLSX.read(data, {type:'array'});
+    var ws = wb.Sheets[wb.SheetNames[0]];
+    var filas = XLSX.utils.sheet_to_json(ws, {defval:''});
+
+    if(!filas.length) { toast('El archivo no tiene filas de datos','warn'); return; }
+
+    var st = window._serverTimestamp;
+    var importados = 0, sinCorreo = 0, omitidos = 0;
+
+    for(var i=0; i<filas.length; i++) {
+      var fila = filas[i];
+      var pastor = String(_valorColumnaExcel(fila, ['pastor','nombre','nombre del pastor'])).trim();
+      var distrito = String(_valorColumnaExcel(fila, ['distrito'])).trim();
+      var concepto = String(_valorColumnaExcel(fila, ['material','concepto'])).trim();
+      var cantidad = parseInt(_valorColumnaExcel(fila, ['cantidad'])) || 1;
+      var valorUnit = parseFloat(_valorColumnaExcel(fila, ['valor','valor unitario'])) || 0;
+
+      if(!pastor || !concepto || !valorUnit) { omitidos++; continue; }
+
+      var pastorNorm = pastor.toLowerCase();
+      var match = (STATE.requests||[]).find(function(r){ return (r.pastor||'').trim().toLowerCase()===pastorNorm && r.correo; });
+      var correo = match ? match.correo : '';
+      if(!correo) sinCorreo++;
+
+      await window._fbOps.addDoc(window._fbOps.collection(window._db,'cobros'), {
+        pastor: pastor, correo: correo, distrito: distrito, concepto: concepto,
+        cantidad: cantidad, valorUnitario: valorUnit, valorTotal: cantidad*valorUnit,
+        pedidoId: '', origen: 'excel', estado: 'pendiente',
+        fecha: st(), creadoPor: STATE.user ? STATE.user.nombre : 'Auxiliar'
+      });
+      importados++;
+    }
+
+    toast(importados>0 ? '✓ '+importados+' cobro(s) importado(s)' : 'No se importó ningún cobro', importados>0?undefined:'warn');
+    if(resultadoEl) {
+      var partes = [];
+      if(sinCorreo) partes.push(sinCorreo+' sin correo encontrado (no se les avisa por correo hasta que hagan un pedido o se lo agregues a mano)');
+      if(omitidos) partes.push(omitidos+' fila(s) omitida(s) por faltarle Pastor, Material o Valor');
+      resultadoEl.textContent = partes.length ? '⚠️ '+partes.join(' · ') : '';
+    }
+    input.value = '';
+  } catch(e) {
+    toast('Error importando el archivo: '+e.message,'err');
+    console.error(e);
+  } finally {
+    if(btn){ btn.textContent='📥 Importar'; btn.disabled=false; }
   }
 }
 
