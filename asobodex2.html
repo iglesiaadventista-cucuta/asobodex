@@ -728,25 +728,25 @@ textarea.fc{resize:vertical;min-height:70px}
     <div class="view" id="view-pastores">
       <div style="margin-bottom:14px">
         <div style="font-size:16px;font-weight:700">👥 Pastores por distrito</div>
-        <div style="font-size:12px;color:var(--t2);margin-top:2px">Quién está en cada distrito y su correo — se usa para autocompletar el formulario del pastor y los cobros de Luis. Ajustá el distrito acá cuando reasignen a alguien.</div>
+        <div style="font-size:12px;color:var(--t2);margin-top:2px">El distrito es lo fijo — cada uno tiene siempre un solo registro acá. Cuando reasignan a alguien, cambiás quién es el pastor (y su correo) de ese mismo distrito, sin crear uno nuevo. Se usa para autocompletar el formulario del pastor y los cobros de Luis.</div>
       </div>
 
       <div class="panel" style="margin-bottom:16px">
-        <div class="ph"><span class="pt">➕ Agregar pastor manual</span></div>
+        <div class="ph"><span class="pt">➕ Agregar / actualizar un distrito</span></div>
         <div class="pb">
           <div class="f2">
-            <div class="fg"><label>Pastor *</label><input type="text" class="fc" id="psPastor" placeholder="Nombre completo"></div>
             <div class="fg"><label>Distrito *</label><select class="fc" id="psDistrito"><option value="">Seleccionar...</option></select></div>
+            <div class="fg"><label>Pastor a cargo *</label><input type="text" class="fc" id="psPastor" placeholder="Nombre completo"></div>
           </div>
-          <div class="fg"><label>Correo *</label><input type="email" class="fc" id="psCorreo" placeholder="pastor@asonoreste.org"></div>
-          <button class="btn bpri" style="width:100%" onclick="agregarPastorManual()">➕ Agregar / actualizar pastor</button>
+          <div class="fg"><label>Correo</label><input type="email" class="fc" id="psCorreo" placeholder="pastor@asonoreste.org (opcional, se puede completar después)"></div>
+          <button class="btn bpri" style="width:100%" onclick="agregarPastorManual()">➕ Guardar</button>
         </div>
       </div>
 
       <div class="panel" style="margin-bottom:16px">
         <div class="ph"><span class="pt">📥 Importar relación desde Excel</span></div>
         <div class="pb">
-          <div style="font-size:12px;color:var(--t2);margin-bottom:10px">Columnas: <strong>Pastor, Distrito, Correo</strong>. Si un correo ya existe en la lista, se actualiza (por ejemplo si cambió de distrito) en vez de duplicarse.</div>
+          <div style="font-size:12px;color:var(--t2);margin-bottom:10px">Columnas: <strong>Distrito, Pastor, Correo</strong> (el correo es opcional, se puede dejar en blanco y completar después). Cada distrito es único — si ya existe en la lista, se actualiza el pastor/correo en vez de duplicarse.</div>
           <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:8px">
             <input type="file" id="psExcelInput" accept=".xlsx,.xls,.csv" class="fc" style="padding:8px;flex:1;min-width:200px">
             <button class="btn bgrn" onclick="importarPastoresExcel()">📥 Importar</button>
@@ -3973,12 +3973,16 @@ async function importarCobrosExcel() {
   }
 }
 
-// ── PASTORES (relación pastor → distrito → correo — exclusivo del admin) ──────
-// El correo es la clave natural: dos pastores no comparten correo, así que se usa
-// como id del documento — reimportar el mismo Excel actualiza en vez de duplicar.
-function docIdPastor(correo, nombre) {
-  var base = (correo||nombre||'').trim().toLowerCase();
-  return base.replace(/[^a-z0-9@._-]/g, '_') || ('pastor_'+Date.now());
+// ── PASTORES (relación distrito → pastor a cargo → correo — exclusivo del admin) ──
+// El DISTRITO es la clave natural, no el pastor ni el correo: el distrito siempre
+// existe y no se mueve, es el pastor el que rota — así que el id del documento es
+// el distrito (normalizado). Reasignar a alguien es actualizar el mismo registro
+// del distrito (cambia el pastor y su correo), nunca crear uno nuevo.
+function docIdDistrito(distrito) {
+  var base = (distrito||'').trim().toLowerCase()
+    .normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+  return base || ('distrito_'+Date.now());
 }
 function esMasterAdmin_() {
   return !!(STATE.user && STATE.user.uid === '7k3swOaRgLTcO5faxjp5dx4iPkR2');
@@ -3993,7 +3997,7 @@ function renderPastores() {
   }
 
   var q = (document.getElementById('psBuscar') ? document.getElementById('psBuscar').value : '').trim().toLowerCase();
-  var lista = (STATE.pastores||[]).slice().sort(function(a,b){ return (a.nombre||'').localeCompare(b.nombre||''); });
+  var lista = (STATE.pastores||[]).slice().sort(function(a,b){ return (a.distrito||'').localeCompare(b.distrito||''); });
   if(q) {
     lista = lista.filter(function(p){
       return (p.nombre||'').toLowerCase().indexOf(q)!==-1 || (p.distrito||'').toLowerCase().indexOf(q)!==-1;
@@ -4001,38 +4005,32 @@ function renderPastores() {
   }
 
   if(!lista.length) {
-    cont.innerHTML = '<div class="empty" style="padding:40px">'+(q?'Sin resultados para "'+q+'"':'Sin pastores registrados todavía — agregalos a mano o importá un Excel')+'</div>';
+    cont.innerHTML = '<div class="empty" style="padding:40px">'+(q?'Sin resultados para "'+q+'"':'Sin distritos registrados todavía — agregalos a mano o importá un Excel')+'</div>';
     return;
-  }
-
-  function opcionesDistritoPara(seleccionado) {
-    var opts = '<option value=""'+(!seleccionado?' selected':'')+'>Sin distrito</option>';
-    DISTRITOS.forEach(function(d){ opts += '<option value="'+d+'"'+(d===seleccionado?' selected':'')+'>'+d+'</option>'; });
-    return opts;
   }
 
   cont.innerHTML = lista.map(function(p) {
     return '<div style="padding:10px 16px;border-bottom:1px solid var(--bd);display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">' +
-      '<div>' +
-        '<div style="font-size:13px;font-weight:600">'+(p.nombre||'—')+'</div>' +
-        '<div style="font-size:12px;color:var(--t2)">'+(p.correo||'Sin correo')+'</div>' +
+      '<div style="min-width:130px">' +
+        '<div style="font-size:10px;font-weight:700;color:var(--teal);text-transform:uppercase;letter-spacing:.05em">'+(p.distrito||'—')+'</div>' +
       '</div>' +
-      '<div style="display:flex;align-items:center;gap:10px">' +
-        '<select class="fc" style="width:auto;padding:5px 8px;font-size:12px" onchange="guardarDistritoPastor(\''+p.id+'\', this.value)">' +
-          opcionesDistritoPara(p.distrito) +
-        '</select>' +
-        '<button class="btn bic bsm bred" onclick="eliminarPastor(\''+p.id+'\')" title="Eliminar">🗑</button>' +
+      '<div style="display:flex;align-items:center;gap:8px;flex:1;flex-wrap:wrap">' +
+        '<input type="text" class="fc" style="width:auto;flex:1;min-width:160px;padding:5px 8px;font-size:12px" value="'+(p.nombre||'')+'" placeholder="Nombre del pastor a cargo" onchange="guardarPastorDeDistrito(\''+p.id+'\', \'nombre\', this.value)">' +
+        '<input type="email" class="fc" style="width:auto;flex:1;min-width:180px;padding:5px 8px;font-size:12px" value="'+(p.correo||'')+'" placeholder="Correo (opcional)" onchange="guardarPastorDeDistrito(\''+p.id+'\', \'correo\', this.value)">' +
       '</div>' +
+      '<button class="btn bic bsm bred" onclick="eliminarPastor(\''+p.id+'\')" title="Quitar este registro">🗑</button>' +
     '</div>';
   }).join('');
 }
 
-async function guardarDistritoPastor(id, distrito) {
+async function guardarPastorDeDistrito(id, campo, valor) {
   if(!esMasterAdmin_()) { toast('No tienes permiso para esto','err'); return; }
   try {
     if(window._db && window._fbOps) {
-      await window._fbOps.updateDoc(window._fbOps.doc(window._db,'pastores',id), {distrito: distrito});
-      toast('✓ Distrito actualizado');
+      var cambios = {};
+      cambios[campo] = valor.trim();
+      await window._fbOps.updateDoc(window._fbOps.doc(window._db,'pastores',id), cambios);
+      toast('✓ Guardado');
     } else {
       toast('Sin conexión a Firebase','err');
     }
@@ -4044,25 +4042,25 @@ async function guardarDistritoPastor(id, distrito) {
 
 async function agregarPastorManual() {
   if(!esMasterAdmin_()) { toast('No tienes permiso para esto','err'); return; }
-  var pastor = document.getElementById('psPastor').value.trim();
   var distrito = document.getElementById('psDistrito').value;
+  var pastor = document.getElementById('psPastor').value.trim();
   var correo = document.getElementById('psCorreo').value.trim();
-  if(!pastor){ toast('Ingresa el nombre del pastor','warn'); return; }
   if(!distrito){ toast('Selecciona el distrito','warn'); return; }
-  if(!correo || !correo.includes('@')){ toast('Ingresa un correo válido','warn'); return; }
+  if(!pastor){ toast('Ingresa el nombre del pastor a cargo','warn'); return; }
+  if(correo && !correo.includes('@')){ toast('El correo no parece válido','warn'); return; }
 
   var btn = document.querySelector('[onclick="agregarPastorManual()"]');
   if(btn){ btn.textContent='Guardando...'; btn.disabled=true; }
   try {
     if(window._db && window._fbOps) {
-      var id = docIdPastor(correo, pastor);
+      var id = docIdDistrito(distrito);
       await window._fbOps.setDoc(window._fbOps.doc(window._db,'pastores',id), {
-        nombre: pastor, distrito: distrito, correo: correo,
+        distrito: distrito, nombre: pastor, correo: correo,
         actualizadoPor: STATE.user ? STATE.user.nombre : 'Admin', actualizadoEn: window._serverTimestamp()
       });
-      toast('✓ Pastor guardado: '+pastor);
-      document.getElementById('psPastor').value = '';
+      toast('✓ Guardado: '+distrito+' — '+pastor);
       document.getElementById('psDistrito').value = '';
+      document.getElementById('psPastor').value = '';
       document.getElementById('psCorreo').value = '';
     } else {
       toast('Sin conexión a Firebase','err');
@@ -4071,18 +4069,18 @@ async function agregarPastorManual() {
     toast('Error: '+e.message,'err');
     console.error(e);
   } finally {
-    if(btn){ btn.textContent='➕ Agregar / actualizar pastor'; btn.disabled=false; }
+    if(btn){ btn.textContent='➕ Guardar'; btn.disabled=false; }
   }
 }
 
 async function eliminarPastor(id) {
   if(!esMasterAdmin_()) { toast('No tienes permiso para esto','err'); return; }
   var p = (STATE.pastores||[]).find(function(x){ return x.id===id; });
-  if(!confirm('¿Eliminar a '+(p?p.nombre:'este pastor')+' de la lista?')) return;
+  if(!confirm('¿Quitar el registro de '+(p?p.distrito:'este distrito')+'?')) return;
   try {
     if(window._db && window._fbOps) {
       await window._fbOps.deleteDoc(window._fbOps.doc(window._db,'pastores',id));
-      toast('🗑 Pastor eliminado');
+      toast('🗑 Registro eliminado');
     } else {
       toast('Sin conexión a Firebase','err');
     }
@@ -4101,7 +4099,7 @@ async function descargarPlantillaPastores() {
     var wb = new ExcelJS.Workbook();
     wb.creator = 'AsoBodex';
     var ws = wb.addWorksheet('Pastores', { views:[{showGridLines:false}] });
-    ws.columns = [ { key:'pastor', width:28 }, { key:'distrito', width:18 }, { key:'correo', width:32 } ];
+    ws.columns = [ { key:'distrito', width:18 }, { key:'pastor', width:28 }, { key:'correo', width:32 } ];
 
     try {
       var resp = await fetch('https://iglesiaadventista-cucuta.github.io/asobodex/logo_iglesia.jpeg');
@@ -4123,7 +4121,7 @@ async function descargarPlantillaPastores() {
     subt.font = { size:10, italic:true, color:{argb:'FF3A8FA3'} };
     subt.alignment = { vertical:'middle' };
 
-    var encabezados = ['Pastor','Distrito','Correo'];
+    var encabezados = ['Distrito','Pastor','Correo'];
     var filaEnc = ws.getRow(4);
     encabezados.forEach(function(texto, idx) {
       var cell = filaEnc.getCell(idx+1);
@@ -4134,7 +4132,7 @@ async function descargarPlantillaPastores() {
     });
     filaEnc.height = 20;
 
-    var ejemplo = ['Pedro Gómez','TIBU','pedro.gomez@asonoreste.org'];
+    var ejemplo = ['TIBU','Pedro Gómez','pedro.gomez@asonoreste.org'];
     var filaEj = ws.getRow(5);
     ejemplo.forEach(function(v, idx){
       var cell = filaEj.getCell(idx+1);
@@ -4144,7 +4142,7 @@ async function descargarPlantillaPastores() {
 
     ws.mergeCells('A6:C6');
     var nota = ws.getCell('A6');
-    nota.value = '⚠️ Borra esta fila de ejemplo antes de subir el archivo';
+    nota.value = '⚠️ Borra esta fila de ejemplo antes de subir el archivo — el correo es opcional, se puede dejar en blanco';
     nota.font = { size:9, italic:true, color:{argb:'FFE74C3C'} };
 
     var buffer = await wb.xlsx.writeBuffer();
@@ -4181,9 +4179,9 @@ async function importarPastoresExcel() {
 
     var filasCrudas = XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
     var idxEncabezado = filasCrudas.findIndex(function(fila) {
-      return fila.some(function(celda){ return String(celda).trim().toLowerCase()==='pastor'; });
+      return fila.some(function(celda){ return String(celda).trim().toLowerCase()==='distrito'; });
     });
-    if(idxEncabezado === -1) { toast('No se encontró la columna "Pastor" en el archivo — usa la plantilla para no equivocarte del formato','err'); return; }
+    if(idxEncabezado === -1) { toast('No se encontró la columna "Distrito" en el archivo — usa la plantilla para no equivocarte del formato','err'); return; }
 
     var encabezados = filasCrudas[idxEncabezado].map(function(h){ return String(h).trim().toLowerCase(); });
     var filas = [];
@@ -4199,21 +4197,21 @@ async function importarPastoresExcel() {
     var importados = 0, omitidos = 0;
     for(var i=0; i<filas.length; i++) {
       var fila = filas[i];
-      var pastor = String(_valorColumnaExcel(fila, ['pastor','nombre'])).trim();
       var distrito = String(_valorColumnaExcel(fila, ['distrito'])).trim();
+      var pastor = String(_valorColumnaExcel(fila, ['pastor','nombre'])).trim();
       var correo = String(_valorColumnaExcel(fila, ['correo','email'])).trim();
-      if(!pastor || !correo || !correo.includes('@')) { omitidos++; continue; }
+      if(!distrito || !pastor) { omitidos++; continue; }
 
-      var id = docIdPastor(correo, pastor);
+      var id = docIdDistrito(distrito);
       await window._fbOps.setDoc(window._fbOps.doc(window._db,'pastores',id), {
-        nombre: pastor, distrito: distrito, correo: correo,
+        distrito: distrito, nombre: pastor, correo: correo,
         actualizadoPor: STATE.user ? STATE.user.nombre : 'Admin', actualizadoEn: window._serverTimestamp()
       });
       importados++;
     }
 
-    toast(importados>0 ? '✓ '+importados+' pastor(es) importado(s)/actualizado(s)' : 'No se importó ningún pastor', importados>0?undefined:'warn');
-    if(resultadoEl) resultadoEl.textContent = omitidos ? '⚠️ '+omitidos+' fila(s) omitida(s) por faltarle Pastor o Correo válido' : '';
+    toast(importados>0 ? '✓ '+importados+' distrito(s) importado(s)/actualizado(s)' : 'No se importó ningún registro', importados>0?undefined:'warn');
+    if(resultadoEl) resultadoEl.textContent = omitidos ? '⚠️ '+omitidos+' fila(s) omitida(s) por faltarle Distrito o Pastor' : '';
     input.value = '';
   } catch(e) {
     toast('Error importando el archivo: '+e.message,'err');
