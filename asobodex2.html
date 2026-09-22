@@ -507,10 +507,16 @@ textarea.fc{resize:vertical;min-height:70px}
         <div class="ph"><span class="pt">➕ Agregar cobro manual</span></div>
         <div class="pb">
           <div class="f2">
-            <div class="fg"><label>Pastor *</label><input type="text" class="fc" id="cbPastor" placeholder="Nombre del pastor"></div>
+            <div class="fg"><label>Pastor *</label><input type="text" class="fc" id="cbPastor" list="cbPastoresList" placeholder="Nombre del pastor" onchange="autocompletarCorreoCobro()" onblur="autocompletarCorreoCobro()"><datalist id="cbPastoresList"></datalist></div>
             <div class="fg"><label>Distrito</label><select class="fc" id="cbDistrito"><option value="">Sin distrito</option></select></div>
           </div>
-          <div class="fg"><label>Concepto *</label><input type="text" class="fc" id="cbConcepto" placeholder="Ej: Libro Misionero 2026"></div>
+          <div class="fg"><label>Correo del pastor (para avisarle cuando cambie el estado)</label><input type="email" class="fc" id="cbCorreo" placeholder="pastor@asonoreste.org"></div>
+          <div class="fg"><label>Concepto (material) *</label>
+            <div style="position:relative">
+              <input type="text" class="fc" id="cbConcepto" placeholder="Busca un material con precio, o escribe uno nuevo..." autocomplete="off" oninput="buscarMaterialCobro(this.value)" onfocus="buscarMaterialCobro(this.value)">
+              <div id="cbMatResults" style="display:none;position:absolute;top:100%;left:0;right:0;max-height:200px;overflow-y:auto;background:var(--navy2);border:1px solid var(--bd);border-radius:0 0 var(--r) var(--r);z-index:100"></div>
+            </div>
+          </div>
           <div class="f2">
             <div class="fg"><label>Cantidad</label><input type="number" class="fc" id="cbCantidad" min="1" value="1"></div>
             <div class="fg"><label>Valor unitario *</label><input type="number" class="fc" id="cbValorUnit" min="0" placeholder="$0"></div>
@@ -3405,6 +3411,79 @@ function poblarDistritoCobro() {
   sel.innerHTML = '<option value="">Sin distrito</option>' + opts;
 }
 
+// Sugiere pastores ya conocidos (por sus pedidos anteriores) mientras el auxiliar escribe
+function poblarPastoresCobro() {
+  var dl = document.getElementById('cbPastoresList');
+  if(!dl) return;
+  var vistos = {};
+  var opts = '';
+  (STATE.requests||[]).forEach(function(r) {
+    var nombre = (r.pastor||'').trim();
+    if(nombre && !vistos[nombre]) { vistos[nombre] = true; opts += '<option value="'+nombre+'">'; }
+  });
+  dl.innerHTML = opts;
+}
+
+// Al escribir/confirmar el nombre, recupera el correo de ese pastor desde sus pedidos
+// anteriores — así el auxiliar no tiene que preguntarlo cada vez que ya se conoce.
+function autocompletarCorreoCobro() {
+  var nombre = document.getElementById('cbPastor').value.trim().toLowerCase();
+  if(!nombre) return;
+  var correoEl = document.getElementById('cbCorreo');
+  if(!correoEl || correoEl.value.trim()) return;
+  var match = (STATE.requests||[]).find(function(r){ return (r.pastor||'').trim().toLowerCase()===nombre && r.correo; });
+  if(match) correoEl.value = match.correo;
+}
+
+// Buscador de material con precio para el campo "Concepto" — mismo patrón que usa
+// Eliana en Remisiones (buscarMaterialRem). Sigue admitiendo texto libre (ej. "Libro
+// Misionero 2026") para cobros que todavía no están cargados como material.
+function buscarMaterialCobro(texto) {
+  var cont = document.getElementById('cbMatResults');
+  if(!cont) return;
+  if(!texto || texto.length < 1) { cont.style.display='none'; return; }
+  var filtro = texto.toLowerCase();
+  var items = STATE.items.filter(function(i) {
+    return i.nombre.toLowerCase().indexOf(filtro) !== -1 && (i.precio||0) > 0;
+  }).slice(0, 15);
+  if(!items.length) { cont.innerHTML='<div style="padding:10px 14px;font-size:12px;color:var(--t2)">Sin materiales con precio que coincidan — podés escribir uno nuevo (ej. Libro Misionero)</div>'; cont.style.display='block'; return; }
+  cont.innerHTML = items.map(function(i) {
+    return '<div onclick="seleccionarMaterialCobro(\''+i.id+'\')" style="padding:8px 14px;font-size:13px;cursor:pointer;border-bottom:1px solid var(--bd);display:flex;align-items:center;gap:8px" onmouseover="this.style.background=\'var(--navy3)\'" onmouseout="this.style.background=\'transparent\'">' +
+      fotoThumb(i,28) + '<div><strong>'+i.nombre+'</strong> <span style="color:var(--amber);font-size:11px">$'+Number(i.precio).toLocaleString('es-CO')+' c/u</span></div></div>';
+  }).join('');
+  cont.style.display='block';
+}
+function seleccionarMaterialCobro(id) {
+  var item = STATE.items.find(function(i){ return i.id===id; });
+  if(!item) return;
+  document.getElementById('cbConcepto').value = item.nombre;
+  document.getElementById('cbValorUnit').value = item.precio;
+  document.getElementById('cbMatResults').style.display = 'none';
+}
+
+// Avisa personalizado al pastor por correo cada vez que el auxiliar cambia el estado
+// de uno de sus cobros — así se entera aunque no revise el formulario de solicitud.
+var ESTADO_COBRO_TEXTO = {pendiente:'Pendiente', pagando:'En proceso de cobro', atrasado:'Atrasado', pagado:'Pagado'};
+async function notificarPastorCobro(cobro, estado) {
+  if(!cobro || !cobro.correo || !cobro.correo.includes('@') || !window.emailjs) return;
+  try {
+    var msg = 'Hola '+(cobro.pastor||'')+',\n\nTe informamos que el siguiente material con costo cambió de estado:\n\n' +
+      '• '+cobro.concepto+' x'+(cobro.cantidad||1)+' — $'+Number(cobro.valorTotal||0).toLocaleString('es-CO')+'\n' +
+      'Estado actual: '+(ESTADO_COBRO_TEXTO[estado]||estado) +
+      '\n\nEste valor se descuenta por remesas. Cualquier duda, comunícate con la Asociación.\n\nAsoBodex — Asociación del Noreste Colombiano';
+    await emailjs.send(EJS.service, EJS.template, {
+      to_email: cobro.correo,
+      asunto: 'Actualización de cobro — '+cobro.concepto,
+      mensaje: msg,
+      name: 'AsoBodex Sistema',
+      email: EJS.email
+    });
+    console.log('✓ Email de cobro enviado a', cobro.correo);
+  } catch(e) {
+    console.error('Error enviando correo de cobro al pastor:', e);
+  }
+}
+
 function calcularCobrosResumen() {
   var cobros = STATE.cobros || [];
   var totalPendiente = 0, totalAtrasado = 0, totalPagado = 0;
@@ -3423,6 +3502,7 @@ function renderCobros() {
   var contLista = document.getElementById('cobrosLista');
   if(!contResumen || !contLista) return;
   poblarDistritoCobro();
+  poblarPastoresCobro();
   var fechaInput = document.getElementById('cbFecha');
   if(fechaInput && !fechaInput.value) fechaInput.value = new Date().toISOString().slice(0,10);
 
@@ -3469,6 +3549,7 @@ function renderCobros() {
 async function agregarCobroManual() {
   if(!permisosDe(STATE.user).gestionarCobros) { toast('No tienes permiso para esto','err'); return; }
   var pastor = document.getElementById('cbPastor').value.trim();
+  var correo = document.getElementById('cbCorreo').value.trim();
   var distrito = document.getElementById('cbDistrito').value;
   var concepto = document.getElementById('cbConcepto').value.trim();
   var cantidad = parseInt(document.getElementById('cbCantidad').value)||1;
@@ -3484,7 +3565,7 @@ async function agregarCobroManual() {
   try {
     if(window._db && window._fbOps) {
       await window._fbOps.addDoc(window._fbOps.collection(window._db,'cobros'), {
-        pastor: pastor, distrito: distrito||'', concepto: concepto,
+        pastor: pastor, correo: correo, distrito: distrito||'', concepto: concepto,
         cantidad: cantidad, valorUnitario: valorUnit, valorTotal: cantidad*valorUnit,
         pedidoId: '', origen: 'manual', estado: 'pendiente',
         fecha: fechaStr ? new Date(fechaStr+'T12:00:00') : window._serverTimestamp(),
@@ -3492,6 +3573,7 @@ async function agregarCobroManual() {
       });
       toast('✓ Cobro agregado: '+concepto);
       document.getElementById('cbPastor').value = '';
+      document.getElementById('cbCorreo').value = '';
       document.getElementById('cbDistrito').value = '';
       document.getElementById('cbConcepto').value = '';
       document.getElementById('cbCantidad').value = '1';
@@ -3513,6 +3595,8 @@ async function actualizarEstadoCobro(id, estado) {
     if(window._db && window._fbOps) {
       await window._fbOps.updateDoc(window._fbOps.doc(window._db,'cobros',id), {estado: estado});
       toast('✓ Estado actualizado');
+      var cobro = (STATE.cobros||[]).find(function(c){ return c.id===id; });
+      if(cobro) notificarPastorCobro(cobro, estado);
     } else {
       toast('Sin conexión a Firebase','err');
     }
@@ -3641,6 +3725,11 @@ async function enviarCobrosPorDistritoSeleccionados() {
 document.addEventListener('click', function(e) {
   if(!e.target.closest('#remMatSearch') && !e.target.closest('#remMatResults')) {
     var r = document.getElementById('remMatResults'); if(r) r.style.display='none';
+  }
+});
+document.addEventListener('click', function(e) {
+  if(!e.target.closest('#cbConcepto') && !e.target.closest('#cbMatResults')) {
+    var r = document.getElementById('cbMatResults'); if(r) r.style.display='none';
   }
 });
 
