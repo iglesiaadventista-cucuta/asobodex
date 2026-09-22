@@ -296,7 +296,34 @@ document.addEventListener('DOMContentLoaded', function() {
 
   cargarFotosMateriales();
   cargarCobros();
+  cargarPastoresRoster();
 });
+
+// Relación pastor → distrito → correo que mantiene el admin (colección 'pastores'),
+// se prefiere sobre el arreglo estático PASTORES porque el admin la mantiene al día
+// (los pastores cambian de distrito de vez en cuando) — PASTORES queda de respaldo
+// para quien todavía no esté cargado en el roster.
+var PASTORES_ROSTER = [];
+async function cargarPastoresRoster() {
+  try {
+    const { initializeApp, getApps } = await import("https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js");
+    const { getFirestore, collection, getDocs } = await import("https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js");
+    const apps  = getApps();
+    const fbapp = apps.length ? apps[0] : initializeApp(FIREBASE_CONFIG);
+    const db    = getFirestore(fbapp);
+    const snap  = await getDocs(collection(db, 'pastores'));
+    PASTORES_ROSTER = snap.docs.map(function(d){ return d.data(); });
+    console.log('✓ Roster de pastores cargado:', PASTORES_ROSTER.length);
+    var dl = document.getElementById('pastoresList');
+    if(dl) {
+      var nombres = PASTORES.map(function(p){ return p.nombre; });
+      PASTORES_ROSTER.forEach(function(p){ if(p.nombre && nombres.indexOf(p.nombre)===-1) nombres.push(p.nombre); });
+      dl.innerHTML = nombres.map(function(n){ return '<option value="'+n+'">'; }).join('');
+    }
+  } catch(e) {
+    console.warn('No se pudo cargar el roster de pastores:', e.message);
+  }
+}
 
 // Trae la foto de cada material (si tiene) desde el inventario real, para que el
 // pastor vea cuál es antes de pedirlo — ej. reconocer el talonario correcto.
@@ -409,6 +436,12 @@ function comprimirImagen(file, maxAncho, calidad) {
 
 function autocompletarCorreoPastor() {
   var nombre = document.getElementById('pNombre').value.trim().toLowerCase();
+  var enRoster = PASTORES_ROSTER.find(function(p){ return (p.nombre||'').trim().toLowerCase()===nombre; });
+  if(enRoster) {
+    if(enRoster.correo) document.getElementById('pCorreo').value = enRoster.correo;
+    if(enRoster.distrito) document.getElementById('pDistrito').value = enRoster.distrito;
+    return;
+  }
   var match = PASTORES.find(function(p){ return p.nombre.toLowerCase()===nombre; });
   if(match) {
     document.getElementById('pCorreo').value = match.correo;

@@ -166,6 +166,17 @@ service cloud.firestore {
       allow create, update, delete: if esAuxiliar() || esAdmin();
     }
 
+    // ── pastores: relación de a qué distrito pertenece cada pastor y su correo —
+    // mantenida por el admin, porque los pastores cambian de distrito de vez en
+    // cuando. Lectura pública porque la usan tanto el formulario del pastor (para
+    // autocompletar correo y distrito) como el auxiliar contable al cargar cobros.
+    // Solo el admin la edita — evita que un dato mal cargado desde Cobros termine
+    // reasignando a alguien de distrito sin que el admin se entere.
+    match /pastores/{id} {
+      allow read: if true;
+      allow write: if esAdmin();
+    }
+
     // ── periodos_cerrados: solo master/tesorero pueden cerrar un período.
     // Una vez creado, no se actualiza ni se borra desde la app (si algún
     // día hace falta reabrir un mes, se hace manualmente desde la Consola).

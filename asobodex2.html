@@ -255,6 +255,7 @@ textarea.fc{resize:vertical;min-height:70px}
       <button class="tab fact-tab" data-view="remisiones" title="Remisiones">🧾 <span>Remisiones</span></button>
       <button class="tab dist-tab" data-view="distribucion" title="Distribución">📦 <span>Distribución</span></button>
       <button class="tab master-only" data-view="libros" title="Libros">📖 <span>Libros</span></button>
+      <button class="tab master-only" data-view="pastores" title="Pastores">👥 <span>Pastores</span></button>
       <button class="tab admin-tab" data-view="historial" title="Historial">🕐 <span>Historial</span></button>
     </div>
     <div class="tright">
@@ -719,6 +720,47 @@ textarea.fc{resize:vertical;min-height:70px}
       </div>
     </div>
 
+    <!-- PASTORES (relación pastor → distrito → correo, exclusivo del admin) -->
+    <div class="view" id="view-pastores">
+      <div style="margin-bottom:14px">
+        <div style="font-size:16px;font-weight:700">👥 Pastores por distrito</div>
+        <div style="font-size:12px;color:var(--t2);margin-top:2px">Quién está en cada distrito y su correo — se usa para autocompletar el formulario del pastor y los cobros de Luis. Ajustá el distrito acá cuando reasignen a alguien.</div>
+      </div>
+
+      <div class="panel" style="margin-bottom:16px">
+        <div class="ph"><span class="pt">➕ Agregar pastor manual</span></div>
+        <div class="pb">
+          <div class="f2">
+            <div class="fg"><label>Pastor *</label><input type="text" class="fc" id="psPastor" placeholder="Nombre completo"></div>
+            <div class="fg"><label>Distrito *</label><select class="fc" id="psDistrito"><option value="">Seleccionar...</option></select></div>
+          </div>
+          <div class="fg"><label>Correo *</label><input type="email" class="fc" id="psCorreo" placeholder="pastor@asonoreste.org"></div>
+          <button class="btn bpri" style="width:100%" onclick="agregarPastorManual()">➕ Agregar / actualizar pastor</button>
+        </div>
+      </div>
+
+      <div class="panel" style="margin-bottom:16px">
+        <div class="ph"><span class="pt">📥 Importar relación desde Excel</span></div>
+        <div class="pb">
+          <div style="font-size:12px;color:var(--t2);margin-bottom:10px">Columnas: <strong>Pastor, Distrito, Correo</strong>. Si un correo ya existe en la lista, se actualiza (por ejemplo si cambió de distrito) en vez de duplicarse.</div>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:8px">
+            <input type="file" id="psExcelInput" accept=".xlsx,.xls,.csv" class="fc" style="padding:8px;flex:1;min-width:200px">
+            <button class="btn bgrn" onclick="importarPastoresExcel()">📥 Importar</button>
+            <button class="btn bsm" onclick="descargarPlantillaPastores()">⬇ Descargar plantilla</button>
+          </div>
+          <div id="psImportResultado" style="font-size:12px;color:var(--t2)"></div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="ph">
+          <span class="pt">Lista de pastores</span>
+          <input type="text" class="fc" id="psBuscar" placeholder="Buscar por pastor o distrito..." oninput="renderPastores()" style="width:220px;padding:6px 10px;font-size:12px">
+        </div>
+        <div id="pastoresLista"></div>
+      </div>
+    </div>
+
     <!-- TESORERÍA -->
     <div class="view" id="view-tesoreria">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px">
@@ -1093,6 +1135,22 @@ textarea.fc{resize:vertical;min-height:70px}
   <div style="text-align:center;margin-top:14px"><button class="btn" onclick="closeM('mVerFoto')">Cerrar</button></div>
 </div></div>
 
+<div class="mo" id="mEditarCobro"><div class="modal" style="width:460px">
+  <div class="mt">✏️ Editar cobro</div>
+  <input type="hidden" id="ecId">
+  <div class="f2">
+    <div class="fg"><label>Pastor *</label><input type="text" class="fc" id="ecPastor"></div>
+    <div class="fg"><label>Distrito</label><select class="fc" id="ecDistrito"><option value="">Sin distrito</option></select></div>
+  </div>
+  <div class="fg"><label>Correo del pastor</label><input type="email" class="fc" id="ecCorreo" placeholder="pastor@asonoreste.org"></div>
+  <div class="fg"><label>Concepto (material) *</label><input type="text" class="fc" id="ecConcepto"></div>
+  <div class="f2">
+    <div class="fg"><label>Cantidad</label><input type="number" class="fc" id="ecCantidad" min="1"></div>
+    <div class="fg"><label>Valor unitario *</label><input type="number" class="fc" id="ecValorUnit" min="0"></div>
+  </div>
+  <div class="mf"><button class="btn" onclick="closeM('mEditarCobro')">Cancelar</button><button class="btn bpri" onclick="guardarEdicionCobro()">Guardar cambios</button></div>
+</div></div>
+
 <script>
 // ════════════════════════════════════════════════════════════
 // FIREBASE CONFIG — pega tus credenciales aquí
@@ -1321,6 +1379,7 @@ const STATE = {
   periodosCerrados: {}, // { 'YYYY-MM': {cerradoPor, cerradoEn} }
   gastosEnvio: [], // costo de transporte/envío por cada despacho, aparte del inventario
   cobros: [], // materiales con costo cobrados a un pastor/distrito, con su estado de pago
+  pastores: [], // relación pastor → distrito → correo, mantenida por el admin
 };
 
 // ── HELPERS ──────────────────────────────────────────────────
@@ -1724,6 +1783,14 @@ function startListeners(db) {
     });
     renderAll();
   }));
+
+  // Listener para la relación pastor → distrito → correo
+  window._unsubscribers.push(ons(col(db,'pastores'), function(snap) {
+    STATE.pastores = snap.docs.map(function(d) {
+      return Object.assign({id: d.id}, d.data());
+    });
+    renderAll();
+  }));
 }
 
 function doLogout() {
@@ -1758,7 +1825,7 @@ function doLogout() {
 
 
 function showView(v) {
-  var masterOnlyViews = ['solicitudes','libros','verdistribucion'];
+  var masterOnlyViews = ['solicitudes','libros','verdistribucion','pastores'];
   var isMasterAdmin = STATE.user && STATE.user.uid === '7k3swOaRgLTcO5faxjp5dx4iPkR2';
   if(masterOnlyViews.indexOf(v) !== -1 && !isMasterAdmin) { return; }
   var adminBlockedViews = ['solicitar','distribucion'];
@@ -1775,7 +1842,7 @@ function showView(v) {
 }
 
 // ── RENDER ───────────────────────────────────────────────────
-function renderAll() { renderDash(); renderInv(); renderDesp(); renderSols(); renderHist(); renderPedidos(); renderMisSolicitudes(); renderLibros(); renderRemisiones(); renderDistribuciones(); popSelects(); updBadges(); renderTesoreria(); renderBiblias(); renderCobros(); }
+function renderAll() { renderDash(); renderInv(); renderDesp(); renderSols(); renderHist(); renderPedidos(); renderMisSolicitudes(); renderLibros(); renderRemisiones(); renderDistribuciones(); popSelects(); updBadges(); renderTesoreria(); renderBiblias(); renderCobros(); renderPastores(); }
 
 var _chartMain = null, _chartDona = null;
 var _dashActiveTab = 'resumen';
@@ -3419,6 +3486,25 @@ async function notificarCobroAuxiliar(r) {
 }
 
 // ── PANTALLA DE COBROS (Auxiliar Contable) ────────────────────────────
+// Busca el correo/distrito de un pastor: primero en la relación de Pastores (la
+// fuente que mantiene el admin y la más confiable, sobre todo para el distrito
+// porque ahí es donde se ajusta cuando lo reasignan), y si no está ahí, en sus
+// pedidos anteriores como respaldo.
+function buscarCorreoPastor(nombre) {
+  if(!nombre) return '';
+  var nombreNorm = nombre.trim().toLowerCase();
+  var enRoster = (STATE.pastores||[]).find(function(p){ return (p.nombre||'').trim().toLowerCase()===nombreNorm; });
+  if(enRoster && enRoster.correo) return enRoster.correo;
+  var enPedidos = (STATE.requests||[]).find(function(r){ return (r.pastor||'').trim().toLowerCase()===nombreNorm && r.correo; });
+  return enPedidos ? enPedidos.correo : '';
+}
+function buscarDistritoPastor(nombre) {
+  if(!nombre) return '';
+  var nombreNorm = nombre.trim().toLowerCase();
+  var enRoster = (STATE.pastores||[]).find(function(p){ return (p.nombre||'').trim().toLowerCase()===nombreNorm; });
+  return enRoster ? (enRoster.distrito||'') : '';
+}
+
 function poblarDistritoCobro() {
   var sel = document.getElementById('cbDistrito');
   if(!sel || sel.options.length > 1) return;
@@ -3442,12 +3528,18 @@ function poblarPastoresCobro() {
 // Al escribir/confirmar el nombre, recupera el correo de ese pastor desde sus pedidos
 // anteriores — así el auxiliar no tiene que preguntarlo cada vez que ya se conoce.
 function autocompletarCorreoCobro() {
-  var nombre = document.getElementById('cbPastor').value.trim().toLowerCase();
+  var nombre = document.getElementById('cbPastor').value.trim();
   if(!nombre) return;
   var correoEl = document.getElementById('cbCorreo');
-  if(!correoEl || correoEl.value.trim()) return;
-  var match = (STATE.requests||[]).find(function(r){ return (r.pastor||'').trim().toLowerCase()===nombre && r.correo; });
-  if(match) correoEl.value = match.correo;
+  if(correoEl && !correoEl.value.trim()) {
+    var correo = buscarCorreoPastor(nombre);
+    if(correo) correoEl.value = correo;
+  }
+  var distritoEl = document.getElementById('cbDistrito');
+  if(distritoEl && !distritoEl.value) {
+    var distrito = buscarDistritoPastor(nombre);
+    if(distrito) distritoEl.value = distrito;
+  }
 }
 
 // Buscador de material con precio para el campo "Concepto" — mismo patrón que usa
@@ -3556,6 +3648,7 @@ function renderCobros() {
         '<select class="fc" style="width:auto;padding:5px 8px;font-size:12px;color:'+estadoColor[estado]+'" onchange="actualizarEstadoCobro(\''+c.id+'\', this.value)">' +
           opcionesEstado.map(function(e){ return '<option value="'+e+'"'+(e===estado?' selected':'')+'>'+estadoLabel[e]+'</option>'; }).join('') +
         '</select>' +
+        '<button class="btn bic bsm" onclick="abrirEditarCobro(\''+c.id+'\')" title="Editar">✏️</button>' +
         '<button class="btn bic bsm bred" onclick="eliminarCobro(\''+c.id+'\')" title="Eliminar">🗑</button>' +
       '</div>' +
     '</div>';
@@ -3637,6 +3730,57 @@ async function eliminarCobro(id) {
   } catch(e) {
     toast('Error: '+e.message,'err');
     console.error(e);
+  }
+}
+
+function abrirEditarCobro(id) {
+  var c = (STATE.cobros||[]).find(function(x){ return x.id===id; });
+  if(!c) return;
+  document.getElementById('ecId').value = id;
+  document.getElementById('ecPastor').value = c.pastor||'';
+  var sel = document.getElementById('ecDistrito');
+  if(sel && sel.options.length <= 1) {
+    sel.innerHTML = '<option value="">Sin distrito</option>' + DISTRITOS.map(function(d){ return '<option value="'+d+'">'+d+'</option>'; }).join('');
+  }
+  sel.value = c.distrito||'';
+  document.getElementById('ecCorreo').value = c.correo||'';
+  document.getElementById('ecConcepto').value = c.concepto||'';
+  document.getElementById('ecCantidad').value = c.cantidad||1;
+  document.getElementById('ecValorUnit').value = c.valorUnitario||0;
+  openM('mEditarCobro');
+}
+
+async function guardarEdicionCobro() {
+  if(!permisosDe(STATE.user).gestionarCobros) { toast('No tienes permiso para esto','err'); return; }
+  var id = document.getElementById('ecId').value;
+  var pastor = document.getElementById('ecPastor').value.trim();
+  var distrito = document.getElementById('ecDistrito').value;
+  var correo = document.getElementById('ecCorreo').value.trim();
+  var concepto = document.getElementById('ecConcepto').value.trim();
+  var cantidad = parseInt(document.getElementById('ecCantidad').value)||1;
+  var valorUnit = parseFloat(document.getElementById('ecValorUnit').value)||0;
+  if(!pastor){ toast('Ingresa el nombre del pastor','warn'); return; }
+  if(!concepto){ toast('Ingresa el concepto del cobro','warn'); return; }
+  if(!valorUnit || valorUnit<=0){ toast('Ingresa un valor válido','warn'); return; }
+
+  var btn = document.querySelector('[onclick="guardarEdicionCobro()"]');
+  if(btn){ btn.textContent='Guardando...'; btn.disabled=true; }
+  try {
+    if(window._db && window._fbOps) {
+      await window._fbOps.updateDoc(window._fbOps.doc(window._db,'cobros',id), {
+        pastor: pastor, distrito: distrito, correo: correo, concepto: concepto,
+        cantidad: cantidad, valorUnitario: valorUnit, valorTotal: cantidad*valorUnit
+      });
+      toast('✓ Cobro actualizado');
+      closeM('mEditarCobro');
+    } else {
+      toast('Sin conexión a Firebase','err');
+    }
+  } catch(e) {
+    toast('Error: '+e.message,'err');
+    console.error(e);
+  } finally {
+    if(btn){ btn.textContent='Guardar cambios'; btn.disabled=false; }
   }
 }
 
@@ -3782,10 +3926,9 @@ async function importarCobrosExcel() {
 
       if(!pastor || !concepto || !valorUnit) { omitidos++; continue; }
 
-      var pastorNorm = pastor.toLowerCase();
-      var match = (STATE.requests||[]).find(function(r){ return (r.pastor||'').trim().toLowerCase()===pastorNorm && r.correo; });
-      var correo = match ? match.correo : '';
+      var correo = buscarCorreoPastor(pastor);
       if(!correo) sinCorreo++;
+      if(!distrito) distrito = buscarDistritoPastor(pastor);
 
       await window._fbOps.addDoc(window._fbOps.collection(window._db,'cobros'), {
         pastor: pastor, correo: correo, distrito: distrito, concepto: concepto,
@@ -3803,6 +3946,256 @@ async function importarCobrosExcel() {
       if(omitidos) partes.push(omitidos+' fila(s) omitida(s) por faltarle Pastor, Material o Valor');
       resultadoEl.textContent = partes.length ? '⚠️ '+partes.join(' · ') : '';
     }
+    input.value = '';
+  } catch(e) {
+    toast('Error importando el archivo: '+e.message,'err');
+    console.error(e);
+  } finally {
+    if(btn){ btn.textContent='📥 Importar'; btn.disabled=false; }
+  }
+}
+
+// ── PASTORES (relación pastor → distrito → correo — exclusivo del admin) ──────
+// El correo es la clave natural: dos pastores no comparten correo, así que se usa
+// como id del documento — reimportar el mismo Excel actualiza en vez de duplicar.
+function docIdPastor(correo, nombre) {
+  var base = (correo||nombre||'').trim().toLowerCase();
+  return base.replace(/[^a-z0-9@._-]/g, '_') || ('pastor_'+Date.now());
+}
+function esMasterAdmin_() {
+  return !!(STATE.user && STATE.user.uid === '7k3swOaRgLTcO5faxjp5dx4iPkR2');
+}
+
+function renderPastores() {
+  var cont = document.getElementById('pastoresLista');
+  if(!cont) return;
+  var selNuevo = document.getElementById('psDistrito');
+  if(selNuevo && selNuevo.options.length <= 1) {
+    selNuevo.innerHTML = '<option value="">Seleccionar...</option>' + DISTRITOS.map(function(d){ return '<option value="'+d+'">'+d+'</option>'; }).join('');
+  }
+
+  var q = (document.getElementById('psBuscar') ? document.getElementById('psBuscar').value : '').trim().toLowerCase();
+  var lista = (STATE.pastores||[]).slice().sort(function(a,b){ return (a.nombre||'').localeCompare(b.nombre||''); });
+  if(q) {
+    lista = lista.filter(function(p){
+      return (p.nombre||'').toLowerCase().indexOf(q)!==-1 || (p.distrito||'').toLowerCase().indexOf(q)!==-1;
+    });
+  }
+
+  if(!lista.length) {
+    cont.innerHTML = '<div class="empty" style="padding:40px">'+(q?'Sin resultados para "'+q+'"':'Sin pastores registrados todavía — agregalos a mano o importá un Excel')+'</div>';
+    return;
+  }
+
+  function opcionesDistritoPara(seleccionado) {
+    var opts = '<option value=""'+(!seleccionado?' selected':'')+'>Sin distrito</option>';
+    DISTRITOS.forEach(function(d){ opts += '<option value="'+d+'"'+(d===seleccionado?' selected':'')+'>'+d+'</option>'; });
+    return opts;
+  }
+
+  cont.innerHTML = lista.map(function(p) {
+    return '<div style="padding:10px 16px;border-bottom:1px solid var(--bd);display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">' +
+      '<div>' +
+        '<div style="font-size:13px;font-weight:600">'+(p.nombre||'—')+'</div>' +
+        '<div style="font-size:12px;color:var(--t2)">'+(p.correo||'Sin correo')+'</div>' +
+      '</div>' +
+      '<div style="display:flex;align-items:center;gap:10px">' +
+        '<select class="fc" style="width:auto;padding:5px 8px;font-size:12px" onchange="guardarDistritoPastor(\''+p.id+'\', this.value)">' +
+          opcionesDistritoPara(p.distrito) +
+        '</select>' +
+        '<button class="btn bic bsm bred" onclick="eliminarPastor(\''+p.id+'\')" title="Eliminar">🗑</button>' +
+      '</div>' +
+    '</div>';
+  }).join('');
+}
+
+async function guardarDistritoPastor(id, distrito) {
+  if(!esMasterAdmin_()) { toast('No tienes permiso para esto','err'); return; }
+  try {
+    if(window._db && window._fbOps) {
+      await window._fbOps.updateDoc(window._fbOps.doc(window._db,'pastores',id), {distrito: distrito});
+      toast('✓ Distrito actualizado');
+    } else {
+      toast('Sin conexión a Firebase','err');
+    }
+  } catch(e) {
+    toast('Error: '+e.message,'err');
+    console.error(e);
+  }
+}
+
+async function agregarPastorManual() {
+  if(!esMasterAdmin_()) { toast('No tienes permiso para esto','err'); return; }
+  var pastor = document.getElementById('psPastor').value.trim();
+  var distrito = document.getElementById('psDistrito').value;
+  var correo = document.getElementById('psCorreo').value.trim();
+  if(!pastor){ toast('Ingresa el nombre del pastor','warn'); return; }
+  if(!distrito){ toast('Selecciona el distrito','warn'); return; }
+  if(!correo || !correo.includes('@')){ toast('Ingresa un correo válido','warn'); return; }
+
+  var btn = document.querySelector('[onclick="agregarPastorManual()"]');
+  if(btn){ btn.textContent='Guardando...'; btn.disabled=true; }
+  try {
+    if(window._db && window._fbOps) {
+      var id = docIdPastor(correo, pastor);
+      await window._fbOps.setDoc(window._fbOps.doc(window._db,'pastores',id), {
+        nombre: pastor, distrito: distrito, correo: correo,
+        actualizadoPor: STATE.user ? STATE.user.nombre : 'Admin', actualizadoEn: window._serverTimestamp()
+      });
+      toast('✓ Pastor guardado: '+pastor);
+      document.getElementById('psPastor').value = '';
+      document.getElementById('psDistrito').value = '';
+      document.getElementById('psCorreo').value = '';
+    } else {
+      toast('Sin conexión a Firebase','err');
+    }
+  } catch(e) {
+    toast('Error: '+e.message,'err');
+    console.error(e);
+  } finally {
+    if(btn){ btn.textContent='➕ Agregar / actualizar pastor'; btn.disabled=false; }
+  }
+}
+
+async function eliminarPastor(id) {
+  if(!esMasterAdmin_()) { toast('No tienes permiso para esto','err'); return; }
+  var p = (STATE.pastores||[]).find(function(x){ return x.id===id; });
+  if(!confirm('¿Eliminar a '+(p?p.nombre:'este pastor')+' de la lista?')) return;
+  try {
+    if(window._db && window._fbOps) {
+      await window._fbOps.deleteDoc(window._fbOps.doc(window._db,'pastores',id));
+      toast('🗑 Pastor eliminado');
+    } else {
+      toast('Sin conexión a Firebase','err');
+    }
+  } catch(e) {
+    toast('Error: '+e.message,'err');
+    console.error(e);
+  }
+}
+
+// Misma idea que descargarPlantillaCobros — ExcelJS para poder ponerle logo y color
+async function descargarPlantillaPastores() {
+  if(typeof ExcelJS === 'undefined') { toast('No se pudo cargar el generador de Excel, intenta de nuevo','err'); return; }
+  var btn = document.querySelector('[onclick="descargarPlantillaPastores()"]');
+  if(btn){ btn.textContent='Generando...'; btn.disabled=true; }
+  try {
+    var wb = new ExcelJS.Workbook();
+    wb.creator = 'AsoBodex';
+    var ws = wb.addWorksheet('Pastores', { views:[{showGridLines:false}] });
+    ws.columns = [ { key:'pastor', width:28 }, { key:'distrito', width:18 }, { key:'correo', width:32 } ];
+
+    try {
+      var resp = await fetch('https://iglesiaadventista-cucuta.github.io/asobodex/logo_iglesia.jpeg');
+      var buf = await resp.arrayBuffer();
+      var imgId = wb.addImage({ buffer: buf, extension: 'jpeg' });
+      ws.addImage(imgId, { tl:{col:0, row:0}, ext:{width:50, height:50} });
+    } catch(e) { console.warn('No se pudo incrustar el logo en la plantilla:', e); }
+
+    ws.getRow(1).height = 26; ws.getRow(2).height = 18;
+    ws.mergeCells('B1:C1');
+    var titulo = ws.getCell('B1');
+    titulo.value = 'AsoBodex — Plantilla de Pastores';
+    titulo.font = { size:16, bold:true, color:{argb:'FF0F2B3C'} };
+    titulo.alignment = { vertical:'middle' };
+
+    ws.mergeCells('B2:C2');
+    var subt = ws.getCell('B2');
+    subt.value = 'Asociación del Noreste Colombiano — una fila por cada pastor';
+    subt.font = { size:10, italic:true, color:{argb:'FF3A8FA3'} };
+    subt.alignment = { vertical:'middle' };
+
+    var encabezados = ['Pastor','Distrito','Correo'];
+    var filaEnc = ws.getRow(4);
+    encabezados.forEach(function(texto, idx) {
+      var cell = filaEnc.getCell(idx+1);
+      cell.value = texto;
+      cell.font = { bold:true, color:{argb:'FFFFFFFF'} };
+      cell.fill = { type:'pattern', pattern:'solid', fgColor:{argb:'FF0F2B3C'} };
+      cell.alignment = { vertical:'middle' };
+    });
+    filaEnc.height = 20;
+
+    var ejemplo = ['Pedro Gómez','TIBU','pedro.gomez@asonoreste.org'];
+    var filaEj = ws.getRow(5);
+    ejemplo.forEach(function(v, idx){
+      var cell = filaEj.getCell(idx+1);
+      cell.value = v;
+      cell.font = { italic:true, color:{argb:'FF8899AA'} };
+    });
+
+    ws.mergeCells('A6:C6');
+    var nota = ws.getCell('A6');
+    nota.value = '⚠️ Borra esta fila de ejemplo antes de subir el archivo';
+    nota.font = { size:9, italic:true, color:{argb:'FFE74C3C'} };
+
+    var buffer = await wb.xlsx.writeBuffer();
+    var blob = new Blob([buffer], {type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url; a.download = 'plantilla_pastores_asobodex.xlsx';
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  } catch(e) {
+    toast('Error generando la plantilla: '+e.message,'err');
+    console.error(e);
+  } finally {
+    if(btn){ btn.textContent='⬇ Descargar plantilla'; btn.disabled=false; }
+  }
+}
+
+async function importarPastoresExcel() {
+  if(!esMasterAdmin_()) { toast('No tienes permiso para esto','err'); return; }
+  var input = document.getElementById('psExcelInput');
+  var resultadoEl = document.getElementById('psImportResultado');
+  if(!input || !input.files[0]) { toast('Selecciona un archivo primero','warn'); return; }
+  if(typeof XLSX === 'undefined') { toast('No se pudo cargar el lector de Excel, intenta de nuevo','err'); return; }
+  if(!window._db || !window._fbOps) { toast('Sin conexión a Firebase','err'); return; }
+
+  var btn = document.querySelector('[onclick="importarPastoresExcel()"]');
+  if(btn){ btn.textContent='Importando...'; btn.disabled=true; }
+  if(resultadoEl) resultadoEl.textContent = '';
+
+  try {
+    var data = await input.files[0].arrayBuffer();
+    var wb = XLSX.read(data, {type:'array'});
+    var ws = wb.Sheets[wb.SheetNames[0]];
+
+    var filasCrudas = XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
+    var idxEncabezado = filasCrudas.findIndex(function(fila) {
+      return fila.some(function(celda){ return String(celda).trim().toLowerCase()==='pastor'; });
+    });
+    if(idxEncabezado === -1) { toast('No se encontró la columna "Pastor" en el archivo — usa la plantilla para no equivocarte del formato','err'); return; }
+
+    var encabezados = filasCrudas[idxEncabezado].map(function(h){ return String(h).trim().toLowerCase(); });
+    var filas = [];
+    for(var f=idxEncabezado+1; f<filasCrudas.length; f++) {
+      var filaArr = filasCrudas[f];
+      if(!filaArr || !filaArr.length) continue;
+      var obj = {};
+      encabezados.forEach(function(h, idx){ if(h) obj[h] = filaArr[idx]!==undefined ? filaArr[idx] : ''; });
+      filas.push(obj);
+    }
+    if(!filas.length) { toast('El archivo no tiene filas de datos','warn'); return; }
+
+    var importados = 0, omitidos = 0;
+    for(var i=0; i<filas.length; i++) {
+      var fila = filas[i];
+      var pastor = String(_valorColumnaExcel(fila, ['pastor','nombre'])).trim();
+      var distrito = String(_valorColumnaExcel(fila, ['distrito'])).trim();
+      var correo = String(_valorColumnaExcel(fila, ['correo','email'])).trim();
+      if(!pastor || !correo || !correo.includes('@')) { omitidos++; continue; }
+
+      var id = docIdPastor(correo, pastor);
+      await window._fbOps.setDoc(window._fbOps.doc(window._db,'pastores',id), {
+        nombre: pastor, distrito: distrito, correo: correo,
+        actualizadoPor: STATE.user ? STATE.user.nombre : 'Admin', actualizadoEn: window._serverTimestamp()
+      });
+      importados++;
+    }
+
+    toast(importados>0 ? '✓ '+importados+' pastor(es) importado(s)/actualizado(s)' : 'No se importó ningún pastor', importados>0?undefined:'warn');
+    if(resultadoEl) resultadoEl.textContent = omitidos ? '⚠️ '+omitidos+' fila(s) omitida(s) por faltarle Pastor o Correo válido' : '';
     input.value = '';
   } catch(e) {
     toast('Error importando el archivo: '+e.message,'err');
