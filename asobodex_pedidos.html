@@ -174,7 +174,7 @@ textarea.fc{resize:vertical;min-height:70px}
     <div class="panel">
       <div class="panel-title">👤 Información del pastor</div>
       <div class="fg"><label>Nombre completo <span style="color:var(--teal)">*</span></label>
-        <input type="text" class="fc" id="pNombre" list="pastoresList" placeholder="Nombre del pastor solicitante" oninput="autocompletarCorreoPastor()" onchange="autocompletarCorreoPastor()">
+        <input type="text" class="fc" id="pNombre" list="pastoresList" placeholder="Nombre del pastor solicitante" oninput="autocompletarCorreoPastor()" onchange="autocompletarCorreoPastor(); mostrarResumenCobros();" onblur="mostrarResumenCobros()">
         <datalist id="pastoresList"></datalist>
       </div>
       <div class="fg">
@@ -224,6 +224,7 @@ textarea.fc{resize:vertical;min-height:70px}
 <option value="LA HERMOSA">LA HERMOSA</option>
         </select>
       </div>
+      <div id="resumenCobrosBox" style="display:none;background:var(--teal-light);border:1px solid var(--bd);border-radius:var(--r);padding:12px 14px;margin-top:4px"></div>
     </div>
     <div class="note-teal">Incluye todo lo que necesitas en este pedido.</div>
     <button class="btn btn-primary" onclick="irPaso2()">Continuar →</button>
@@ -294,6 +295,7 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 
   cargarFotosMateriales();
+  cargarCobros();
 });
 
 // Trae la foto de cada material (si tiene) desde el inventario real, para que el
@@ -319,6 +321,61 @@ async function cargarFotosMateriales() {
   } catch(e) {
     console.warn('No se pudieron cargar las fotos de materiales:', e.message);
   }
+}
+
+// Materiales con costo que se le cobran al pastor (talonarios, libro misionero, etc.)
+// junto con su estado de pago — lo administra el Auxiliar Contable desde el panel.
+// Se trae una sola vez al cargar la página (no en cada tecla) y se filtra en el
+// cliente cuando el pastor escribe su nombre, para no golpear Firestore de más.
+var COBROS_CACHE = [];
+async function cargarCobros() {
+  try {
+    const { initializeApp, getApps } = await import("https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js");
+    const { getFirestore, collection, getDocs } = await import("https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js");
+    const apps  = getApps();
+    const fbapp = apps.length ? apps[0] : initializeApp(FIREBASE_CONFIG);
+    const db    = getFirestore(fbapp);
+    const snap  = await getDocs(collection(db, 'cobros'));
+    COBROS_CACHE = snap.docs.map(function(d){ return d.data(); });
+    console.log('✓ Cobros cargados:', COBROS_CACHE.length);
+    mostrarResumenCobros();
+  } catch(e) {
+    console.warn('No se pudieron cargar los cobros:', e.message);
+  }
+}
+
+// Resumen informativo de lo que el pastor debe — solo para materiales con costo
+// (Talonario de Caja Menor, Arqueo de Caja, Libro Misionero, etc.). No es un
+// cobro real desde acá, solo para que sepa qué se le va a descontar por remesas.
+function mostrarResumenCobros() {
+  var nombre = document.getElementById('pNombre').value.trim();
+  var box = document.getElementById('resumenCobrosBox');
+  if(!box) return;
+  if(!nombre) { box.style.display = 'none'; return; }
+
+  var nombreNorm = nombre.toLowerCase();
+  var propios = COBROS_CACHE.filter(function(c){ return (c.pastor||'').trim().toLowerCase() === nombreNorm; });
+  if(!propios.length) { box.style.display = 'none'; return; }
+
+  var estadoTexto = {pendiente:'Pendiente', pagando:'En proceso', atrasado:'Atrasado', pagado:'Pagado'};
+  var totalDebe = propios.filter(function(c){ return c.estado !== 'pagado'; })
+    .reduce(function(s,c){ return s + (c.valorTotal||0); }, 0);
+
+  var filas = propios.slice(0, 8).map(function(c) {
+    var estado = c.estado || 'pendiente';
+    return '<div style="display:flex;justify-content:space-between;font-size:12px;padding:3px 0">' +
+      '<span>'+c.concepto+' x'+(c.cantidad||1)+'</span>' +
+      '<span>$'+(c.valorTotal||0).toLocaleString('es-CO')+' · '+(estadoTexto[estado]||estado)+'</span>' +
+    '</div>';
+  }).join('');
+
+  box.style.display = 'block';
+  box.innerHTML =
+    '<div style="font-size:11px;font-weight:700;color:var(--teal);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">💵 Tu resumen de materiales con costo</div>' +
+    filas +
+    (totalDebe > 0 ? '<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--bd);font-weight:700;font-size:13px;display:flex;justify-content:space-between">' +
+      '<span>Total pendiente</span><span>$'+totalDebe.toLocaleString('es-CO')+'</span></div>' : '') +
+    '<div style="font-size:11px;color:var(--t2);margin-top:8px">Solo informativo — la Asociación descuenta estos valores por remesas.</div>';
 }
 
 // Las fotos de cámara pueden pesar varios MB — eso es lo que hace que tarden en

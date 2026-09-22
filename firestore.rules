@@ -50,6 +50,9 @@ service cloud.firestore {
     function esSecretaria() {
       return estaLogueado() && rolDe() == 'secretaria';
     }
+    function esAuxiliar() {
+      return estaLogueado() && rolDe() == 'auxiliar';
+    }
     // Refleja PERMISOS.editar (admin y facturador pueden modificar inventario:
     // Registrar/Despachar es admin, Distribución/Remisiones es facturador).
     function puedeEditar() {
@@ -99,16 +102,19 @@ service cloud.firestore {
     }
 
     // ── pedidos: el formulario público del pastor (asobodex_pedidos.html)
-    // NO inicia sesión — por eso 'create' queda abierto. Leer/aprobar/
-    // rechazar/marcar como enviado sí requiere ser admin, y además respeta
-    // el cierre de período (Funcionalidad 4): si el mes de la fecha del
-    // pedido está cerrado, ni el admin puede modificarlo desde aquí.
+    // NO inicia sesión — por eso 'create' Y 'read' quedan abiertos: el mismo
+    // formulario necesita poder mostrarle al pastor su propio historial de
+    // solicitudes (nombre, materiales, fechas) sin que inicie sesión. No es
+    // información sensible — no hay contraseñas ni datos de pago ahí.
+    // Aprobar/rechazar/marcar como enviado sí requiere ser admin, y además
+    // respeta el cierre de período (Funcionalidad 4): si el mes de la fecha
+    // del pedido está cerrado, ni el admin puede modificarlo desde aquí.
     // Secretaría también puede actualizar (autorizar/rechazar Biblias) —
     // su cambio se limita en el cliente al ítem "Biblias", y no depende del
     // cierre de período porque no es una acción financiera.
     match /pedidos/{id} {
       allow create: if true;
-      allow read: if estaLogueado();
+      allow read: if true;
       allow update: if (esAdmin() && !mesCerrado(resource.data.fecha)) || esSecretaria();
       allow delete: if esAdmin();
     }
@@ -146,6 +152,19 @@ service cloud.firestore {
       allow read: if estaLogueado();
       allow create: if puedeEditar();
       allow update, delete: if false;
+    }
+
+    // ── cobros: materiales con costo que se le cobran a un pastor/distrito
+    // (ej. Talonario de Caja Menor, Libro Misionero del año) y su estado de
+    // pago (pendiente/pagando/atrasado/pagado). Lectura pública porque el
+    // formulario del pastor le muestra su propio resumen de lo que debe sin
+    // iniciar sesión — no incluye datos de pago reales, solo el estado que
+    // anota el auxiliar a mano. Solo el auxiliar contable (o el admin) puede
+    // crearlos y cambiar su estado.
+    match /cobros/{id} {
+      allow read: if true;
+      allow create, update: if esAuxiliar() || esAdmin();
+      allow delete: if esAdmin();
     }
 
     // ── periodos_cerrados: solo master/tesorero pueden cerrar un período.

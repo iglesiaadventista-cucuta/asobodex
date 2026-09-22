@@ -246,6 +246,7 @@ textarea.fc{resize:vertical;min-height:70px}
       <button class="tab admin-tab" data-view="despachar" title="Despachar">📤 <span>Despachar</span></button>
       <button class="tab master-only" data-view="solicitudes" title="Solicitudes">📋 <span>Solicitudes</span> <span class="tbadge" id="reqBadge" style="display:none">0</span></button>
       <button class="tab biblias-tab" data-view="biblias" title="Biblias" style="display:none">📖 <span>Biblias</span> <span class="tbadge" id="bibliasBadge" style="display:none">0</span></button>
+      <button class="tab cobros-tab" data-view="cobros" title="Cobros" style="display:none">💵 <span>Cobros</span></button>
       <button class="tab master-only" data-view="verdistribucion" title="Distribuciones">📦 <span>Distribuciones</span> <span class="tbadge" id="distBadge" style="display:none">0</span></button>
       <button class="tab reader-tab" data-view="solicitar" title="Solicitud Interna">🛒 <span>Solicitud Interna</span></button>
       <button class="tab tesoreria-tab" data-view="tesoreria" title="Indicadores de Bodega" style="display:none">📈 <span>Indicadores de Bodega</span></button>
@@ -491,6 +492,50 @@ textarea.fc{resize:vertical;min-height:70px}
         <summary style="cursor:pointer;padding:12px 16px;font-size:11px;font-weight:600;color:var(--teal);text-transform:uppercase;letter-spacing:.08em">Ver decisiones recientes</summary>
         <div style="padding:0 16px 16px" id="bibliasHistorial"></div>
       </details>
+    </div>
+
+    <!-- COBROS (auxiliar contable) -->
+    <div class="view" id="view-cobros">
+      <div style="margin-bottom:14px">
+        <div style="font-size:16px;font-weight:700">💵 Cobros a pastores y distritos</div>
+        <div style="font-size:12px;color:var(--t2);margin-top:2px">Materiales con costo (talonarios, libro misionero, etc.) — se agregan solos cuando se aprueba un pedido con costo, o los podés agregar a mano. Marcá el estado de cada uno cuando cambie.</div>
+      </div>
+
+      <div class="g3" id="cobrosResumen" style="margin-bottom:16px"></div>
+
+      <div class="panel" style="margin-bottom:16px">
+        <div class="ph"><span class="pt">➕ Agregar cobro manual</span></div>
+        <div class="pb">
+          <div class="f2">
+            <div class="fg"><label>Pastor *</label><input type="text" class="fc" id="cbPastor" placeholder="Nombre del pastor"></div>
+            <div class="fg"><label>Distrito</label><select class="fc" id="cbDistrito"><option value="">Sin distrito</option></select></div>
+          </div>
+          <div class="fg"><label>Concepto *</label><input type="text" class="fc" id="cbConcepto" placeholder="Ej: Libro Misionero 2026"></div>
+          <div class="f2">
+            <div class="fg"><label>Cantidad</label><input type="number" class="fc" id="cbCantidad" min="1" value="1"></div>
+            <div class="fg"><label>Valor unitario *</label><input type="number" class="fc" id="cbValorUnit" min="0" placeholder="$0"></div>
+          </div>
+          <div class="fg"><label>Fecha</label><input type="date" class="fc" id="cbFecha"></div>
+          <button class="btn bpri" style="width:100%" onclick="agregarCobroManual()">➕ Agregar cobro</button>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="ph">
+          <span class="pt">Lista de cobros</span>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <input type="text" class="fc" id="cbBuscar" placeholder="Buscar por pastor..." oninput="renderCobros()" style="width:170px;padding:6px 10px;font-size:12px">
+            <select class="fc" id="cbFiltroEstado" onchange="renderCobros()" style="width:auto;padding:6px 10px;font-size:12px">
+              <option value="">Todos los estados</option>
+              <option value="pendiente">Pendiente</option>
+              <option value="pagando">Pagando</option>
+              <option value="atrasado">Atrasado</option>
+              <option value="pagado">Pagado</option>
+            </select>
+          </div>
+        </div>
+        <div id="cobrosLista"></div>
+      </div>
     </div>
 
     <!-- HISTORIAL -->
@@ -1052,19 +1097,25 @@ const ROLES = {
   'gkiy9BFcC0PWZehKwGtc8Pc0t663': { nombre:'José Romero',    role:'reader' },
   'qlsgXUnwUkQhXHz1eYiLFZOBVGw2': { nombre:'Secretaría',     role:'secretaria' },
   'Ljm4oG7l4iXx7hTtrfOyqNJgT3K3': { nombre:'Fanny Martínez', role:'reader' },
-  'WugcxNhI0Bf2G50C5rbcw9rx3773': { nombre:'Tesorero',       role:'tesorero' }
+  'WugcxNhI0Bf2G50C5rbcw9rx3773': { nombre:'Tesorero',       role:'tesorero' },
+  // ⚠️ Falta el UID real del Auxiliar Contable — cuando exista la cuenta en
+  // Firebase Auth (el admin la crea desde la Consola), reemplazar esta clave
+  // por su UID real. Mientras tanto esta entrada no coincide con nadie y no
+  // hace daño.
+  'PENDIENTE_UID_AUXILIAR': { nombre:'Auxiliar Contable', role:'auxiliar' }
 };
 
 // ── PERMISOS granulares (no comparar strings de rol sueltos por el código) ──
 // "master" cubre tanto al admin por rol como al UID exacto de administrador —
 // hoy son la misma persona, pero se dejan separados por si algún día no lo son.
 const PERMISOS = {
-  master:     { verCostos:true,  editar:true,  despachar:true,  cerrarPeriodo:true,  tesoreria:true,  autorizarBiblias:true  },
-  tesorero:   { verCostos:true,  editar:false, despachar:false, cerrarPeriodo:true,  tesoreria:true,  autorizarBiblias:false },
-  facturador: { verCostos:false, editar:true,  despachar:true,  cerrarPeriodo:false, tesoreria:false, autorizarBiblias:false },
-  reader:     { verCostos:false, editar:false, despachar:false, cerrarPeriodo:false, tesoreria:false, autorizarBiblias:false },
-  admin:      { verCostos:true,  editar:true,  despachar:true,  cerrarPeriodo:true,  tesoreria:true,  autorizarBiblias:true  },
-  secretaria: { verCostos:false, editar:false, despachar:false, cerrarPeriodo:false, tesoreria:false, autorizarBiblias:true  }
+  master:     { verCostos:true,  editar:true,  despachar:true,  cerrarPeriodo:true,  tesoreria:true,  autorizarBiblias:true,  gestionarCobros:true  },
+  tesorero:   { verCostos:true,  editar:false, despachar:false, cerrarPeriodo:true,  tesoreria:true,  autorizarBiblias:false, gestionarCobros:false },
+  facturador: { verCostos:false, editar:true,  despachar:true,  cerrarPeriodo:false, tesoreria:false, autorizarBiblias:false, gestionarCobros:false },
+  reader:     { verCostos:false, editar:false, despachar:false, cerrarPeriodo:false, tesoreria:false, autorizarBiblias:false, gestionarCobros:false },
+  admin:      { verCostos:true,  editar:true,  despachar:true,  cerrarPeriodo:true,  tesoreria:true,  autorizarBiblias:true,  gestionarCobros:true  },
+  secretaria: { verCostos:false, editar:false, despachar:false, cerrarPeriodo:false, tesoreria:false, autorizarBiblias:true,  gestionarCobros:false },
+  auxiliar:   { verCostos:true,  editar:false, despachar:false, cerrarPeriodo:false, tesoreria:false, autorizarBiblias:false, gestionarCobros:true  }
 };
 function permisosDe(u) {
   if(!u) return PERMISOS.reader;
@@ -1252,6 +1303,7 @@ const STATE = {
   distribuciones: [],
   periodosCerrados: {}, // { 'YYYY-MM': {cerradoPor, cerradoEn} }
   gastosEnvio: [], // costo de transporte/envío por cada despacho, aparte del inventario
+  cobros: [], // materiales con costo cobrados a un pastor/distrito, con su estado de pago
 };
 
 // ── HELPERS ──────────────────────────────────────────────────
@@ -1436,12 +1488,13 @@ function loginOk(u) {
   document.getElementById('app').classList.add('show');
   // Logo shown in avatar - no initials needed
   document.getElementById('uNm').textContent=u.nombre;
-  document.getElementById('uRl').textContent={admin:'Administrador',reader:'Consultor',facturador:'Facturador',tesorero:'Tesorero',secretaria:'Secretaría'}[u.role]||u.role;
+  document.getElementById('uRl').textContent={admin:'Administrador',reader:'Consultor',facturador:'Facturador',tesorero:'Tesorero',secretaria:'Secretaría',auxiliar:'Auxiliar Contable'}[u.role]||u.role;
   const isAdmin = u.role==='admin';
   const isReader = u.role==='reader';
   const isFacturador = u.role==='facturador';
   const isTesorero = u.role==='tesorero';
   const isSecretaria = u.role==='secretaria';
+  const isAuxiliar = u.role==='auxiliar';
   const isMasterAdmin = u.uid === '7k3swOaRgLTcO5faxjp5dx4iPkR2';
   var dl = document.getElementById('dataLoading');
   if(dl){
@@ -1460,6 +1513,10 @@ function loginOk(u) {
   // dentro del pedido en Solicitudes (ver bibliaBadgeLargo/bibliaBadgeCorto), no
   // en una pantalla aparte para autorizar/rechazar.
   document.querySelectorAll('.biblias-tab').forEach(el=>el.style.display=isSecretaria?'':'none');
+  // Exclusivo del Auxiliar Contable, mismo criterio que Biblias con Secretaría —
+  // al admin la información le llega por correo (aviso de cobro), no necesita
+  // esta pantalla operativa aparte.
+  document.querySelectorAll('.cobros-tab').forEach(el=>el.style.display=isAuxiliar?'':'none');
   renderAll();
   buildPedidoForm();
   if(isSecretaria) { setTimeout(function(){ showView('biblias'); }, 0); }
@@ -1468,8 +1525,19 @@ function mostrarBienvenida(u) {
   var isMaster = u.role === 'admin';
   var isFacturador = u.role === 'facturador';
   var isSecretaria = u.role === 'secretaria';
+  var isAuxiliar = u.role === 'auxiliar';
   var contenido = '';
-  if (isSecretaria) {
+  if (isAuxiliar) {
+    contenido = '<div style="text-align:center;margin-bottom:20px"><div style="font-size:40px;margin-bottom:8px">💵</div>' +
+      '<div style="font-size:18px;font-weight:700;color:var(--teal)">Bienvenida, '+u.nombre+'</div>' +
+      '<div style="font-size:12px;color:var(--t2);margin-top:4px">Cobros a pastores y distritos</div></div>' +
+      '<div style="display:flex;flex-direction:column;gap:8px;font-size:13px">' +
+      mkRoleItem('💵','Cobros','Ve los materiales con costo que se le cobran a cada pastor, agrega cobros manuales (ej. Libro Misionero) y marca si están pagando, atrasados o ya pagaron') +
+      mkRoleItem('📊','Dashboard','Ver inventario actual y alertas') +
+      mkRoleItem('📦','Inventario','Consultar cantidades y estado de cada material') +
+      '</div>' +
+      '<div style="background:var(--teal-light);border:1px solid var(--bd);border-radius:var(--r);padding:10px 14px;font-size:12px;color:var(--teal);margin-top:12px">Cuando se aprueba un pedido con materiales con costo, aparece solo en tu lista de cobros — no hace falta que nadie te avise aparte.</div>';
+  } else if (isSecretaria) {
     contenido = '<div style="text-align:center;margin-bottom:20px"><div style="font-size:40px;margin-bottom:8px">📖</div>' +
       '<div style="font-size:18px;font-weight:700;color:var(--teal)">Bienvenida, '+u.nombre+'</div>' +
       '<div style="font-size:12px;color:var(--t2);margin-top:4px">Autorización de solicitudes de Biblias</div></div>' +
@@ -1628,6 +1696,17 @@ function startListeners(db) {
     });
     renderAll();
   }));
+
+  // Listener para cobros (materiales con costo pendientes de cobrar a un pastor/distrito)
+  window._unsubscribers.push(ons(q(col(db,'cobros'), ord('fecha','desc')), function(snap) {
+    STATE.cobros = snap.docs.map(function(d) {
+      var data = d.data();
+      return Object.assign({id: d.id}, data, {
+        fecha: data.fecha && data.fecha.toDate ? data.fecha.toDate() : new Date()
+      });
+    });
+    renderAll();
+  }));
 }
 
 function doLogout() {
@@ -1669,6 +1748,7 @@ function showView(v) {
   if(adminBlockedViews.indexOf(v) !== -1 && isMasterAdmin) { return; }
   if(v === 'tesoreria' && !(isMasterAdmin || (STATE.user && STATE.user.role==='tesorero'))) { return; }
   if(v === 'biblias' && !(STATE.user && STATE.user.role==='secretaria')) { return; }
+  if(v === 'cobros' && !(STATE.user && STATE.user.role==='auxiliar')) { return; }
   document.querySelectorAll('.view').forEach(el=>el.classList.remove('active'));
   document.querySelectorAll('.tab').forEach(el=>el.classList.remove('active'));
   document.getElementById('view-'+v)?.classList.add('active');
@@ -1678,7 +1758,7 @@ function showView(v) {
 }
 
 // ── RENDER ───────────────────────────────────────────────────
-function renderAll() { renderDash(); renderInv(); renderDesp(); renderSols(); renderHist(); renderPedidos(); renderMisSolicitudes(); renderLibros(); renderRemisiones(); renderDistribuciones(); popSelects(); updBadges(); renderTesoreria(); renderBiblias(); }
+function renderAll() { renderDash(); renderInv(); renderDesp(); renderSols(); renderHist(); renderPedidos(); renderMisSolicitudes(); renderLibros(); renderRemisiones(); renderDistribuciones(); popSelects(); updBadges(); renderTesoreria(); renderBiblias(); renderCobros(); }
 
 var _chartMain = null, _chartDona = null;
 var _dashActiveTab = 'resumen';
@@ -3254,13 +3334,37 @@ function pieAvisoCobro() {
   return '<div class="footer"><div style="display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:4px"><img src="https://iglesiaadventista-cucuta.github.io/asobodex/icon_asobodex.png" style="width:20px;height:20px;border-radius:4px"><span style="font-weight:600">AsoBodex</span></div>Sistema de Bodega · Asociación del Noreste Colombiano · Documento generado automáticamente</div>';
 }
 
+// Guarda cada material con costo de un pedido aprobado como un cobro pendiente —
+// independiente de si el correo/imagen del aviso se logran generar, para que el
+// auxiliar siempre lo vea en su lista aunque EmailJS o ImgBB fallen ese día.
+async function registrarCobrosPedido(r, itemsConPrecio) {
+  if(!window._db || !window._fbOps) return;
+  try {
+    var st = window._serverTimestamp;
+    for(var i=0; i<itemsConPrecio.length; i++) {
+      var it = itemsConPrecio[i];
+      await window._fbOps.addDoc(window._fbOps.collection(window._db,'cobros'), {
+        pastor: r.pastor || '', correo: r.correo || r.email || '', distrito: r.distrito || '',
+        concepto: it.nombre, cantidad: it.cantidad, valorUnitario: it.precioUnit, valorTotal: it.subtotal,
+        pedidoId: r.id || '', origen: 'pedido', estado: 'pendiente',
+        fecha: st(), creadoPor: STATE.user ? STATE.user.nombre : 'Sistema'
+      });
+    }
+  } catch(e) {
+    console.error('Error registrando cobros del pedido:', e);
+  }
+}
+
 async function notificarCobroAuxiliar(r) {
-  if(!r || !window.emailjs) return;
+  if(!r) return;
   var itemsConPrecio = itemsConPrecioDePedido(r.items);
   if(!itemsConPrecio.length) return;
   var total = itemsConPrecio.reduce(function(sum, it){ return sum + it.subtotal; }, 0);
   var pastor = r.pastor || '';
   var distrito = r.distrito || '';
+
+  await registrarCobrosPedido(r, itemsConPrecio);
+  if(!window.emailjs) return;
 
   var filasHtml = itemsConPrecio.map(function(it) {
     return '<tr><td>'+it.nombre+'</td><td>'+it.cantidad+'</td><td>$'+Number(it.precioUnit).toLocaleString('es-CO')+'</td><td><strong>$'+Number(it.subtotal).toLocaleString('es-CO')+'</strong></td></tr>';
@@ -3294,6 +3398,131 @@ async function notificarCobroAuxiliar(r) {
     }
   } catch(e) {
     console.error('Error enviando aviso de cobro:', e);
+  }
+}
+
+// ── PANTALLA DE COBROS (Auxiliar Contable) ────────────────────────────
+function poblarDistritoCobro() {
+  var sel = document.getElementById('cbDistrito');
+  if(!sel || sel.options.length > 1) return;
+  var opts = DISTRITOS.map(function(d){ return '<option value="'+d+'">'+d+'</option>'; }).join('');
+  sel.innerHTML = '<option value="">Sin distrito</option>' + opts;
+}
+
+function calcularCobrosResumen() {
+  var cobros = STATE.cobros || [];
+  var totalPendiente = 0, totalAtrasado = 0, totalPagado = 0;
+  cobros.forEach(function(c) {
+    var v = c.valorTotal || 0;
+    var estado = c.estado || 'pendiente';
+    if(estado === 'pagado') totalPagado += v;
+    else if(estado === 'atrasado') totalAtrasado += v;
+    else totalPendiente += v; // pendiente o pagando cuentan como "por cobrar"
+  });
+  return {totalPendiente:totalPendiente, totalAtrasado:totalAtrasado, totalPagado:totalPagado, cantidad:cobros.length};
+}
+
+function renderCobros() {
+  var contResumen = document.getElementById('cobrosResumen');
+  var contLista = document.getElementById('cobrosLista');
+  if(!contResumen || !contLista) return;
+  poblarDistritoCobro();
+  var fechaInput = document.getElementById('cbFecha');
+  if(fechaInput && !fechaInput.value) fechaInput.value = new Date().toISOString().slice(0,10);
+
+  var res = calcularCobrosResumen();
+  contResumen.innerHTML =
+    '<div><div class="slbl">Por cobrar</div><div class="sval" style="color:var(--amber)">$'+res.totalPendiente.toLocaleString('es-CO')+'</div></div>' +
+    '<div><div class="slbl">Atrasado</div><div class="sval" style="color:var(--red)">$'+res.totalAtrasado.toLocaleString('es-CO')+'</div></div>' +
+    '<div><div class="slbl">Pagado</div><div class="sval" style="color:var(--green)">$'+res.totalPagado.toLocaleString('es-CO')+'</div></div>';
+
+  var q = (document.getElementById('cbBuscar') ? document.getElementById('cbBuscar').value : '').trim().toLowerCase();
+  var filtroEstado = document.getElementById('cbFiltroEstado') ? document.getElementById('cbFiltroEstado').value : '';
+  var lista = (STATE.cobros||[]).filter(function(c) {
+    if(filtroEstado && (c.estado||'pendiente') !== filtroEstado) return false;
+    if(q && (c.pastor||'').toLowerCase().indexOf(q)===-1) return false;
+    return true;
+  });
+
+  if(!lista.length) {
+    contLista.innerHTML = '<div class="empty" style="padding:40px">Sin cobros registrados'+(q||filtroEstado?' que coincidan':'')+'</div>';
+    return;
+  }
+
+  var estadoColor = {pendiente:'var(--t2)', pagando:'var(--teal)', atrasado:'var(--red)', pagado:'var(--green)'};
+  var estadoLabel = {pendiente:'Pendiente', pagando:'Pagando', atrasado:'Atrasado', pagado:'Pagado'};
+  var opcionesEstado = ['pendiente','pagando','atrasado','pagado'];
+
+  contLista.innerHTML = lista.map(function(c) {
+    var estado = c.estado || 'pendiente';
+    return '<div style="padding:10px 16px;border-bottom:1px solid var(--bd);display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">' +
+      '<div>' +
+        '<div style="font-size:13px;font-weight:600">'+(c.pastor||'—')+(c.distrito?' — '+c.distrito:'')+'</div>' +
+        '<div style="font-size:12px;color:var(--t2)">'+c.concepto+' x'+c.cantidad+' · '+fmtD(c.fecha)+(c.origen==='manual'?' · agregado a mano':'')+'</div>' +
+      '</div>' +
+      '<div style="display:flex;align-items:center;gap:10px">' +
+        '<span style="font-weight:700;color:var(--gold)">$'+(c.valorTotal||0).toLocaleString('es-CO')+'</span>' +
+        '<select class="fc" style="width:auto;padding:5px 8px;font-size:12px;color:'+estadoColor[estado]+'" onchange="actualizarEstadoCobro(\''+c.id+'\', this.value)">' +
+          opcionesEstado.map(function(e){ return '<option value="'+e+'"'+(e===estado?' selected':'')+'>'+estadoLabel[e]+'</option>'; }).join('') +
+        '</select>' +
+      '</div>' +
+    '</div>';
+  }).join('');
+}
+
+async function agregarCobroManual() {
+  if(!permisosDe(STATE.user).gestionarCobros) { toast('No tienes permiso para esto','err'); return; }
+  var pastor = document.getElementById('cbPastor').value.trim();
+  var distrito = document.getElementById('cbDistrito').value;
+  var concepto = document.getElementById('cbConcepto').value.trim();
+  var cantidad = parseInt(document.getElementById('cbCantidad').value)||1;
+  var valorUnit = parseFloat(document.getElementById('cbValorUnit').value)||0;
+  var fechaStr = document.getElementById('cbFecha').value;
+
+  if(!pastor){ toast('Ingresa el nombre del pastor','warn'); return; }
+  if(!concepto){ toast('Ingresa el concepto del cobro','warn'); return; }
+  if(!valorUnit || valorUnit<=0){ toast('Ingresa un valor válido','warn'); return; }
+
+  var btn = document.querySelector('[onclick="agregarCobroManual()"]');
+  if(btn){ btn.textContent='Guardando...'; btn.disabled=true; }
+  try {
+    if(window._db && window._fbOps) {
+      await window._fbOps.addDoc(window._fbOps.collection(window._db,'cobros'), {
+        pastor: pastor, distrito: distrito||'', concepto: concepto,
+        cantidad: cantidad, valorUnitario: valorUnit, valorTotal: cantidad*valorUnit,
+        pedidoId: '', origen: 'manual', estado: 'pendiente',
+        fecha: fechaStr ? new Date(fechaStr+'T12:00:00') : window._serverTimestamp(),
+        creadoPor: STATE.user ? STATE.user.nombre : 'Auxiliar'
+      });
+      toast('✓ Cobro agregado: '+concepto);
+      document.getElementById('cbPastor').value = '';
+      document.getElementById('cbDistrito').value = '';
+      document.getElementById('cbConcepto').value = '';
+      document.getElementById('cbCantidad').value = '1';
+      document.getElementById('cbValorUnit').value = '';
+    } else {
+      toast('Sin conexión a Firebase','err');
+    }
+  } catch(e) {
+    toast('Error: '+e.message,'err');
+    console.error(e);
+  } finally {
+    if(btn){ btn.textContent='➕ Agregar cobro'; btn.disabled=false; }
+  }
+}
+
+async function actualizarEstadoCobro(id, estado) {
+  if(!permisosDe(STATE.user).gestionarCobros) { toast('No tienes permiso para esto','err'); return; }
+  try {
+    if(window._db && window._fbOps) {
+      await window._fbOps.updateDoc(window._fbOps.doc(window._db,'cobros',id), {estado: estado});
+      toast('✓ Estado actualizado');
+    } else {
+      toast('Sin conexión a Firebase','err');
+    }
+  } catch(e) {
+    toast('Error: '+e.message,'err');
+    console.error(e);
   }
 }
 
