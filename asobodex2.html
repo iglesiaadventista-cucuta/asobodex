@@ -3508,18 +3508,41 @@ async function notificarCobroAuxiliar(r) {
 // fuente que mantiene el admin y la más confiable, sobre todo para el distrito
 // porque ahí es donde se ajusta cuando lo reasignan), y si no está ahí, en sus
 // pedidos anteriores como respaldo.
+// El pastor suele escribir su nombre corto (ej. "Daniel Grandas") mientras que el
+// roster trae el nombre completo tal como lo carga el admin (ej. "DANIEL GRANDAS
+// HERREÑO") — un match exacto se pierde ahí. Por eso primero se intenta exacto y,
+// si no hay, se acepta un match "por tokens" (todas las palabras escritas están
+// contenidas en el nombre del roster) SOLO si es un único candidato posible —
+// si hay más de un pastor que calza, no se adivina.
+function _normalizarNombrePastor(s) {
+  return (s||'').trim().toLowerCase()
+    .normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .replace(/[^a-z\s]/g, ' ').replace(/\s+/g, ' ').trim();
+}
+function _buscarEnRosterPorNombre(nombreEscrito, roster) {
+  var norm = _normalizarNombrePastor(nombreEscrito);
+  if(!norm) return null;
+  var exacto = roster.find(function(p){ return _normalizarNombrePastor(p.nombre) === norm; });
+  if(exacto) return exacto;
+  var tokensEscritos = norm.split(' ');
+  var candidatos = roster.filter(function(p){
+    var tokensRoster = _normalizarNombrePastor(p.nombre).split(' ');
+    return tokensEscritos.every(function(t){ return tokensRoster.indexOf(t) !== -1; });
+  });
+  return candidatos.length === 1 ? candidatos[0] : null;
+}
+
 function buscarCorreoPastor(nombre) {
   if(!nombre) return '';
-  var nombreNorm = nombre.trim().toLowerCase();
-  var enRoster = (STATE.pastores||[]).find(function(p){ return (p.nombre||'').trim().toLowerCase()===nombreNorm; });
+  var enRoster = _buscarEnRosterPorNombre(nombre, STATE.pastores||[]);
   if(enRoster && enRoster.correo) return enRoster.correo;
+  var nombreNorm = nombre.trim().toLowerCase();
   var enPedidos = (STATE.requests||[]).find(function(r){ return (r.pastor||'').trim().toLowerCase()===nombreNorm && r.correo; });
   return enPedidos ? enPedidos.correo : '';
 }
 function buscarDistritoPastor(nombre) {
   if(!nombre) return '';
-  var nombreNorm = nombre.trim().toLowerCase();
-  var enRoster = (STATE.pastores||[]).find(function(p){ return (p.nombre||'').trim().toLowerCase()===nombreNorm; });
+  var enRoster = _buscarEnRosterPorNombre(nombre, STATE.pastores||[]);
   return enRoster ? (enRoster.distrito||'') : '';
 }
 
