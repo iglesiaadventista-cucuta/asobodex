@@ -581,7 +581,7 @@ textarea.fc{resize:vertical;min-height:70px}
         </div>
       </div>
       <div class="panel"><div class="tw">
-        <table><thead><tr><th>Fecha</th><th>Tipo</th><th>Material</th><th>Cant.</th><th>Departamento</th><th>Entregado por</th><th>Recibido por</th></tr></thead>
+        <table><thead><tr><th>Fecha</th><th>Tipo</th><th>Material</th><th>Cant.</th><th>Departamento</th><th>Entregado por</th><th>Recibido por</th><th>Guía</th></tr></thead>
         <tbody id="histTbl"></tbody></table>
       </div></div>
     </div>
@@ -2740,6 +2740,7 @@ function renderHist() {
       '<td>'+(x.departamento?dBadge(x.departamento):'<span style="color:var(--t3)">—</span>')+'</td>'+
       '<td style="color:var(--t2)">'+(x.responsable||'')+'</td>'+
       '<td style="color:var(--t2)">'+(x.recibe||'')+'</td>'+
+      '<td>'+(x.guiaUrl?'<img src="'+x.guiaUrl+'" style="width:32px;height:32px;object-fit:cover;border-radius:6px;cursor:pointer;border:1px solid var(--bd)" onclick="verFotoCompleta(\''+x.guiaUrl+'\')" title="Ver guía de envío">':'<span style="color:var(--t3)">—</span>')+'</td>'+
       '</tr>';
   }).join(''):'<tr><td colspan="8" class="empty" style="text-align:center">'+(q?'Sin resultados para "'+q+'"':'Sin movimientos')+'</td></tr>';
 }
