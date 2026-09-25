@@ -447,7 +447,7 @@ textarea.fc{resize:vertical;min-height:70px}
               <datalist id="eoCorreoList"></datalist>
             </div>
             <div class="fg"><label>Nombre del pastor *</label>
-              <input type="text" class="fc" id="eoPastor" placeholder="Nombre completo">
+              <input type="text" class="fc" id="eoPastor" placeholder="Nombre completo" onchange="autocompletarPorNombreEO()" onblur="autocompletarPorNombreEO()">
             </div>
           </div>
           <div class="fg"><label>Distrito</label>
@@ -5779,6 +5779,23 @@ function autocompletarPorCorreo() {
       document.getElementById('eoPastor').value = guardados[correo];
     }
   } catch(e) {}
+}
+
+// Igual que en Cobros: si escriben el nombre, se busca en la relación de Pastores
+// (la misma que mantiene el admin) para completar correo y distrito solos.
+function autocompletarPorNombreEO() {
+  var pastor = document.getElementById('eoPastor').value.trim();
+  if(!pastor) return;
+  var correoEl = document.getElementById('eoCorreo');
+  if(correoEl && !correoEl.value.trim()) {
+    var correo = buscarCorreoPastor(pastor);
+    if(correo) correoEl.value = correo;
+  }
+  var distritoEl = document.getElementById('eoDistrito');
+  if(distritoEl && !distritoEl.value) {
+    var distrito = buscarDistritoPastor(pastor);
+    if(distrito) distritoEl.value = distrito;
+  }
 }
 
 function guardarCorreoPastor(correo, nombre) {
