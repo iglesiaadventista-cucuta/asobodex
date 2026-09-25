@@ -54,9 +54,11 @@ service cloud.firestore {
       return estaLogueado() && rolDe() == 'auxiliar';
     }
     // Refleja PERMISOS.editar (admin y facturador pueden modificar inventario:
-    // Registrar/Despachar es admin, Distribución/Remisiones es facturador).
+    // Registrar/Despachar es admin, Distribución/Remisiones es facturador) más
+    // secretaria, que también necesita descontar inventario desde su propia
+    // pantalla de Distribución de Biblias.
     function puedeEditar() {
-      return esAdmin() || esFacturador();
+      return esAdmin() || esFacturador() || esSecretaria();
     }
     // Refleja PERMISOS.cerrarPeriodo (solo master y tesorero).
     function puedeCerrarPeriodo() {
