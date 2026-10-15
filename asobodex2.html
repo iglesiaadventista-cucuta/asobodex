@@ -448,7 +448,8 @@ textarea.fc{resize:vertical;min-height:70px}
               <datalist id="eoCorreoList"></datalist>
             </div>
             <div class="fg"><label>Nombre del pastor *</label>
-              <input type="text" class="fc" id="eoPastor" placeholder="Nombre completo" onchange="autocompletarPorNombreEO()" onblur="autocompletarPorNombreEO()">
+              <input type="text" class="fc" id="eoPastor" list="eoPastoresList" placeholder="Nombre completo" oninput="autocompletarPorNombreEO()" onchange="autocompletarPorNombreEO()" onblur="autocompletarPorNombreEO()">
+              <datalist id="eoPastoresList"></datalist>
             </div>
           </div>
           <div class="fg"><label>Distrito</label>
@@ -4061,6 +4062,7 @@ function esMasterAdmin_() {
 }
 
 function renderPastores() {
+  poblarPastoresEO();
   var cont = document.getElementById('pastoresLista');
   if(!cont) return;
   var selNuevo = document.getElementById('psDistrito');
@@ -5839,6 +5841,7 @@ function toggleEnvioOcasional() {
   if(computado === 'none') {
     console.log('4. entrando a abrir el panel');
     panel.style.display = 'block';
+    poblarPastoresEO();
     console.log('5. display puesto en block, llamando popDistritoEnvioOcasional');
     popDistritoEnvioOcasional();
     console.log('6. terminó popDistritoEnvioOcasional, llamando cargarCorreoGuardado');
@@ -5980,18 +5983,30 @@ function autocompletarPorCorreo() {
 
 // Igual que en Cobros: si escriben el nombre, se busca en la relación de Pastores
 // (la misma que mantiene el admin) para completar correo y distrito solos.
+function poblarPastoresEO() {
+  var dl = document.getElementById('eoPastoresList');
+  if(!dl) return;
+  dl.innerHTML = (STATE.pastores||[]).filter(function(p){ return p.nombre; })
+    .map(function(p){ return '<option value="'+p.nombre+'">'+(p.distrito||''); }).join('');
+}
+
+// Igual que en el formulario del pastor: si el nombre calza con alguien de la
+// relación de Pastores, se reemplazan correo y distrito (aunque ya hubiera algo
+// escrito de un envío anterior). Si no calza con nadie, no se toca nada.
 function autocompletarPorNombreEO() {
   var pastor = document.getElementById('eoPastor').value.trim();
   if(!pastor) return;
   var correoEl = document.getElementById('eoCorreo');
+  var distritoEl = document.getElementById('eoDistrito');
+  var enRoster = _buscarEnRosterPorNombre(pastor, STATE.pastores||[]);
+  if(enRoster) {
+    if(enRoster.correo && correoEl) correoEl.value = enRoster.correo;
+    if(enRoster.distrito && distritoEl) distritoEl.value = enRoster.distrito;
+    return;
+  }
   if(correoEl && !correoEl.value.trim()) {
     var correo = buscarCorreoPastor(pastor);
     if(correo) correoEl.value = correo;
-  }
-  var distritoEl = document.getElementById('eoDistrito');
-  if(distritoEl && !distritoEl.value) {
-    var distrito = buscarDistritoPastor(pastor);
-    if(distrito) distritoEl.value = distrito;
   }
 }
 
