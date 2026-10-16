@@ -6048,14 +6048,20 @@ async function enviarEnvioOcasional() {
     var formData = new FormData();
     formData.append('image', fotoComprimida, 'guia.jpg');
     formData.append('key', '90ef17531a96e2ba46f944b5987756a4');
-    var imgResp = await fetch('https://api.imgbb.com/1/upload', { method:'POST', body:formData });
-    var imgData = await imgResp.json();
-    if(imgData.success) {
-      guiaUrl = imgData.data.url;
-    } else {
-      toast('Error subiendo la foto','err');
-      if(btn){ btn.textContent='✉️ Enviar correo al pastor'; btn.disabled=false; }
-      return;
+    try {
+      var imgResp = await fetch('https://api.imgbb.com/1/upload', { method:'POST', body:formData });
+      var imgData = await imgResp.json();
+      if(imgData.success) {
+        guiaUrl = imgData.data.url;
+      } else {
+        console.error('Error subiendo foto:', imgData);
+      }
+    } catch(eImg) { console.error('Error subiendo foto:', eImg); }
+    if(!guiaUrl) {
+      if(!confirm('No se pudo subir la foto de la guía (el servicio de imágenes no responde).\n\n¿Registrar el envío igual, sin la foto?')) {
+        if(btn){ btn.textContent='✉️ Enviar correo al pastor'; btn.disabled=false; }
+        return;
+      }
     }
 
     if(window._db && window._fbOps) {
@@ -6101,16 +6107,22 @@ async function enviarEnvioOcasional() {
       }).join('\n');
       var msg = 'Hola '+pastor+',\n\nLe informamos que se le ha enviado el siguiente material:\n\n'+lineas+
         (distrito ? '\n\nDistrito: '+distrito : '') +
-        '\n\n📷 Foto de la guía de envío: '+guiaUrl+
+        (guiaUrl ? '\n\n📷 Foto de la guía de envío: '+guiaUrl : '') +
         '\n\nAsoBodex — Asociación del Noreste Colombiano';
-      await emailjs.send(EJS.service, EJS.template, {
-        to_email: correo,
-        asunto: 'Envío de material — AsoBodex',
-        mensaje: msg,
-        name: 'AsoBodex Sistema',
-        email: EJS.email
-      });
-      toast('✓ Correo enviado a '+pastor+' con '+_carritoEO.length+' material'+(_carritoEO.length>1?'es':''));
+      try {
+        await emailjs.send(EJS.service, EJS.template, {
+          to_email: correo,
+          asunto: 'Envío de material — AsoBodex',
+          mensaje: msg,
+          name: 'AsoBodex Sistema',
+          email: EJS.email
+        });
+        toast('✓ Correo enviado a '+pastor+' con '+_carritoEO.length+' material'+(_carritoEO.length>1?'es':''));
+      } catch(eMail) {
+        console.error('Error enviando correo:', eMail);
+        var motivoMail = (eMail && eMail.status===426) ? 'se acabó el límite mensual de correos de EmailJS' : ((eMail && (eMail.text||eMail.message)) || 'error desconocido');
+        toast('⚠️ El envío quedó registrado, pero NO se pudo enviar el correo: '+motivoMail,'warn');
+      }
     } else {
       toast('Registrado, pero EmailJS no está disponible','warn');
     }
@@ -6134,7 +6146,7 @@ async function enviarEnvioOcasional() {
     renderCarritoEO();
     toggleEnvioOcasional();
   } catch(e) {
-    toast('Error: '+e.message,'err');
+    toast('Error: '+((e && (e.message||e.text)) || JSON.stringify(e)),'err');
     console.error(e);
   } finally {
     if(btn){ btn.textContent='✉️ Enviar correo al pastor'; btn.disabled=false; }
