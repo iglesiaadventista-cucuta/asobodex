@@ -6122,6 +6122,11 @@ async function enviarEnvioOcasional() {
         console.error('Error enviando correo:', eMail);
         var motivoMail = (eMail && eMail.status===426) ? 'se acabó el límite mensual de correos de EmailJS' : ((eMail && (eMail.text||eMail.message)) || 'error desconocido');
         toast('⚠️ El envío quedó registrado, pero NO se pudo enviar el correo: '+motivoMail,'warn');
+        if(confirm('El correo automático no salió ('+motivoMail+').\n\n¿Quieres abrir tu correo con el mensaje para '+pastor+' ya escrito, para enviárselo tú mismo?' + (guiaUrl ? '' : '\n(Recuerda adjuntar la foto de la guía a mano)'))) {
+          var aMail = document.createElement('a');
+          aMail.href = 'mailto:'+encodeURIComponent(correo)+'?subject='+encodeURIComponent('Envío de material — AsoBodex')+'&body='+encodeURIComponent(msg);
+          document.body.appendChild(aMail); aMail.click(); document.body.removeChild(aMail);
+        }
       }
     } else {
       toast('Registrado, pero EmailJS no está disponible','warn');
