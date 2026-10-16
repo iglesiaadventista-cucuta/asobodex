@@ -180,7 +180,7 @@ textarea.fc{resize:vertical;min-height:70px}
       <div class="fg">
         <label>Correo corporativo <span style="color:var(--teal)">*</span></label>
         <input type="email" class="fc" id="pCorreo" placeholder="pastor@asonoreste.org">
-        <div style="font-size:11px;color:var(--t2);margin-top:4px">Recibirás confirmación de tu solicitud en este correo</div>
+        <div style="font-size:11px;color:var(--t2);margin-top:4px">Te avisaremos a este correo cuando tu solicitud sea aprobada y cuando sea enviada</div>
       </div>
       <div class="fg"><label>Distrito <span style="color:var(--teal)">*</span></label>
         <select class="fc" id="pDistrito">
@@ -503,22 +503,8 @@ function enviarNotificacionEmail(pastor, correo, distrito, items, otros) {
     console.error('✗ Email admin ERROR:', e);
   });
 
-  // Enviar al pastor
-  if (correo && correo.includes('@')) {
-    var msgPastor = 'Hola ' + pastor + ',\n\nTu pedido de materiales para el distrito ' + distrito + ' fue recibido correctamente.\n\nMateriales solicitados:\n' + materiales + '\n\nEl administrador revisará tu solicitud y te contactará para la entrega.\n\nAsoBodex — Asociación del Noreste Colombiano';
-    console.log('Enviando email al pastor:', correo);
-    emailjs.send(EJS_SERVICE, EJS_TEMPLATE, {
-      to_email: correo,
-      asunto: 'Tu solicitud fue recibida — ' + distrito,
-      mensaje: msgPastor,
-      name: 'AsoBodex Sistema',
-      email: MASTER_EMAIL
-    }).then(function(r) {
-      console.log('✓ Email pastor enviado OK:', r.status);
-    }).catch(function(e) {
-      console.error('✗ Email pastor ERROR:', e);
-    });
-  }
+  // (Al pastor ya no se le manda correo de "recibida": para ahorrar cupo de EmailJS
+  // solo recibe el de aprobado y el de enviado, desde el panel del administrador.)
 
   // Si el pedido incluye Biblias, avisar aparte a Secretaría — es quien autoriza el envío
   var itemBiblias = items.find(function(i){ return i.nombre === 'Biblias'; });

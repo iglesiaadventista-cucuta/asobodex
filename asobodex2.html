@@ -1317,15 +1317,22 @@ function notificarEmail(tipo, data) {
       data.rechazadosDetalle.map(function(x){ return '• ' + x.nombre + (x.motivo ? ' — Motivo: ' + x.motivo : ' — Sin motivo indicado'); }).join('\n');
   }
 
-  // Enviar al admin
-  emailjs.send(EJS.service, EJS.template, {
-    to_email: EJS.email,
-    asunto: asunto,
-    mensaje: mensaje,
-    name: data.solicitante || data.responsable || 'Sistema',
-    email: EJS.email
-  }).then(function(r) { console.log('Email admin OK:', r.status); })
-    .catch(function(e) { console.error('Email admin ERROR:', e); });
+  // Para ahorrar cupo de EmailJS, al admin solo le llegan: las solicitudes internas
+  // y los despachos que dejan stock bajo (alerta). Aprobar, enviar, rechazar o
+  // despachar ya no le mandan copia — la solicitud original del pastor ya le avisó,
+  // y el pastor sí recibe su correo de aprobado/enviado/rechazado más abajo.
+  var avisarAdmin = tipo === 'solicitud_interna' ||
+    (tipo === 'despacho_multiple' && data.bajos && data.bajos.length);
+  if(avisarAdmin) {
+    emailjs.send(EJS.service, EJS.template, {
+      to_email: EJS.email,
+      asunto: asunto,
+      mensaje: mensaje,
+      name: data.solicitante || data.responsable || 'Sistema',
+      email: EJS.email
+    }).then(function(r) { console.log('Email admin OK:', r.status); })
+      .catch(function(e) { console.error('Email admin ERROR:', e); });
+  }
 
   // Enviar al pastor/solicitante
   if(data.correo && data.correo.includes('@')) {
@@ -2758,9 +2765,6 @@ async function enviarConGuia(btn) {
         }).then(function(resp) { console.log('✓ Email pastor enviado OK:', resp.status); })
           .catch(function(e) { console.error('✗ Email pastor ERROR:', e); });
       }
-      // Notificar al admin
-      notificarEmail('pedido_entregado', {distrito:r.distrito});
-
       closeM('mVerSol');
     }
   } catch(e) {
