@@ -2669,11 +2669,7 @@ async function enviarConGuia(btn) {
       var fotoComprimida = await comprimirImagen(fotoInput.files[0]);
       var formData = new FormData();
       formData.append('image', fotoComprimida, 'guia.jpg');
-      formData.append('key', '90ef17531a96e2ba46f944b5987756a4');
-      var imgResp = await fetch('https://api.imgbb.com/1/upload', {
-        method: 'POST',
-        body: formData
-      });
+      var imgResp = await subirANube(formData);
       var imgData = await imgResp.json();
       if(imgData.success) {
         guiaUrl = imgData.data.url;
@@ -3316,8 +3312,7 @@ async function generarRemision() {
       toast('Subiendo remisión...');
       var formData = new FormData();
       formData.append('image', blob, 'remision.png');
-      formData.append('key', '90ef17531a96e2ba46f944b5987756a4');
-      var imgResp = await fetch('https://api.imgbb.com/1/upload', { method:'POST', body:formData });
+      var imgResp = await subirANube(formData);
       var imgData = await imgResp.json();
 
       if(imgData.success && window.emailjs) {
@@ -3471,8 +3466,7 @@ async function capturarYSubirAvisoCobro(htmlBody) {
 
     var formData = new FormData();
     formData.append('image', blob, 'aviso_cobro.png');
-    formData.append('key', '90ef17531a96e2ba46f944b5987756a4');
-    var imgResp = await fetch('https://api.imgbb.com/1/upload', { method:'POST', body:formData });
+    var imgResp = await subirANube(formData);
     var imgData = await imgResp.json();
     return imgData.success ? imgData.data.url : null;
   } catch(e) {
@@ -5561,6 +5555,19 @@ function previsualizarFoto(input, previewId) {
   };
   reader.readAsDataURL(file);
 }
+// Subida de imágenes a Cloudinary (reemplaza a ImgBB, que bloqueó la llave). Recibe
+// el mismo FormData de siempre (campo "image") y devuelve algo con .json() que
+// responde {success, data:{url}}, así los sitios que la llaman casi no cambian.
+async function subirANube(formData) {
+  var fd = new FormData();
+  fd.append('file', formData.get('image'));
+  fd.append('upload_preset', 'asobodex');
+  var r = await fetch('https://api.cloudinary.com/v1_1/yzzcucmm/image/upload', { method:'POST', body:fd });
+  var j = await r.json();
+  var out = j.secure_url ? { success:true, data:{ url:j.secure_url } } : { success:false, error:j.error };
+  return { json: function(){ return Promise.resolve(out); } };
+}
+
 // Las fotos de cámara pueden pesar varios MB — eso es lo que hace que tarden en
 // cargar tanto en el panel como en el correo. Antes de subir, se reduce a máx.
 // 1600px de ancho y se reempaqueta como JPEG — si algo falla, se sube la original
@@ -5594,8 +5601,7 @@ async function subirFotoImgbb(file) {
   var comprimida = await comprimirImagen(file);
   var formData = new FormData();
   formData.append('image', comprimida, 'foto.jpg');
-  formData.append('key', '90ef17531a96e2ba46f944b5987756a4');
-  var resp = await fetch('https://api.imgbb.com/1/upload', { method:'POST', body:formData });
+  var resp = await subirANube(formData);
   var data = await resp.json();
   if(data.success) return data.data.url;
   throw new Error('No se pudo subir la foto');
@@ -5749,8 +5755,7 @@ async function enviarPedido() {
             toast('Subiendo foto del talonario...');
             var formData = new FormData();
             formData.append('image', p.fotoFile);
-            formData.append('key', '90ef17531a96e2ba46f944b5987756a4');
-            var imgResp = await fetch('https://api.imgbb.com/1/upload', { method:'POST', body:formData });
+            var imgResp = await subirANube(formData);
             var imgData = await imgResp.json();
             if(imgData.success) itemData.fotoUrl = imgData.data.url;
             else toast('No se pudo subir la foto, el pedido se enviará sin ella','warn');
@@ -6051,9 +6056,8 @@ async function enviarEnvioOcasional() {
     var fotoComprimida = await comprimirImagen(fotoInput.files[0]);
     var formData = new FormData();
     formData.append('image', fotoComprimida, 'guia.jpg');
-    formData.append('key', '90ef17531a96e2ba46f944b5987756a4');
     try {
-      var imgResp = await fetch('https://api.imgbb.com/1/upload', { method:'POST', body:formData });
+      var imgResp = await subirANube(formData);
       var imgData = await imgResp.json();
       if(imgData.success) {
         guiaUrl = imgData.data.url;
