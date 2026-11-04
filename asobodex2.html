@@ -2713,6 +2713,7 @@ async function enviarConGuia(btn) {
           recibe:r.pastor+' — '+r.distrito, distrito:r.distrito||'',
           nota: invItem ? 'Entrega de pedido aprobado' : 'Entrega de pedido aprobado — material no encontrado en inventario, no se descontó stock',
           origenPedido:true, pedidoId:id,
+          guiaUrl: guiaUrl || '',
           fecha:st()
         });
         if(pedItem.nombre === 'Biblias') {
