@@ -1156,7 +1156,7 @@ textarea.fc{resize:vertical;min-height:70px}
     <datalist id="rlIglesiaList"></datalist>
   </div>
   <div class="fg"><label>Distrito</label>
-    <select class="fc" id="rlDistrito"><option value="">Seleccionar distrito...</option></select>
+    <select class="fc" id="rlDistrito" onchange="autocompletarReenvioLibro()"><option value="">Seleccionar distrito...</option></select>
   </div>
   <div class="fg"><label>Número del talonario (solo el número, opcional)</label>
     <input type="text" class="fc" id="rlCodigo" placeholder="Ej: 167150">
@@ -4640,19 +4640,36 @@ function abrirReenvioLibro() {
 function autocompletarReenvioLibro() {
   var nombre = document.getElementById('rlIglesia').value.trim();
   var info = document.getElementById('rlInfo');
+  var distSel = document.getElementById('rlDistrito');
   if(!nombre) { info.style.display = 'none'; return; }
   var nombreNorm = nombre.toLowerCase();
-  var registros = (STATE.libros||[]).filter(function(l){ return (l.iglesia||'').trim().toLowerCase()===nombreNorm; });
+  // Una misma iglesia puede existir en varios distritos: son congregaciones distintas,
+  // así que solo se asume el distrito si hay uno solo; si hay varios, lo elige el admin.
+  var coinciden = (STATE.libros||[]).filter(function(l){ return (l.iglesia||'').trim().toLowerCase()===nombreNorm; });
+  var distritosCoinciden = [];
+  coinciden.forEach(function(l){ if(l.distrito && distritosCoinciden.indexOf(l.distrito)===-1) distritosCoinciden.push(l.distrito); });
   info.style.display = 'block';
+
+  if(!distSel.value && distritosCoinciden.length === 1) distSel.value = distritosCoinciden[0];
+
+  var distritoElegido = distSel.value;
+  if(!distritoElegido) {
+    info.innerHTML = distritosCoinciden.length > 1
+      ? '⚠️ Hay iglesias con este nombre en varios distritos ('+distritosCoinciden.join(', ')+'). Elige el distrito para ver el libro correcto.'
+      : '⚠️ Esta iglesia no tiene libros registrados antes — elige el distrito y se registrará como nueva.';
+    return;
+  }
+
+  var distNorm = distritoNormalizado(distritoElegido);
+  var registros = coinciden.filter(function(l){ return (l.distrito||'').trim().toLowerCase()===distNorm; });
   if(registros.length) {
     registros.sort(function(a,b){ return b.fechaEntrega - a.fechaEntrega; });
     var ultimo = registros[0];
-    document.getElementById('rlDistrito').value = ultimo.distrito || '';
-    var codigo = buscarCodigoIglesiaExistente(nombre);
+    var codigo = buscarCodigoIglesiaExistente(nombre, distritoElegido);
     if(codigo) document.getElementById('rlCodigo').value = codigo.replace(/^tcn/i,'').trim();
-    info.innerHTML = '📖 Último libro entregado: '+fmtD(ultimo.fechaEntrega)+(codigo?' · Código: '+codigo:' · Sin código registrado');
+    info.innerHTML = '📖 Último libro entregado en '+distritoElegido+': '+fmtD(ultimo.fechaEntrega)+(codigo?' · Código: '+codigo:' · Sin código registrado');
   } else {
-    info.innerHTML = '⚠️ Esta iglesia no tiene libros registrados antes — se registrará como nueva.';
+    info.innerHTML = '⚠️ Esta iglesia no tiene libros registrados en '+distritoElegido+' — se registrará como nueva.' + (distritosCoinciden.length ? ' (Existe una con el mismo nombre en: '+distritosCoinciden.join(', ')+', pero es otra congregación.)' : '');
   }
 }
 
