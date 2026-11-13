@@ -4432,9 +4432,18 @@ function renderLibros() {
   // Poblar filtro de distritos
   var distritos = [];
   libros.forEach(function(l) { if(distritos.indexOf(l.distrito)===-1) distritos.push(l.distrito); });
-  var distOpts = '<option value="">Todos los distritos</option>';
-  distritos.sort().forEach(function(d) { distOpts += '<option value="'+d+'">'+d+'</option>'; });
-  if(fDist.innerHTML.indexOf(distritos[0]||'xxx')===-1) fDist.innerHTML = distOpts;
+  distritos.sort();
+  // Antes la lista solo se rehacía si faltaba el primer distrito, así que un distrito
+  // nuevo (ej. Ocaña Central) registrado después nunca aparecía en el filtro.
+  var distKey = distritos.join('|');
+  if(fDist.getAttribute('data-opts') !== distKey) {
+    var distPrevio = fDist.value;
+    var distOpts = '<option value="">Todos los distritos</option>';
+    distritos.forEach(function(d) { distOpts += '<option value="'+d+'">'+d+'</option>'; });
+    fDist.innerHTML = distOpts;
+    fDist.value = distPrevio;
+    fDist.setAttribute('data-opts', distKey);
+  }
 
   var filtDist = fDist.value;
   var filtEstado = fEstado.value;
