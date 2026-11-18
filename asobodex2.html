@@ -90,6 +90,10 @@ html,body{height:100%;background:var(--navy);color:var(--t1);font-family:var(--f
 .sgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px}
 .scard{background:var(--navy2);border:1px solid var(--bd);border-radius:var(--r2);padding:16px 18px;position:relative;overflow:hidden}
 .scard::after{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:var(--teal)}
+.scard.clicable{cursor:pointer;transition:transform .12s,border-color .12s,box-shadow .12s;user-select:none}
+.scard.clicable:hover{transform:translateY(-2px);border-color:var(--teal)}
+.scard.clicable:active{transform:translateY(0)}
+.scard.activa{border-color:var(--teal);box-shadow:0 0 0 2px var(--teal) inset}
 .scard.gold::after{background:var(--gold)}
 .scard.green::after{background:var(--green)}
 .scard.red::after{background:var(--red)}
@@ -809,6 +813,7 @@ textarea.fc{resize:vertical;min-height:70px}
               <option value="enviado">Enviado</option>
               <option value="por_enviar">Por enviar</option>
               <option value="en_bodega">En bodega</option>
+              <option value="pendientes">Por enviar + en bodega</option>
               <option value="siguiente">Siguiente libro</option>
             </select>
             <select class="fc" id="audFiltro" onchange="audReset()" style="width:auto;padding:6px 10px;font-size:12px">
@@ -4768,6 +4773,13 @@ function escLib(s) {
   return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 function audReset() { _audLimite = 100; renderAuditoria(); }
+function audTarjeta(est, fil) {
+  document.getElementById('audEstado').value = est;
+  document.getElementById('audFiltro').value = fil;
+  audReset();
+  var t = document.getElementById('audTbl');
+  if(t && t.scrollIntoView) { t.closest('.panel').scrollIntoView({ behavior:'smooth', block:'start' }); }
+}
 function audMasFilas() { _audLimite += 100; renderAuditoria(); }
 
 function tiempoDesde(fecha) {
@@ -4799,22 +4811,29 @@ function renderAuditoria() {
   }
 
   var cuenta = function(fn){ return todos.filter(fn).length; };
-  var tarjeta = function(lbl, val, cls){ return '<div class="scard '+(cls||'')+'"><div class="slbl">'+lbl+'</div><div class="sval">'+val+'</div></div>'; };
+  var feAct = document.getElementById('audEstado').value;
+  var ffAct = document.getElementById('audFiltro').value;
+  // Cada tarjeta es un botón: al tocarla aplica su filtro (estado + filtro extra) a la tabla.
+  var tarjeta = function(lbl, val, cls, est, fil){
+    var activa = (feAct === est && ffAct === fil) ? ' activa' : '';
+    return '<div class="scard clicable '+(cls||'')+activa+'" role="button" tabindex="0" onclick="audTarjeta(\''+est+'\',\''+fil+'\')" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();audTarjeta(\''+est+'\',\''+fil+'\')}"><div class="slbl">'+lbl+'</div><div class="sval">'+val+'</div></div>';
+  };
   document.getElementById('audResumen').innerHTML =
-    tarjeta('Libros registrados', todos.length) +
-    tarjeta('Enviados', cuenta(function(l){ return l.estado==='enviado'; }), 'green') +
-    tarjeta('Por enviar / en bodega', cuenta(function(l){ return l.estado==='por_enviar' || l.estado==='en_bodega'; }), 'gold') +
-    tarjeta('Verificados', cuenta(function(l){ return l.verificado; }), 'green') +
-    tarjeta('Sin verificar', cuenta(function(l){ return !l.verificado && l.estado!=='siguiente'; })) +
-    tarjeta('Con novedad', cuenta(function(l){ return l.novedad && !l.novedadResuelta; }), 'red');
+    tarjeta('Libros registrados', todos.length, '', '', '') +
+    tarjeta('Enviados', cuenta(function(l){ return l.estado==='enviado'; }), 'green', 'enviado', '') +
+    tarjeta('Por enviar / en bodega', cuenta(function(l){ return l.estado==='por_enviar' || l.estado==='en_bodega'; }), 'gold', 'pendientes', '') +
+    tarjeta('Verificados', cuenta(function(l){ return l.verificado; }), 'green', '', 'verificado') +
+    tarjeta('Sin verificar', cuenta(function(l){ return !l.verificado && l.estado!=='siguiente'; }), '', '', 'sinverificar') +
+    tarjeta('Con novedad', cuenta(function(l){ return l.novedad && !l.novedadResuelta; }), 'red', '', 'novedad');
 
   var q = claveNombreInv(document.getElementById('audBuscar').value);
   var fd = selD.value;
-  var fe = document.getElementById('audEstado').value;
-  var ff = document.getElementById('audFiltro').value;
+  var fe = feAct;
+  var ff = ffAct;
   var lista = todos.filter(function(l) {
     if(fd && l.distrito !== fd) return false;
-    if(fe && l.estado !== fe) return false;
+    if(fe === 'pendientes') { if(l.estado !== 'por_enviar' && l.estado !== 'en_bodega') return false; }
+    else if(fe && l.estado !== fe) return false;
     if(ff === 'sinverificar' && (l.verificado || l.estado === 'siguiente')) return false;
     if(ff === 'verificado' && !l.verificado) return false;
     if(ff === 'novedad' && !(l.novedad && !l.novedadResuelta)) return false;
