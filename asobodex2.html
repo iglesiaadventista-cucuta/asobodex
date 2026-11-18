@@ -3562,14 +3562,16 @@ async function notificarCobroAuxiliar(r) {
     '<table><thead><tr><th>Material</th><th>Cant.</th><th>Valor unit.</th><th>Subtotal</th></tr></thead><tbody>'+filasHtml+'</tbody></table>' +
     '<div class="total">TOTAL A COBRAR: $'+Number(total).toLocaleString('es-CO')+'</div>' + pieAvisoCobro();
 
+  // La imagen del aviso es un extra: si no se puede generar/subir, el correo sale igual
+  // (con el detalle en texto) para que el auxiliar no se quede sin enterarse.
   var avisoUrl = await capturarYSubirAvisoCobro(htmlBody);
-  if(!avisoUrl) { console.warn('No se pudo generar el aviso de cobro para el pedido', r.id); return; }
+  if(!avisoUrl) console.warn('No se pudo generar la imagen del aviso de cobro para el pedido', r.id);
 
   try {
     var itemsTxt = itemsConPrecio.map(function(it){ return '• '+it.cantidad+' x '+it.nombre+' — $'+Number(it.subtotal).toLocaleString('es-CO'); }).join('\n');
     var msg = 'El pastor '+pastor+', del distrito '+distrito+', pidió (aprobado) lo siguiente:\n\n'+itemsTxt+
       '\n\nTOTAL A COBRAR: $'+Number(total).toLocaleString('es-CO')+
-      '\n\n📄 Ver aviso de cobro: '+avisoUrl+
+      (avisoUrl ? '\n\n📄 Ver aviso de cobro: '+avisoUrl : '') +
       '\n\nAsoBodex — Asociación del Noreste Colombiano';
 
     await emailjs.send(EJS.service, EJS.template, {
@@ -3586,6 +3588,7 @@ async function notificarCobroAuxiliar(r) {
     }
   } catch(e) {
     console.error('Error enviando aviso de cobro:', e);
+    toast('⚠️ No se pudo enviar el aviso de cobro al auxiliar ('+((e && (e.text||e.message)) || 'error')+'). Los cobros sí quedaron registrados en su pantalla.','warn');
   }
 }
 
