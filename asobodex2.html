@@ -2696,12 +2696,18 @@ async function enviarConGuia(btn) {
       var st = window._serverTimestamp;
       var items = r.items || [];
       var sinInventario = [];
+      var baseInv = {};
       for(var i=0; i<items.length; i++) {
         var pedItem = items[i];
         if(pedItem.rechazado) continue;
-        var invItem = STATE.items.find(function(x){ return x.nombre===pedItem.nombre; });
+        var invItem = invPorNombre(pedItem.nombre);
         if(invItem) {
-          var nuevaCant = Math.max(0, invItem.cantidad - pedItem.cantidad);
+          // Un pedido puede traer el mismo material en varias líneas (ej. 3 talonarios de
+          // 3 iglesias = 3 líneas de x1): se acumula sobre la cantidad inicial, no sobre
+          // un STATE que aún no se ha refrescado.
+          if(!baseInv[invItem.id]) baseInv[invItem.id] = {cant: invItem.cantidad, usado: 0};
+          baseInv[invItem.id].usado += pedItem.cantidad;
+          var nuevaCant = Math.max(0, baseInv[invItem.id].cant - baseInv[invItem.id].usado);
           await window._fbOps.updateDoc(window._fbOps.doc(window._db,'materiales',invItem.id), {cantidad:nuevaCant});
         } else {
           sinInventario.push(pedItem.nombre);
@@ -3408,11 +3414,42 @@ async function registrarGastoEnvio(distrito, costo, origen, nota) {
 // pedidos se rechazan y no deben cobrarse. Toma el precio real del inventario (STATE.items).
 const AUXILIAR_EMAIL = 'auxiliar@asonoreste.org';
 
+// Los nombres del formulario del pastor no siempre son idénticos a los del inventario
+// ("Arqueo de Caja" vs "ARQUEO DE CAJA", "Talonario de Diáconos" vs "TALONARIO DE
+// DIACONOS") y por eso no se descontaba el stock ni se generaba el cobro. Se busca:
+// 1) nombre exacto, 2) igual sin mayúsculas/tildes, 3) equivalencias acordadas.
+var ALIAS_INVENTARIO = {
+  'biblias': 'Biblias - bautismales',
+  'talonario de fondos confiados': 'LIBRETA DE FONDOS CONFIADOS',
+  'sobres de diezmos de ninos': 'SOBRES DE NIÑOS',
+  'hogar y familia': 'Camino al hogar - Curso para familia'
+};
+function claveNombreInv(n) {
+  return (n||'').toLowerCase().normalize('NFD')
+    .split('').filter(function(c){ var k=c.charCodeAt(0); return k<768 || k>879; }).join('')
+    .replace(/[^a-z0-9]+/g,' ').trim();
+}
+function invPorNombre(nombre) {
+  if(!nombre) return null;
+  var items = STATE.items || [];
+  var exacto = items.find(function(i){ return i.nombre === nombre; });
+  if(exacto) return exacto;
+  var k = claveNombreInv(nombre);
+  var normal = items.find(function(i){ return claveNombreInv(i.nombre) === k; });
+  if(normal) return normal;
+  var alias = ALIAS_INVENTARIO[k];
+  if(alias) {
+    var ka = claveNombreInv(alias);
+    return items.find(function(i){ return claveNombreInv(i.nombre) === ka; }) || null;
+  }
+  return null;
+}
+
 function itemsConPrecioDePedido(items) {
   var resultado = [];
   (items||[]).forEach(function(it) {
     if(it.rechazado) return;
-    var inv = STATE.items.find(function(x){ return x.nombre === it.nombre; });
+    var inv = invPorNombre(it.nombre);
     var precio = inv ? (inv.precio||0) : 0;
     if(precio > 0) {
       resultado.push({nombre:it.nombre, cantidad:it.cantidad, precioUnit:precio, subtotal:it.cantidad*precio});
@@ -4985,7 +5022,7 @@ function cambiarDistritoBD() {
   var bloque = document.getElementById('bdCantBlock');
   var info = document.getElementById('bdStockInfo');
   _distritoActualBD = sel.value;
-  var item = STATE.items.find(function(i){ return i.nombre === 'Biblias'; });
+  var item = invPorNombre('Biblias');
   if(_distritoActualBD) {
     bloque.style.opacity = '1';
     bloque.style.pointerEvents = 'auto';
@@ -5003,7 +5040,7 @@ function agregarAlCarritoBD() {
   if(!destino){ toast('Primero selecciona el distrito','warn'); return; }
   if(!cant || cant<1){ toast('Ingresa una cantidad válida','warn'); return; }
 
-  var item = STATE.items.find(function(i){ return i.nombre === 'Biblias'; });
+  var item = invPorNombre('Biblias');
   if(!item){ toast('"Biblias" no existe en el inventario','err'); return; }
 
   var yaEnCarrito = _carritoBD.reduce(function(sum,c){ return sum + c.cantidad; }, 0);
@@ -5042,7 +5079,7 @@ async function registrarDistribucionBiblias() {
   if(!resp){ toast('Ingresa el nombre del responsable','warn'); return; }
   if(!_carritoBD.length){ toast('Agrega al menos una entrega a la lista','warn'); return; }
 
-  var item = STATE.items.find(function(i){ return i.nombre === 'Biblias'; });
+  var item = invPorNombre('Biblias');
   if(!item){ toast('"Biblias" no existe en el inventario','err'); return; }
   var totalCant = _carritoBD.reduce(function(s,c){ return s + c.cantidad; }, 0);
   if(totalCant > item.cantidad){ toast('⚠️ Stock insuficiente de Biblias','err'); return; }
@@ -5475,7 +5512,7 @@ async function registrarDespacho() {
         if(nuevaCant < (item2.minimo||50)) bajos.push({material:item2.nombre, cantidad:nuevaCant});
       }
 
-      var itemBibliasDesp = STATE.items.find(function(i){ return i.nombre === 'Biblias'; });
+      var itemBibliasDesp = invPorNombre('Biblias');
       if(itemBibliasDesp && totalesPorMaterial[itemBibliasDesp.id]) {
         await descontarCertificadosPorBiblias(totalesPorMaterial[itemBibliasDesp.id], {distrito:extraerDistrito(recibe), responsable:resp, recibe:recibe});
       }
