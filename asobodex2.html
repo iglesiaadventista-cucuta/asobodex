@@ -214,8 +214,8 @@ textarea.fc{resize:vertical;min-height:70px}
   #audResumen{grid-template-columns:1fr 1fr;gap:8px}
   #audResumen .scard{padding:10px 12px}
   #audResumen .sval{font-size:22px}
-  #audTbl td:first-child,#view-auditoria thead th:first-child{padding-left:12px !important}
-  #audTbl td{padding-left:8px;padding-right:8px}
+  #audTbl{padding:0 !important}
+  #audBuscar,#audDistrito,#audEstado,#audFiltro{width:100% !important;font-size:14px !important;padding:10px 12px !important}
   .tname,.tsub{display:none}
   .tab span{display:none}
   .uchip .un,.uchip .ur{display:none}
@@ -830,10 +830,7 @@ textarea.fc{resize:vertical;min-height:70px}
             </select>
           </div>
         </div>
-        <div class="tw"><table>
-          <thead><tr><th style="padding-left:34px">Numeración</th><th>Estado</th><th>Enviado</th><th>Verificación</th></tr></thead>
-          <tbody id="audTbl"></tbody>
-        </table></div>
+        <div id="audTbl" style="padding:0 12px 6px"></div>
         <div id="audMas" style="padding:10px;text-align:center"></div>
       </div>
     </div>
@@ -4856,7 +4853,7 @@ function renderAuditoria() {
   document.getElementById('audConteo').textContent = '(' + lista.length + ')';
   var esAuditor = STATE.user && STATE.user.role === 'auditor';
   if(!lista.length) {
-    tbl.innerHTML = '<tr><td colspan="4" class="empty" style="text-align:center">Sin libros con esos filtros</td></tr>';
+    tbl.innerHTML = '<div class="empty" style="text-align:center;padding:24px">Sin libros con esos filtros</div>';
     document.getElementById('audMas').innerHTML = '';
     return;
   }
@@ -4871,46 +4868,67 @@ function renderAuditoria() {
     if(x.verificado) g.v++;
     if(x.novedad && !x.novedadResuelta) g.nov++;
   });
+  // Tarjetas (no tabla): un bloque por iglesia y, adentro, sus libros apilados. Se lee bien en celular.
+  var html = '';
   var _prevD = null, _prevI = null;
-  tbl.innerHTML = _visibles.map(function(l) {
-    var encabezado = '';
+  _visibles.forEach(function(l) {
     if(l.distrito !== _prevD) {
-      encabezado += '<tr><td colspan="4" style="background:rgba(58,143,163,.18);padding:7px 14px;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--teal)">📍 '+escLib(l.distrito)+'</td></tr>';
+      if(_prevI !== null) html += '</div>';
+      _prevI = null;
+      html += '<div style="margin:18px 2px 8px;font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--teal)">📍 '+escLib(l.distrito)+'</div>';
     }
     if(l.distrito !== _prevD || l.iglesia !== _prevI) {
+      if(_prevI !== null) html += '</div>';
       var g = _grupos[l.distrito + '|' + l.iglesia];
-      encabezado += '<tr><td colspan="4" style="background:rgba(255,255,255,.03);padding:10px 14px;border-top:1px solid var(--bd)">' +
-        '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">' +
-          '<span style="font-size:14px;font-weight:700">⛪ '+escLib(l.iglesia)+'</span>' +
-          (l.esCentral ? '<span class="b btl" style="font-size:9px">Central</span>' : '') +
-          '<span style="font-family:monospace;font-size:11px;color:var(--teal)">'+escLib(l.codigoIglesia||'')+'</span>' +
-          '<span style="margin-left:auto;font-size:11px;color:var(--t2)">'+g.n+' libro'+(g.n===1?'':'s')+' · '+g.v+' verificado'+(g.v===1?'':'s')+(g.nov ? ' · <span style="color:var(--red);font-weight:700">⚠ '+g.nov+' con novedad</span>' : '')+'</span>' +
-        '</div></td></tr>';
-    }
-    _prevD = l.distrito; _prevI = l.iglesia;
-    var detalleVerif = l.verificado ? '<div style="font-size:10px;color:var(--t2);margin-top:3px">'+escLib(l.verificadoPor||'')+(l.verificadoEn?' · '+fmtD(l.verificadoEn):'')+'</div>' : '';
-    var verif = l.verificado
-      ? '<span class="b bok">✓ Verificado</span>' +
-        (esAuditor ? '<button class="btn bsm" style="font-size:10px;padding:2px 8px" onclick="verificarLibro(\''+l.id+'\',false)">Quitar</button>' : '')
-      : (esAuditor && l.estado !== 'siguiente' ? '<button class="btn bsm bgrn" onclick="verificarLibro(\''+l.id+'\',true)">✓ Verificar</button>' : '<span style="color:var(--t3)">—</span>');
-    var nov = '';
-    if(l.novedad) {
-      nov = '<div style="margin-top:6px;padding:6px 8px;border-radius:6px;font-size:11px;'+(l.novedadResuelta?'background:var(--green-d);color:var(--green)':'background:rgba(231,76,60,.12);color:var(--red)')+'">' +
-        (l.novedadResuelta ? '✔ Novedad resuelta: ' : '⚠️ Novedad: ') + escLib(l.novedad) +
-        '<div style="opacity:.8;font-size:10px">'+escLib(l.novedadPor||'')+(l.novedadEn?' · '+fmtD(l.novedadEn):'')+'</div>' +
-        (l.respuestaAdmin ? '<div style="margin-top:3px;font-size:11px">Respuesta del administrador: '+escLib(l.respuestaAdmin)+'</div>' : '') +
+      html += '<div style="border:1px solid var(--bd);border-radius:12px;margin-bottom:10px;overflow:hidden;background:var(--navy2)">' +
+        '<div style="padding:12px 14px;background:rgba(58,143,163,.10)">' +
+          '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">' +
+            '<span style="font-size:15px;font-weight:700">⛪ '+escLib(l.iglesia)+'</span>' +
+            (l.esCentral ? '<span class="b btl" style="font-size:9px">Central</span>' : '') +
+            '<span style="font-family:monospace;font-size:11px;color:var(--teal)">'+escLib(l.codigoIglesia||'')+'</span>' +
+          '</div>' +
+          '<div style="font-size:11px;color:var(--t2);margin-top:4px">'+g.n+' libro'+(g.n===1?'':'s')+' · '+g.v+' verificado'+(g.v===1?'':'s')+(g.nov ? ' · <span style="color:var(--red);font-weight:700">⚠ '+g.nov+' con novedad</span>' : '')+'</div>' +
         '</div>';
     }
-    var btnNov = esAuditor && l.estado !== 'siguiente' ? '<button class="btn bsm" style="font-size:10px;padding:2px 8px" title="Reportar un problema con este libro" onclick="registrarNovedadLibro(\''+l.id+'\')">⚠️ '+(l.novedad && !l.novedadResuelta ? 'Editar' : 'Novedad')+'</button>' : '';
-    return encabezado + '<tr>' +
-      '<td style="padding-left:34px"><span style="font-family:monospace;font-size:13px">'+escLib(l.numeracion||'—')+'</span>' +
-        (l.nota ? '<div style="font-size:10px;color:var(--t2);margin-top:3px">📝 '+escLib(l.nota)+'</div>' : '') +
-        (l.revisar ? '<div style="margin-top:3px"><span style="display:inline-block;font-size:10px;color:var(--amber);background:rgba(243,156,18,.12);padding:1px 7px;border-radius:10px">⚠ '+escLib(l.revisar)+'</span></div>' : '') + '</td>' +
-      '<td><span class="b '+(AUD_ESTADO_CLASE[l.estado]||'bgr')+'">'+(AUD_ESTADO_TXT[l.estado]||escLib(l.estado))+'</span></td>' +
-      '<td style="font-size:12px;white-space:nowrap">'+(l.fechaEntrega ? fmtD(l.fechaEntrega)+'<div style="font-size:10px;color:var(--t2)">'+tiempoDesde(l.fechaEntrega)+'</div>' : '<span style="color:var(--t3)">'+(l.estado==='enviado'?'sin fecha':'—')+'</span>')+'</td>' +
-      '<td><div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">'+verif+btnNov+'</div>'+detalleVerif+nov+'</td>' +
-    '</tr>';
-  }).join('');
+    _prevD = l.distrito; _prevI = l.iglesia;
+
+    var detalleVerif = l.verificado ? '<div style="font-size:10px;color:var(--t2);margin-top:6px">Verificado por '+escLib(l.verificadoPor||'')+(l.verificadoEn?' · '+fmtD(l.verificadoEn):'')+'</div>' : '';
+    var estiloBtn = 'flex:1;justify-content:center;padding:9px 10px;font-size:13px;min-height:38px';
+    var verif = '';
+    if(l.verificado) {
+      verif = '<span class="b bok" style="flex:1;text-align:center;padding:9px 10px;font-size:13px">✓ Verificado</span>' +
+        (esAuditor ? '<button class="btn bsm" style="'+estiloBtn+'" onclick="verificarLibro(\''+l.id+'\',false)">Quitar</button>' : '');
+    } else if(esAuditor && l.estado !== 'siguiente') {
+      verif = '<button class="btn bsm bgrn" style="'+estiloBtn+'" onclick="verificarLibro(\''+l.id+'\',true)">✓ Verificar</button>';
+    }
+    var btnNov = esAuditor && l.estado !== 'siguiente'
+      ? '<button class="btn bsm" style="'+estiloBtn+'" onclick="registrarNovedadLibro(\''+l.id+'\')">⚠️ '+(l.novedad && !l.novedadResuelta ? 'Editar novedad' : 'Novedad')+'</button>' : '';
+    var nov = '';
+    if(l.novedad) {
+      nov = '<div style="margin-top:8px;padding:8px 10px;border-radius:8px;font-size:12px;'+(l.novedadResuelta?'background:var(--green-d);color:var(--green)':'background:rgba(231,76,60,.12);color:var(--red)')+'">' +
+        (l.novedadResuelta ? '✔ Novedad resuelta: ' : '⚠️ Novedad: ') + escLib(l.novedad) +
+        '<div style="opacity:.8;font-size:10px;margin-top:2px">'+escLib(l.novedadPor||'')+(l.novedadEn?' · '+fmtD(l.novedadEn):'')+'</div>' +
+        (l.respuestaAdmin ? '<div style="margin-top:4px;font-size:12px">Respuesta del administrador: '+escLib(l.respuestaAdmin)+'</div>' : '') +
+        '</div>';
+    }
+    var fechaTxt = l.fechaEntrega
+      ? '📅 '+fmtD(l.fechaEntrega)+' · <strong style="color:var(--t1)">'+tiempoDesde(l.fechaEntrega)+'</strong>'
+      : (l.estado === 'enviado' ? 'Sin fecha de envío registrada' : 'Aún no enviado');
+
+    html += '<div style="padding:12px 14px;border-top:1px solid var(--bd)">' +
+      '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">' +
+        '<span style="font-family:monospace;font-size:15px;font-weight:700">'+escLib(l.numeracion||'—')+'</span>' +
+        '<span class="b '+(AUD_ESTADO_CLASE[l.estado]||'bgr')+'">'+(AUD_ESTADO_TXT[l.estado]||escLib(l.estado))+'</span>' +
+      '</div>' +
+      '<div style="font-size:12px;color:var(--t2);margin-top:5px">'+fechaTxt+'</div>' +
+      (l.nota ? '<div style="font-size:11px;color:var(--t2);margin-top:4px">📝 '+escLib(l.nota)+'</div>' : '') +
+      (l.revisar ? '<div style="margin-top:5px"><span style="display:inline-block;font-size:11px;color:var(--amber);background:rgba(243,156,18,.12);padding:2px 8px;border-radius:10px">⚠ '+escLib(l.revisar)+'</span></div>' : '') +
+      ((verif || btnNov) ? '<div style="display:flex;gap:8px;margin-top:10px;max-width:380px">'+verif+btnNov+'</div>' : '') +
+      detalleVerif + nov +
+    '</div>';
+  });
+  if(_prevI !== null) html += '</div>';
+  tbl.innerHTML = html;
   document.getElementById('audMas').innerHTML = lista.length > _audLimite
     ? '<button class="btn bsm" onclick="audMasFilas()">Mostrar más ('+(lista.length - _audLimite)+' restantes)</button>' : '';
 }
