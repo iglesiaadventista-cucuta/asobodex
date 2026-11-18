@@ -258,7 +258,8 @@ textarea.fc{resize:vertical;min-height:70px}
       <button class="tab tesoreria-tab" data-view="tesoreria" title="Indicadores de Bodega" style="display:none">📈 <span>Indicadores de Bodega</span></button>
       <button class="tab fact-tab" data-view="remisiones" title="Remisiones">🧾 <span>Remisiones</span></button>
       <button class="tab dist-tab" data-view="distribucion" title="Distribución">📦 <span>Distribución</span></button>
-      <button class="tab master-only" data-view="libros" title="Libros">📖 <span>Libros</span></button>
+      <button class="tab auditor-tab" data-view="auditoria" title="Auditoría de libros" style="display:none">🔎 <span>Auditoría de libros</span></button>
+      <button class="tab master-only" data-view="libros" title="Libros">📖 <span>Libros</span> <span class="tbadge" id="librosBadge" style="display:none">0</span></button>
       <button class="tab master-only" data-view="pastores" title="Pastores">👥 <span>Pastores</span></button>
       <button class="tab admin-tab" data-view="historial" title="Historial">🕐 <span>Historial</span></button>
     </div>
@@ -743,6 +744,23 @@ textarea.fc{resize:vertical;min-height:70px}
         </div>
       </div>
 
+      <div class="panel" id="librosNovedadesPanel" style="margin-bottom:16px;display:none;border-color:var(--amber)">
+        <div class="ph"><span class="pt" style="color:var(--amber)">⚠️ Novedades reportadas por el auditor</span></div>
+        <div id="librosNovedades" class="pb" style="padding:6px 16px"></div>
+      </div>
+
+      <details class="panel admin-el" style="padding:0;margin-bottom:16px">
+        <summary style="cursor:pointer;padding:12px 16px;font-size:11px;font-weight:600;color:var(--teal);text-transform:uppercase;letter-spacing:.08em">📥 Importar historial de libros desde Excel</summary>
+        <div style="padding:0 16px 16px">
+          <div style="font-size:12px;color:var(--t2);margin-bottom:10px">Columnas: <strong>Distrito, Iglesia, Código, Numeración, Estado, Fecha, Central, Nota, Revisar</strong>. Estado: enviado, por_enviar, en_bodega o siguiente. Se puede importar el mismo archivo varias veces: actualiza los libros que ya existen (sin borrar la verificación ni las novedades del auditor).</div>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:8px">
+            <input type="file" id="libExcelInput" accept=".xlsx,.xls,.csv" class="fc" style="padding:8px;flex:1;min-width:200px">
+            <button class="btn bgrn" onclick="importarLibrosExcel()">📥 Importar</button>
+          </div>
+          <div id="libImportResultado" style="font-size:12px;color:var(--t2)"></div>
+        </div>
+      </details>
+
       <div class="g2">
         <div>
           <div class="panel">
@@ -768,6 +786,45 @@ textarea.fc{resize:vertical;min-height:70px}
             </div>
           </div>
         </div>
+      </div>
+    </div>
+
+    <!-- AUDITORÍA DE LIBROS DE DIÁCONOS (usuario auditor: solo lectura + verificar + novedades) -->
+    <div class="view" id="view-auditoria">
+      <div style="margin-bottom:14px">
+        <div style="font-size:16px;font-weight:700">🔎 Auditoría de libros de Diáconos</div>
+        <div style="font-size:12px;color:var(--t2);margin-top:2px">Revisa que cada libro (numeración) sea el de su iglesia y cuánto tiempo hace que se envió. Marca ✓ Verificado cuando esté correcto, o reporta una novedad si algo no cuadra — el administrador la ve en su usuario.</div>
+      </div>
+
+      <div class="g3" id="audResumen" style="margin-bottom:16px"></div>
+
+      <div class="panel">
+        <div class="ph" style="gap:8px">
+          <span class="pt">Libros registrados <span id="audConteo" style="color:var(--t2);font-weight:500;text-transform:none;letter-spacing:0"></span></span>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <input type="text" class="fc" id="audBuscar" placeholder="Iglesia, código o numeración..." oninput="audReset()" style="width:200px;padding:6px 10px;font-size:12px">
+            <select class="fc" id="audDistrito" onchange="audReset()" style="width:auto;padding:6px 10px;font-size:12px"><option value="">Todos los distritos</option></select>
+            <select class="fc" id="audEstado" onchange="audReset()" style="width:auto;padding:6px 10px;font-size:12px">
+              <option value="">Todos los estados</option>
+              <option value="enviado">Enviado</option>
+              <option value="por_enviar">Por enviar</option>
+              <option value="en_bodega">En bodega</option>
+              <option value="siguiente">Siguiente libro</option>
+            </select>
+            <select class="fc" id="audFiltro" onchange="audReset()" style="width:auto;padding:6px 10px;font-size:12px">
+              <option value="">Sin filtro extra</option>
+              <option value="sinverificar">Sin verificar</option>
+              <option value="verificado">Verificados</option>
+              <option value="novedad">Con novedad</option>
+              <option value="alerta">Con alerta de datos</option>
+            </select>
+          </div>
+        </div>
+        <div class="tw"><table>
+          <thead><tr><th>Distrito</th><th>Iglesia</th><th>Código</th><th>Numeración</th><th>Estado</th><th>Enviado</th><th>Verificación</th></tr></thead>
+          <tbody id="audTbl"></tbody>
+        </table></div>
+        <div id="audMas" style="padding:10px;text-align:center"></div>
       </div>
     </div>
 
@@ -1439,6 +1496,7 @@ const STATE = {
   movements: [],
   requests: [],
   libros: [],
+  librosTodos: [],
   remisiones: [],
   distribuciones: [],
   periodosCerrados: {}, // { 'YYYY-MM': {cerradoPor, cerradoEn} }
@@ -1629,7 +1687,7 @@ function loginOk(u) {
   document.getElementById('app').classList.add('show');
   // Logo shown in avatar - no initials needed
   document.getElementById('uNm').textContent=u.nombre;
-  document.getElementById('uRl').textContent={admin:'Administrador',reader:'Consultor',facturador:'Facturador',tesorero:'Tesorero',secretaria:'Secretaría',auxiliar:'Auxiliar Contable'}[u.role]||u.role;
+  document.getElementById('uRl').textContent={admin:'Administrador',reader:'Consultor',facturador:'Facturador',tesorero:'Tesorero',secretaria:'Secretaría',auxiliar:'Auxiliar Contable',auditor:'Auditor'}[u.role]||u.role;
   const isAdmin = u.role==='admin';
   const isReader = u.role==='reader';
   const isFacturador = u.role==='facturador';
@@ -1659,9 +1717,17 @@ function loginOk(u) {
   // al admin la información le llega por correo (aviso de cobro), no necesita
   // esta pantalla operativa aparte.
   document.querySelectorAll('.cobros-tab').forEach(el=>el.style.display=isAuxiliar?'':'none');
+  // Auditor: solo ve su pantalla de auditoría de libros (revisar, verificar y reportar
+  // novedades); el resto del menú se oculta y showView le cierra el paso al resto.
+  const isAuditor = u.role==='auditor';
+  document.querySelectorAll('.auditor-tab').forEach(el=>el.style.display=isAuditor?'':'none');
+  if(isAuditor) {
+    document.querySelectorAll('#tabs .tab').forEach(function(el){ if(!el.classList.contains('auditor-tab')) el.style.display='none'; });
+  }
   renderAll();
   buildPedidoForm();
   if(isSecretaria) { setTimeout(function(){ showView('biblias'); }, 0); }
+  if(isAuditor) { setTimeout(function(){ showView('auditoria'); }, 0); }
 }
 function mostrarBienvenida(u) {
   var isMaster = u.role === 'admin';
@@ -1669,7 +1735,16 @@ function mostrarBienvenida(u) {
   var isSecretaria = u.role === 'secretaria';
   var isAuxiliar = u.role === 'auxiliar';
   var contenido = '';
-  if (isAuxiliar) {
+  if (u.role === 'auditor') {
+    contenido = '<div style="text-align:center;margin-bottom:20px"><div style="font-size:40px;margin-bottom:8px">🔎</div>' +
+      '<div style="font-size:18px;font-weight:700;color:var(--teal)">Bienvenido, '+u.nombre+'</div>' +
+      '<div style="font-size:12px;color:var(--t2);margin-top:4px">Auditoría de libros de Diáconos</div></div>' +
+      '<div style="display:flex;flex-direction:column;gap:8px;font-size:13px">' +
+      mkRoleItem('🔎','Auditoría de libros','Revisa que cada libro (numeración) sea el de su iglesia y cuánto tiempo hace que se envió') +
+      mkRoleItem('✓','Verificar','Marca ✓ Verificado cuando el libro esté correcto') +
+      mkRoleItem('⚠️','Novedades','Si un libro es incorrecto o algo no cuadra, repórtalo — el administrador lo ve en su usuario') +
+      '</div>';
+  } else if (isAuxiliar) {
     contenido = '<div style="text-align:center;margin-bottom:20px"><div style="font-size:40px;margin-bottom:8px">💵</div>' +
       '<div style="font-size:18px;font-weight:700;color:var(--teal)">Bienvenida, '+u.nombre+'</div>' +
       '<div style="font-size:12px;color:var(--t2);margin-top:4px">Cobros a pastores y distritos</div></div>' +
@@ -1784,12 +1859,23 @@ function startListeners(db) {
 
   // Listener para libros de diáconos
   window._unsubscribers.push(ons(q(col(db,'libros_diaconos'), ord('fechaEntrega','desc')), function(snap) {
-    STATE.libros = snap.docs.map(function(d) {
+    // librosTodos = cada libro registrado (enviados, por enviar, en bodega, siguiente…),
+    // lo usa la Auditoría. STATE.libros = solo los ya enviados y con fecha: es lo que
+    // usa el resto de la app (alertas de meses, aviso de libro reciente, códigos).
+    STATE.librosTodos = snap.docs.map(function(d) {
       var data = d.data();
+      var estado = data.estado || 'enviado';
+      var fe = null;
+      if(data.fechaEntrega && data.fechaEntrega.toDate) fe = data.fechaEntrega.toDate();
+      else if(estado === 'enviado' && data.origen !== 'excel') fe = new Date(); // recién creado: la fecha del servidor aún no llega
       return Object.assign({id: d.id}, data, {
-        fechaEntrega: data.fechaEntrega && data.fechaEntrega.toDate ? data.fechaEntrega.toDate() : new Date()
+        estado: estado,
+        fechaEntrega: fe,
+        verificadoEn: data.verificadoEn && data.verificadoEn.toDate ? data.verificadoEn.toDate() : null,
+        novedadEn: data.novedadEn && data.novedadEn.toDate ? data.novedadEn.toDate() : null
       });
     });
+    STATE.libros = STATE.librosTodos.filter(function(l){ return l.estado === 'enviado' && l.fechaEntrega; });
     renderAll();
   }));
 
@@ -1906,6 +1992,8 @@ function showView(v) {
   if(v === 'tesoreria' && !(isMasterAdmin || (STATE.user && STATE.user.role==='tesorero'))) { return; }
   if(v === 'biblias' && !(STATE.user && STATE.user.role==='secretaria')) { return; }
   if(v === 'distribucionbiblias' && !(STATE.user && STATE.user.role==='secretaria')) { return; }
+  if(v === 'auditoria' && !(STATE.user && STATE.user.role==='auditor')) { return; }
+  if(STATE.user && STATE.user.role==='auditor' && v !== 'auditoria') { return; }
   if(v === 'cobros' && !(STATE.user && STATE.user.role==='auxiliar')) { return; }
   document.querySelectorAll('.view').forEach(el=>el.classList.remove('active'));
   document.querySelectorAll('.tab').forEach(el=>el.classList.remove('active'));
@@ -1916,7 +2004,7 @@ function showView(v) {
 }
 
 // ── RENDER ───────────────────────────────────────────────────
-function renderAll() { renderDash(); renderInv(); renderDesp(); renderSols(); renderHist(); renderPedidos(); renderMisSolicitudes(); renderLibros(); renderRemisiones(); renderDistribuciones(); renderDistribucionesBiblias(); popSelects(); updBadges(); renderTesoreria(); renderBiblias(); renderCobros(); renderPastores(); }
+function renderAll() { renderDash(); renderInv(); renderDesp(); renderSols(); renderHist(); renderPedidos(); renderMisSolicitudes(); renderLibros(); renderRemisiones(); renderDistribuciones(); renderDistribucionesBiblias(); renderAuditoria(); renderNovedadesLibros(); popSelects(); updBadges(); renderTesoreria(); renderBiblias(); renderCobros(); renderPastores(); }
 
 var _chartMain = null, _chartDona = null;
 var _dashActiveTab = 'resumen';
@@ -2866,6 +2954,9 @@ function updBadges() {
   const nb=pedidosBibliaPendientes().length;
   const bb=document.getElementById('bibliasBadge');
   if(bb){ bb.textContent=nb; bb.style.display=nb>0?'':'none'; }
+  const nov=(STATE.librosTodos||[]).filter(l=>l.novedad && !l.novedadResuelta).length;
+  const bl=document.getElementById('librosBadge');
+  if(bl){ bl.textContent=nov; bl.style.display=nov>0?'':'none'; }
 }
 function popSelects() {
   const opts=STATE.items.map(function(i){ return '<option value="'+i.id+'">'+i.nombre+' ('+i.cantidad+' und)</option>'; }).join('');
@@ -4652,6 +4743,8 @@ async function registrarLibroDiacono(iglesia, distrito, codigoIglesia, motivo) {
       distrito: distrito,
       codigoIglesia: codigoFinal,
       motivo: motivo || '',
+      estado: 'enviado',
+      origen: 'sistema',
       fechaEntrega: st()
     });
     console.log('✓ Libro de diáconos registrado:', iglesia, distrito, codigoFinal, motivo||'');
@@ -4659,6 +4752,243 @@ async function registrarLibroDiacono(iglesia, distrito, codigoIglesia, motivo) {
   } catch(e) {
     console.error('✗ Error registrando libro:', e);
     toast('Error registrando libro: '+e.message,'err');
+  }
+}
+
+// ── AUDITORÍA DE LIBROS DE DIÁCONOS ──────────────────────────────────────────
+// Cada libro es un documento de libros_diaconos con su numeración (rango de 50),
+// estado (enviado / por_enviar / en_bodega / siguiente), fecha y, si el auditor ya
+// lo revisó, quién lo verificó o qué novedad reportó.
+var AUD_ESTADO_TXT = {enviado:'Enviado', por_enviar:'Por enviar', en_bodega:'En bodega', siguiente:'Siguiente libro'};
+var AUD_ESTADO_CLASE = {enviado:'bok', por_enviar:'bgd', en_bodega:'bwn', siguiente:'bgr'};
+var _audLimite = 100;
+
+function escLib(s) {
+  return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function audReset() { _audLimite = 100; renderAuditoria(); }
+function audMasFilas() { _audLimite += 100; renderAuditoria(); }
+
+function tiempoDesde(fecha) {
+  if(!fecha) return '';
+  var dias = Math.floor((new Date() - fecha) / 86400000);
+  if(dias < 0) return '';
+  if(dias < 31) return 'hace ' + dias + ' día' + (dias===1?'':'s');
+  var meses = Math.floor(dias / 30.44);
+  if(meses < 12) return 'hace ' + meses + ' mes' + (meses===1?'':'es');
+  var a = Math.floor(meses / 12), m = meses % 12;
+  return 'hace ' + a + ' año' + (a===1?'':'s') + (m ? ' y ' + m + ' mes' + (m===1?'':'es') : '');
+}
+
+function renderAuditoria() {
+  var tbl = document.getElementById('audTbl');
+  if(!tbl) return;
+  var todos = STATE.librosTodos || [];
+
+  var selD = document.getElementById('audDistrito');
+  var ds = [];
+  todos.forEach(function(l){ if(l.distrito && ds.indexOf(l.distrito) === -1) ds.push(l.distrito); });
+  ds.sort();
+  var dKey = ds.join('|');
+  if(selD.getAttribute('data-opts') !== dKey) {
+    var previo = selD.value;
+    selD.innerHTML = '<option value="">Todos los distritos</option>' + ds.map(function(d){ return '<option value="'+escLib(d)+'">'+escLib(d)+'</option>'; }).join('');
+    selD.value = previo;
+    selD.setAttribute('data-opts', dKey);
+  }
+
+  var cuenta = function(fn){ return todos.filter(fn).length; };
+  var tarjeta = function(lbl, val, cls){ return '<div class="scard '+(cls||'')+'"><div class="slbl">'+lbl+'</div><div class="sval">'+val+'</div></div>'; };
+  document.getElementById('audResumen').innerHTML =
+    tarjeta('Libros registrados', todos.length) +
+    tarjeta('Enviados', cuenta(function(l){ return l.estado==='enviado'; }), 'green') +
+    tarjeta('Por enviar / en bodega', cuenta(function(l){ return l.estado==='por_enviar' || l.estado==='en_bodega'; }), 'gold') +
+    tarjeta('Verificados', cuenta(function(l){ return l.verificado; }), 'green') +
+    tarjeta('Sin verificar', cuenta(function(l){ return !l.verificado && l.estado!=='siguiente'; })) +
+    tarjeta('Con novedad', cuenta(function(l){ return l.novedad && !l.novedadResuelta; }), 'red');
+
+  var q = claveNombreInv(document.getElementById('audBuscar').value);
+  var fd = selD.value;
+  var fe = document.getElementById('audEstado').value;
+  var ff = document.getElementById('audFiltro').value;
+  var lista = todos.filter(function(l) {
+    if(fd && l.distrito !== fd) return false;
+    if(fe && l.estado !== fe) return false;
+    if(ff === 'sinverificar' && (l.verificado || l.estado === 'siguiente')) return false;
+    if(ff === 'verificado' && !l.verificado) return false;
+    if(ff === 'novedad' && !(l.novedad && !l.novedadResuelta)) return false;
+    if(ff === 'alerta' && !l.revisar) return false;
+    if(q) {
+      var hay = claveNombreInv((l.iglesia||'') + ' ' + (l.codigoIglesia||'') + ' ' + (l.numeracion||''));
+      if(hay.indexOf(q) === -1) return false;
+    }
+    return true;
+  });
+  lista.sort(function(a,b) {
+    return (a.distrito||'').localeCompare(b.distrito||'') || (a.iglesia||'').localeCompare(b.iglesia||'') || (a.numeracion||'').localeCompare(b.numeracion||'');
+  });
+
+  document.getElementById('audConteo').textContent = '(' + lista.length + ')';
+  var esAuditor = STATE.user && STATE.user.role === 'auditor';
+  if(!lista.length) {
+    tbl.innerHTML = '<tr><td colspan="7" class="empty" style="text-align:center">Sin libros con esos filtros</td></tr>';
+    document.getElementById('audMas').innerHTML = '';
+    return;
+  }
+  tbl.innerHTML = lista.slice(0, _audLimite).map(function(l) {
+    var verif = l.verificado
+      ? '<span class="b bok">✓ Verificado</span><div style="font-size:10px;color:var(--t2);margin-top:2px">'+escLib(l.verificadoPor||'')+(l.verificadoEn?' · '+fmtD(l.verificadoEn):'')+'</div>' +
+        (esAuditor ? '<button class="btn bsm" style="margin-top:4px;font-size:10px;padding:2px 8px" onclick="verificarLibro(\''+l.id+'\',false)">Quitar</button>' : '')
+      : (esAuditor && l.estado !== 'siguiente' ? '<button class="btn bsm bgrn" onclick="verificarLibro(\''+l.id+'\',true)">✓ Verificar</button>' : '<span style="color:var(--t3)">—</span>');
+    var nov = '';
+    if(l.novedad) {
+      nov = '<div style="margin-top:6px;padding:6px 8px;border-radius:6px;font-size:11px;'+(l.novedadResuelta?'background:var(--green-d);color:var(--green)':'background:rgba(231,76,60,.12);color:var(--red)')+'">' +
+        (l.novedadResuelta ? '✔ Novedad resuelta: ' : '⚠️ Novedad: ') + escLib(l.novedad) +
+        '<div style="opacity:.8;font-size:10px">'+escLib(l.novedadPor||'')+(l.novedadEn?' · '+fmtD(l.novedadEn):'')+'</div>' +
+        (l.respuestaAdmin ? '<div style="margin-top:3px;font-size:11px">Respuesta del administrador: '+escLib(l.respuestaAdmin)+'</div>' : '') +
+        '</div>';
+    }
+    var btnNov = esAuditor && l.estado !== 'siguiente' ? '<button class="btn bsm" style="margin-top:4px;font-size:10px;padding:2px 8px" onclick="registrarNovedadLibro(\''+l.id+'\')">⚠️ '+(l.novedad && !l.novedadResuelta ? 'Editar novedad' : 'Reportar novedad')+'</button>' : '';
+    return '<tr>' +
+      '<td style="font-size:12px">'+escLib(l.distrito)+'</td>' +
+      '<td><strong>'+escLib(l.iglesia)+'</strong>'+(l.esCentral?' <span class="b btl" style="font-size:9px">Central</span>':'') +
+        (l.nota ? '<div style="font-size:10px;color:var(--t2);margin-top:2px">📝 '+escLib(l.nota)+'</div>' : '') +
+        (l.revisar ? '<div style="font-size:10px;color:var(--amber);margin-top:2px">⚠ Datos por revisar: '+escLib(l.revisar)+'</div>' : '') + '</td>' +
+      '<td style="font-family:monospace;color:var(--teal)">'+escLib(l.codigoIglesia||'—')+'</td>' +
+      '<td style="font-family:monospace;font-size:12px">'+escLib(l.numeracion||'—')+'</td>' +
+      '<td><span class="b '+(AUD_ESTADO_CLASE[l.estado]||'bgr')+'">'+(AUD_ESTADO_TXT[l.estado]||escLib(l.estado))+'</span></td>' +
+      '<td style="font-size:12px;white-space:nowrap">'+(l.fechaEntrega ? fmtD(l.fechaEntrega)+'<div style="font-size:10px;color:var(--t2)">'+tiempoDesde(l.fechaEntrega)+'</div>' : '<span style="color:var(--t3)">'+(l.estado==='enviado'?'sin fecha':'—')+'</span>')+'</td>' +
+      '<td>'+verif+btnNov+nov+'</td>' +
+    '</tr>';
+  }).join('');
+  document.getElementById('audMas').innerHTML = lista.length > _audLimite
+    ? '<button class="btn bsm" onclick="audMasFilas()">Mostrar más ('+(lista.length - _audLimite)+' restantes)</button>' : '';
+}
+
+async function verificarLibro(id, valor) {
+  if(!STATE.user || STATE.user.role !== 'auditor') { toast('Solo el auditor puede verificar libros','err'); return; }
+  try {
+    if(window._db && window._fbOps) {
+      await window._fbOps.updateDoc(window._fbOps.doc(window._db,'libros_diaconos',id), {
+        verificado: !!valor,
+        verificadoPor: valor ? (STATE.user.nombre || '') : '',
+        verificadoEn: valor ? window._serverTimestamp() : null
+      });
+      toast(valor ? '✓ Libro verificado' : 'Verificación quitada');
+    }
+  } catch(e) { toast('Error: '+e.message,'err'); console.error(e); }
+}
+
+async function registrarNovedadLibro(id) {
+  if(!STATE.user || STATE.user.role !== 'auditor') { toast('Solo el auditor puede reportar novedades','err'); return; }
+  var l = (STATE.librosTodos||[]).find(function(x){ return x.id === id; });
+  if(!l) return;
+  var actual = (l.novedad && !l.novedadResuelta) ? l.novedad : '';
+  var texto = prompt('Novedad del libro de ' + l.iglesia + ' (' + (l.numeracion||'sin numeración') + '):\n\nEj.: el libro físico no corresponde a esta iglesia, numeración incorrecta, no lo recibieron…', actual);
+  if(texto === null) return;
+  texto = texto.trim();
+  if(!texto) { toast('Escribe cuál es la novedad','warn'); return; }
+  try {
+    if(window._db && window._fbOps) {
+      await window._fbOps.updateDoc(window._fbOps.doc(window._db,'libros_diaconos',id), {
+        novedad: texto, novedadPor: STATE.user.nombre || '', novedadEn: window._serverTimestamp(), novedadResuelta: false
+      });
+      toast('⚠️ Novedad reportada — el administrador la verá en su usuario');
+    }
+  } catch(e) { toast('Error: '+e.message,'err'); console.error(e); }
+}
+
+// Lado del administrador: novedades que el auditor reportó y aún no se resuelven
+function renderNovedadesLibros() {
+  var panel = document.getElementById('librosNovedadesPanel');
+  var cont = document.getElementById('librosNovedades');
+  if(!panel || !cont) return;
+  var pend = (STATE.librosTodos||[]).filter(function(l){ return l.novedad && !l.novedadResuelta; });
+  panel.style.display = pend.length ? 'block' : 'none';
+  cont.innerHTML = pend.map(function(l) {
+    return '<div class="log"><div class="ldot" style="background:var(--amber)"></div>' +
+      '<div class="ltxt"><strong>'+escLib(l.iglesia)+'</strong> <span style="color:var(--t2)">· '+escLib(l.distrito)+' · '+escLib(l.codigoIglesia||'')+' · '+escLib(l.numeracion||'')+'</span>' +
+      '<div class="lsub" style="color:var(--amber)">⚠️ '+escLib(l.novedad)+'</div>' +
+      '<div class="lsub">'+escLib(l.novedadPor||'')+(l.novedadEn?' · '+fmtD(l.novedadEn):'')+'</div></div>' +
+      '<button class="btn bsm bgrn" onclick="resolverNovedadLibro(\''+l.id+'\')">✓ Marcar resuelta</button></div>';
+  }).join('');
+}
+
+async function resolverNovedadLibro(id) {
+  if(!STATE.user || STATE.user.role !== 'admin') { toast('No tienes permiso para esto','err'); return; }
+  var resp = prompt('¿Qué se hizo para resolverla? (opcional — el auditor lo verá)', '');
+  if(resp === null) return;
+  try {
+    if(window._db && window._fbOps) {
+      await window._fbOps.updateDoc(window._fbOps.doc(window._db,'libros_diaconos',id), {
+        novedadResuelta: true, respuestaAdmin: resp.trim(), resueltaEn: window._serverTimestamp()
+      });
+      toast('✓ Novedad marcada como resuelta');
+    }
+  } catch(e) { toast('Error: '+e.message,'err'); console.error(e); }
+}
+
+// Importa el historial de libros desde un Excel plano. El id de cada libro sale de
+// distrito + iglesia + numeración, así que importar dos veces actualiza en vez de
+// duplicar, y {merge:true} respeta la verificación/novedades que el auditor ya puso.
+async function importarLibrosExcel() {
+  if(!STATE.user || STATE.user.role !== 'admin') { toast('No tienes permiso para esto','err'); return; }
+  var input = document.getElementById('libExcelInput');
+  var resEl = document.getElementById('libImportResultado');
+  if(!input || !input.files[0]) { toast('Selecciona un archivo primero','warn'); return; }
+  if(typeof XLSX === 'undefined') { toast('No se pudo cargar el lector de Excel, intenta de nuevo','err'); return; }
+  if(!window._db || !window._fbOps) { toast('Sin conexión a Firebase','err'); return; }
+  var btn = document.querySelector('[onclick="importarLibrosExcel()"]');
+  if(btn){ btn.textContent = 'Importando...'; btn.disabled = true; }
+  try {
+    var data = await input.files[0].arrayBuffer();
+    var wb = XLSX.read(data, {type:'array'});
+    var ws = wb.Sheets[wb.SheetNames[0]];
+    var crudas = XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
+    var idxH = crudas.findIndex(function(f){ return f.some(function(c){ return String(c).trim().toLowerCase()==='distrito'; }); });
+    if(idxH === -1) { toast('No se encontró la columna "Distrito" — usa el archivo preparado','err'); return; }
+    var enc = crudas[idxH].map(function(h){ return String(h).trim().toLowerCase(); });
+    var ESTADOS = ['enviado','por_enviar','en_bodega','siguiente'];
+    var docs = [], omitidos = 0;
+    for(var f = idxH + 1; f < crudas.length; f++) {
+      var fila = {};
+      enc.forEach(function(h, i){ if(h) fila[h] = crudas[f][i] !== undefined ? crudas[f][i] : ''; });
+      var distrito = String(fila['distrito']||'').trim();
+      var iglesia = String(fila['iglesia']||'').trim();
+      var numeracion = String(fila['numeración']||fila['numeracion']||'').trim();
+      var estado = String(fila['estado']||'').trim().toLowerCase();
+      if(!distrito || !iglesia || !numeracion || ESTADOS.indexOf(estado) === -1) { omitidos++; continue; }
+      var fechaTxt = String(fila['fecha']||'').trim();
+      var fecha = /^\d{4}-\d{2}-\d{2}$/.test(fechaTxt) ? new Date(fechaTxt + 'T12:00:00') : null;
+      docs.push({
+        id: 'h_' + claveNombreInv(distrito).split(' ').join('_') + '_' + claveNombreInv(iglesia).split(' ').join('_') + '_' + claveNombreInv(numeracion).split(' ').join('_'),
+        data: {
+          distrito: distrito, iglesia: iglesia, codigoIglesia: String(fila['código']||fila['codigo']||'').trim(),
+          numeracion: numeracion, estado: estado, fechaEntrega: fecha,
+          esCentral: String(fila['central']||'').trim().toUpperCase() === 'SI',
+          nota: String(fila['nota']||'').trim(), revisar: String(fila['revisar']||'').trim(),
+          origen: 'excel', importadoPor: STATE.user.nombre || 'Admin', importadoEn: window._serverTimestamp()
+        }
+      });
+    }
+    if(!docs.length) { toast('El archivo no tiene filas válidas','warn'); return; }
+    var hechos = 0;
+    for(var i = 0; i < docs.length; i += 20) {
+      var tanda = docs.slice(i, i + 20);
+      await Promise.all(tanda.map(function(d){
+        return window._fbOps.setDoc(window._fbOps.doc(window._db,'libros_diaconos',d.id), d.data, {merge:true});
+      }));
+      hechos += tanda.length;
+      if(resEl) resEl.textContent = 'Importando… ' + hechos + ' de ' + docs.length;
+    }
+    toast('✓ ' + hechos + ' libros importados/actualizados');
+    if(resEl) resEl.textContent = '✓ ' + hechos + ' libros importados' + (omitidos ? ' · ' + omitidos + ' fila(s) omitidas por datos incompletos o estado inválido' : '');
+    input.value = '';
+  } catch(e) {
+    toast('Error importando: ' + e.message, 'err');
+    console.error(e);
+  } finally {
+    if(btn){ btn.textContent = '📥 Importar'; btn.disabled = false; }
   }
 }
 
@@ -4769,9 +5099,11 @@ async function eliminarLibro(id) {
 
 // Limpiar todo el historial de libros
 async function limpiarLibros() {
-  var libros = STATE.libros || [];
-  if(!libros.length) { toast('No hay registros para eliminar','warn'); return; }
-  if(!confirm('¿Eliminar TODOS los '+libros.length+' registros de libros? Esta acción no se puede deshacer.')) return;
+  // El historial importado del Excel (y lo que el auditor verificó sobre él) no se
+  // borra con este botón; solo los registros que hizo el sistema al enviar pedidos.
+  var libros = (STATE.libros || []).filter(function(l){ return l.origen !== 'excel'; });
+  if(!libros.length) { toast('No hay registros del sistema para eliminar','warn'); return; }
+  if(!confirm('¿Eliminar los '+libros.length+' registros de libros hechos por el sistema? (El historial importado del Excel no se toca.) Esta acción no se puede deshacer.')) return;
   try {
     if(window._db && window._fbOps) {
       for(var i=0; i<libros.length; i++) {

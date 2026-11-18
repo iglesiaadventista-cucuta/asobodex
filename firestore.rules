@@ -53,6 +53,9 @@ service cloud.firestore {
     function esAuxiliar() {
       return estaLogueado() && rolDe() == 'auxiliar';
     }
+    function esAuditor() {
+      return estaLogueado() && rolDe() == 'auditor';
+    }
     // Refleja PERMISOS.editar (admin y facturador pueden modificar inventario:
     // Registrar/Despachar es admin, Distribución/Remisiones es facturador) más
     // secretaria, que también necesita descontar inventario desde su propia
@@ -130,12 +133,17 @@ service cloud.firestore {
       allow delete: if esAdmin();
     }
 
-    // ── libros_diaconos: seguimiento de talonarios por iglesia. Solo el
-    // admin lo escribe hoy (se crea al aprobar/enviar pedidos o desde el
-    // botón de reenvío manual, ambos en pantallas solo de admin).
+    // ── libros_diaconos: seguimiento de talonarios por iglesia (un documento por
+    // libro, con su numeración, estado y fecha). El admin lo escribe todo (se crea
+    // al aprobar/enviar pedidos, desde el reenvío manual o al importar el Excel).
+    // El auditor es solo lectura salvo marcar un libro como verificado o reportar
+    // una novedad: únicamente puede cambiar esos campos, nada más del libro.
     match /libros_diaconos/{id} {
       allow read: if estaLogueado();
-      allow write: if esAdmin();
+      allow create, delete: if esAdmin();
+      allow update: if esAdmin() || (esAuditor() &&
+        request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['verificado','verificadoPor','verificadoEn','novedad','novedadPor','novedadEn','novedadResuelta']));
     }
 
     // ── remisiones: facturación a iglesias — exclusivo del rol facturador
