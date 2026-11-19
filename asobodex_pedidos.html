@@ -87,11 +87,15 @@ textarea.fc{resize:vertical;min-height:70px}
 @keyframes fadeUp{0%{opacity:0;transform:translateY(15px)}100%{opacity:1;transform:translateY(0)}}
 
 /* Dispatch Button — Original by Aaron Iker */
-.order{appearance:none;border:0;background:#1C212E;position:relative;height:63px;width:240px;padding:0;outline:none;cursor:pointer;border-radius:32px;-webkit-mask-image:-webkit-radial-gradient(white,black);-webkit-tap-highlight-color:transparent;overflow:hidden;transition:transform .3s;display:block;margin:0 auto}
+.ord-wrap{display:block;width:240px;margin:0 auto;border-radius:32px;box-shadow:0 8px 26px rgba(255,106,0,.45);animation:ordenPulso 2.2s ease-in-out infinite}
+.ord-wrap.enviando{animation:none}
+@keyframes ordenPulso{0%,100%{box-shadow:0 8px 24px rgba(255,106,0,.38)}50%{box-shadow:0 8px 36px rgba(255,106,0,.8)}}
+.order{appearance:none;border:0;background:linear-gradient(135deg,#ff9100,#ff4d2e);position:relative;height:63px;width:240px;padding:0;outline:none;cursor:pointer;border-radius:32px;-webkit-mask-image:-webkit-radial-gradient(white,black);-webkit-tap-highlight-color:transparent;overflow:hidden;transition:transform .3s;display:block;margin:0 auto}
 .order span{--o:1;position:absolute;left:0;right:0;text-align:center;top:19px;line-height:24px;color:#fff;font-size:16px;font-weight:500;opacity:var(--o);transition:opacity .3s}
 .order span.default{transition-delay:.3s}
 .order span.success{--offset:16px;--o:0}
-.order span.success svg{width:12px;height:10px;display:inline-block;vertical-align:top;fill:none;margin:7px 0 0 4px;stroke:#16BF78;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:16px;stroke-dashoffset:var(--offset);transition:stroke-dashoffset .3s}
+.order span.default{font-weight:700;letter-spacing:.3px;text-shadow:0 1px 2px rgba(0,0,0,.25)}
+.order span.success svg{width:12px;height:10px;display:inline-block;vertical-align:top;fill:none;margin:7px 0 0 4px;stroke:#fff;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:16px;stroke-dashoffset:var(--offset);transition:stroke-dashoffset .3s}
 .order:active{transform:scale(.96)}
 .order .lines{opacity:0;position:absolute;height:3px;background:#fff;border-radius:2px;width:6px;top:30px;left:100%;box-shadow:15px 0 0 #fff,30px 0 0 #fff,45px 0 0 #fff,60px 0 0 #fff,75px 0 0 #fff,90px 0 0 #fff,105px 0 0 #fff,120px 0 0 #fff,135px 0 0 #fff,150px 0 0 #fff,165px 0 0 #fff,180px 0 0 #fff,195px 0 0 #fff,210px 0 0 #fff,225px 0 0 #fff,240px 0 0 #fff,255px 0 0 #fff,270px 0 0 #fff,285px 0 0 #fff,300px 0 0 #fff,315px 0 0 #fff,330px 0 0 #fff}
 .order .back,.order .box{--start:#fff;--stop:#CDD9ED;border-radius:2px;background:linear-gradient(var(--start),var(--stop));position:absolute}
@@ -168,6 +172,7 @@ textarea.fc{resize:vertical;min-height:70px}
     <div class="suc-ref" id="sucRef"></div>
     <div style="font-size:12px;color:var(--t2);margin-bottom:24px;animation:fadeUp .6s ease .9s both">📅 Los pedidos se reciben hasta el <strong>miércoles 12:00 PM</strong></div>
     <button class="btn btn-sec" style="width:auto;padding:10px 24px;font-size:13px;animation:fadeUp .6s ease 1.1s both" onclick="location.reload()">📦 Nuevo pedido</button>
+    <div id="exitoMapa" style="display:none;margin:22px auto 0;max-width:560px;text-align:left;border:1px solid var(--bd);border-radius:var(--r2);overflow:hidden;background:var(--navy2);animation:fadeUp .6s ease 1.3s both"></div>
   </div>
 
   <!-- PASO 1 -->
@@ -260,6 +265,7 @@ textarea.fc{resize:vertical;min-height:70px}
     <div class="note-teal" style="margin-bottom:14px">Al enviar confirmas que los datos son correctos. La administración revisará tu pedido.</div>
     <div class="btn-row" style="flex-direction:column;align-items:center;gap:12px">
       <button class="btn btn-sec" onclick="irPaso(2)" style="width:auto;padding:10px 24px">← Modificar</button>
+      <div class="ord-wrap" id="ordWrap">
       <button class="order" id="btnEnv" onclick="enviarConAnimacion()">
         <span class="default">Enviar solicitud</span>
         <span class="success">Solicitud enviada <svg viewbox="0 0 12 10"><polyline points="1.5 6 4.5 9 10.5 1"></polyline></svg></span>
@@ -272,7 +278,10 @@ textarea.fc{resize:vertical;min-height:70px}
         </div>
         <div class="lines"></div>
       </button>
+      </div>
     </div>
+    <!-- Mapa de la ruta: aparece debajo del botón al enviar -->
+    <div id="mapaEnvio" style="display:none;margin-top:18px;border:1px solid var(--bd);border-radius:var(--r2);overflow:hidden;background:var(--navy2)"></div>
   </div>
 
 </div>
@@ -458,7 +467,8 @@ function _destinoDistrito(dist) {
   return { ll: ll, depto: G.depto[zona.nombre], cerca: cerca, zona: zona.nombre };
 }
 
-function dibujarMapaPastor(dest, nombreDistrito) {
+function dibujarMapaPastor(dest, nombreDistrito, suf) {
+  suf = suf || '';
   var G = window.ZONAS_ENVIO.geo;
   var O = G.origenLL;
   var P = function(ll) { return [(ll[0] - O[0]) * 99, (O[1] - ll[1]) * 100]; };   // grados → unidades planas
@@ -511,14 +521,9 @@ function dibujarMapaPastor(dest, nombreDistrito) {
   };
   var camion = function(begin) {
     return '<g opacity="0">' +
-      '<animateMotion dur="6.5s" begin="' + begin + '" repeatCount="indefinite" rotate="auto"><mpath href="#segRuta"/></animateMotion>' +
+      '<animateMotion dur="6.5s" begin="' + begin + '" repeatCount="indefinite" rotate="auto"><mpath href="#segRuta' + suf + '"/></animateMotion>' +
       '<animate attributeName="opacity" values="0;1;1;0" keyTimes="0;0.07;0.9;1" dur="6.5s" begin="' + begin + '" repeatCount="indefinite"/>' +
-      '<g transform="scale(' + f(k * 1.25) + ')">' +
-        '<rect x="-10" y="-5.5" width="20" height="11" rx="3" fill="#f5a623" stroke="#0a1a26" stroke-width="1"/>' +
-        '<rect x="3" y="-4" width="6" height="8" rx="2" fill="#0f2b3c"/>' +
-        '<rect x="-8.5" y="-4.2" width="10" height="8.4" rx="1.2" fill="#d79a4a" stroke="#fff" stroke-opacity=".55" stroke-width=".7"/>' +
-        '<line x1="-3.5" y1="-4.2" x2="-3.5" y2="4.2" stroke="#fff" stroke-opacity=".55" stroke-width=".8"/>' +
-      '</g></g>';
+      window.ZONAS_ENVIO.bus(f(k * 1.2)) + '</g>';   // los envíos viajan en bus
   };
 
   // Si bodega y destino quedan cerca en horizontal (poca distancia respecto al encuadre), las
@@ -530,7 +535,7 @@ function dibujarMapaPastor(dest, nombreDistrito) {
     var nx = -pD[1] / len, ny = pD[0] / len;
     if(ny > 0) { nx = -nx; ny = -ny; }                     // la curva se abomba hacia arriba
     var qx = pD[0] / 2 + nx * len * 0.2, qy = pD[1] / 2 + ny * len * 0.2;
-    ruta = '<path id="segRuta" d="M0,0 Q' + f(qx) + ',' + f(qy) + ' ' + f(pD[0]) + ',' + f(pD[1]) + '" fill="none" stroke="#2dd4a8" stroke-opacity=".7" stroke-width="' + f(2 * k) + '" stroke-linecap="round" stroke-dasharray="' + f(3 * k) + ' ' + f(7 * k) + '">' +
+    ruta = '<path id="segRuta' + suf + '" d="M0,0 Q' + f(qx) + ',' + f(qy) + ' ' + f(pD[0]) + ',' + f(pD[1]) + '" fill="none" stroke="#2dd4a8" stroke-opacity=".7" stroke-width="' + f(2 * k) + '" stroke-linecap="round" stroke-dasharray="' + f(3 * k) + ' ' + f(7 * k) + '">' +
       '<animate attributeName="stroke-dashoffset" from="0" to="' + f(-20 * k) + '" dur="1.4s" repeatCount="indefinite"/></path>';
     trenes = camion('0s') + camion('3.2s');
     nodoDestino =
@@ -547,17 +552,38 @@ function dibujarMapaPastor(dest, nombreDistrito) {
     '<text x="0" y="' + f(4 * k) + '" text-anchor="middle" font-size="' + f(11 * k) + '">📦</text>' +
     (ladoLado
       ? texto('Bodega · Cúcuta', (pD[0] < 0 ? 16 : -16) * k, 4 * k, 11, '#dbe7ef', 600, pD[0] < 0 ? 'start' : 'end')
-      : texto('Bodega · Cúcuta', 0, (dest && pD[1] < -8) ? -17 * k : 28 * k, 11, '#dbe7ef'));
+      : texto('Bodega · Cúcuta', (dest && pD[0] > 0) ? -12 * k : ((dest && pD[0] < 0) ? 12 * k : 0), (dest && pD[1] < -8) ? -17 * k : 28 * k, 11, '#dbe7ef', 600, (dest && pD[0] > 0) ? 'start' : ((dest && pD[0] < 0) ? 'end' : 'middle')));
 
   var etiquetaDepto = texto((G.deptoNombre[deptoD] || deptoD).toUpperCase(), vx + 9 * k, vy + h - 9 * k, 11, '#2dd4a8', 700, 'start').replace('stroke-width', 'letter-spacing="' + f(1.5 * k) + '" stroke-width');
 
   return '<svg viewBox="' + f(vx) + ' ' + f(vy) + ' ' + f(w) + ' ' + f(h) + '" style="display:block;width:100%;height:auto" role="img" aria-label="Ruta de tu pedido desde la bodega de Cúcuta' + (dest ? ' hacia ' + nombreDistrito : '') + '">' +
-    '<defs><radialGradient id="segFondo" cx="30%" cy="55%" r="90%"><stop offset="0" stop-color="#15506a"/><stop offset="1" stop-color="#08141d"/></radialGradient>' +
-    '<pattern id="segPuntos" width="' + f(16 * k) + '" height="' + f(16 * k) + '" patternUnits="userSpaceOnUse"><circle cx="' + f(2 * k) + '" cy="' + f(2 * k) + '" r="' + f(k) + '" fill="#3A8FA3" opacity=".28"/></pattern></defs>' +
-    '<rect x="' + f(vx) + '" y="' + f(vy) + '" width="' + f(w) + '" height="' + f(h) + '" fill="url(#segFondo)"/>' +
-    '<rect x="' + f(vx) + '" y="' + f(vy) + '" width="' + f(w) + '" height="' + f(h) + '" fill="url(#segPuntos)"/>' +
+    '<defs><radialGradient id="segFondo' + suf + '" cx="30%" cy="55%" r="90%"><stop offset="0" stop-color="#15506a"/><stop offset="1" stop-color="#08141d"/></radialGradient>' +
+    '<pattern id="segPuntos' + suf + '" width="' + f(16 * k) + '" height="' + f(16 * k) + '" patternUnits="userSpaceOnUse"><circle cx="' + f(2 * k) + '" cy="' + f(2 * k) + '" r="' + f(k) + '" fill="#3A8FA3" opacity=".28"/></pattern></defs>' +
+    '<rect x="' + f(vx) + '" y="' + f(vy) + '" width="' + f(w) + '" height="' + f(h) + '" fill="url(#segFondo' + suf + ')"/>' +
+    '<rect x="' + f(vx) + '" y="' + f(vy) + '" width="' + f(w) + '" height="' + f(h) + '" fill="url(#segPuntos' + suf + ')"/>' +
     contornos + ruta + trenes + nodoDestino + bodega + etiquetaDepto +
   '</svg>';
+}
+
+// Arma el bloque completo (mapa + texto) de la ruta hacia un distrito. "suf" evita que se repitan los
+// ids del SVG cuando el mapa está dibujado en más de un lugar de la página a la vez.
+function htmlRutaPedido(dist, suf, titulo) {
+  var dest = _destinoDistrito(dist);
+  var G = window.ZONAS_ENVIO.geo;
+  var visible = window.ZONAS_ENVIO.nombreVisible ? window.ZONAS_ENVIO.nombreVisible(dist) : dist;   // ej. VICHADA → EL VICHADA
+  var pie = dest
+    ? '<b>' + String(visible).replace(/</g, '&lt;') + '</b> · ' + (G.deptoNombre[dest.depto] || dest.depto) + (dest.cerca ? ' · dentro de Cúcuta' : '')
+    : 'Escribe tu nombre o elige tu distrito para ver hacia dónde viaja tu pedido.';
+  return dibujarMapaPastor(dest, String(visible || '').replace(/</g, '&lt;'), suf || '') +
+    '<div style="padding:10px 14px 12px;display:flex;align-items:center;gap:8px;font-size:13px">' +
+      '<span style="font-size:20px">🚌</span>' +
+      '<div><div style="font-size:11px;font-weight:700;color:var(--teal);text-transform:uppercase;letter-spacing:.06em">' + (titulo || 'Ruta de tu pedido') + '</div>' +
+      '<div style="color:var(--t2);margin-top:1px;line-height:1.4">' + pie + '</div></div>' +
+    '</div>';
+}
+function _pausarSiMovimientoReducido(box) {
+  var svg = box && box.querySelector('svg');
+  if(svg && window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches && svg.pauseAnimations) svg.pauseAnimations();
 }
 
 function actualizarSeguimiento() {
@@ -566,23 +592,30 @@ function actualizarSeguimiento() {
   var dist = document.getElementById('pDistrito').value;
   var dest = _destinoDistrito(dist);
   var clave = dest ? dist : '';
-  // Si el destino no cambió no se vuelve a dibujar (así no se reinician los camioncitos mientras escribe).
+  // Si el destino no cambió no se vuelve a dibujar (así no se reinician los buses mientras escribe).
   if(box.getAttribute('data-clave') === clave && box.innerHTML) return;
   box.setAttribute('data-clave', clave);
-  var G = window.ZONAS_ENVIO.geo;
-  var visible = window.ZONAS_ENVIO.nombreVisible ? window.ZONAS_ENVIO.nombreVisible(dist) : dist;   // ej. VICHADA → EL VICHADA
-  var pie = dest
-    ? '<b>' + String(visible).replace(/</g, '&lt;') + '</b> · ' + (G.deptoNombre[dest.depto] || dest.depto) + (dest.cerca ? ' · dentro de Cúcuta' : '')
-    : 'Escribe tu nombre o elige tu distrito para ver hacia dónde viaja tu pedido.';
-  box.innerHTML =
-    dibujarMapaPastor(dest, String(visible || '').replace(/</g, '&lt;')) +
-    '<div style="padding:10px 14px 12px;display:flex;align-items:center;gap:8px;font-size:13px">' +
-      '<span style="font-size:18px">🚚</span>' +
-      '<div><div style="font-size:11px;font-weight:700;color:var(--teal);text-transform:uppercase;letter-spacing:.06em">Ruta de tu pedido</div>' +
-      '<div style="color:var(--t2);margin-top:1px;line-height:1.4">' + pie + '</div></div>' +
-    '</div>';
-  var svg = box.querySelector('svg');
-  if(svg && window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches && svg.pauseAnimations) svg.pauseAnimations();
+  box.innerHTML = htmlRutaPedido(dist, '', 'Ruta de tu pedido');
+  _pausarSiMovimientoReducido(box);
+}
+
+// Al darle "Enviar solicitud": el mapa de la ruta aparece justo debajo del botón mientras el carrito del
+// botón sale, y se repite en la pantalla de éxito (porque ahí desaparece el formulario).
+function mostrarMapaBajoBoton(dist) {
+  var box = document.getElementById('mapaEnvio');
+  if(!box || !window.ZONAS_ENVIO || !window.ZONAS_ENVIO.geo || !_destinoDistrito(dist)) return;
+  box.innerHTML = htmlRutaPedido(dist, 'B', 'Tu pedido va en camino');
+  box.style.display = 'block';
+  box.style.animation = 'fadeUp .6s ease both';
+  _pausarSiMovimientoReducido(box);
+  setTimeout(function(){ box.scrollIntoView({ behavior:'smooth', block:'center' }); }, 250);
+}
+function mostrarMapaExito(dist) {
+  var box = document.getElementById('exitoMapa');
+  if(!box || !window.ZONAS_ENVIO || !window.ZONAS_ENVIO.geo || !_destinoDistrito(dist)) return;
+  box.innerHTML = htmlRutaPedido(dist, 'E', 'Tu pedido va en camino');
+  box.style.display = 'block';
+  _pausarSiMovimientoReducido(box);
 }
 
 var _segTimer = null;
@@ -974,6 +1007,8 @@ function enviarConAnimacion() {
   if(btn.classList.contains('animate')) return;
   btn.classList.add('animate');
   btn.style.pointerEvents = 'none';
+  var envuelto = document.getElementById('ordWrap'); if(envuelto) envuelto.classList.add('enviando');   // deja de palpitar
+  mostrarMapaBajoBoton(document.getElementById('pDistrito').value);
   setTimeout(function() {
     enviar();
   }, 4500);
@@ -1063,6 +1098,8 @@ async function enviar() {
     ['p1','p2','p3'].forEach(function(id){ document.getElementById(id).style.display='none'; });
     document.getElementById('sucRef').textContent = 'Referencia: '+ref;
     document.getElementById('successScreen').style.display = 'block';
+    mostrarMapaExito(dist);
+    window.scrollTo({ top: 0 });
     document.querySelectorAll('.step').forEach(function(s){ s.classList.remove('active','done'); });
   }, 600);
 }

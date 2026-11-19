@@ -80,3 +80,19 @@ window.ZONAS_ENVIO.nombreVisible = function (n) {
   var v = window.ZONAS_ENVIO.geo.visible;
   return (n && v[String(n).toUpperCase()]) || n;
 };
+
+// Bus visto desde arriba (apunta hacia la derecha; el mapa lo gira según la ruta). Lleva una caja
+// en el techo. "escala" = tamaño: 1 equivale a un bus de unos 30 unidades de largo.
+window.ZONAS_ENVIO.bus = function (escala) {
+  return '<g transform="scale(' + escala + ')">' +
+    '<rect x="-15" y="-6" width="30" height="12" rx="3.5" fill="#2f80ed" stroke="#0a1a26" stroke-width="1"/>' +
+    '<rect x="-13.5" y="-4.6" width="22" height="9.2" rx="2" fill="#dbeafe" opacity=".95"/>' +
+    '<line x1="-8" y1="-4.6" x2="-8" y2="4.6" stroke="#2f80ed" stroke-width=".8"/>' +
+    '<line x1="-2.5" y1="-4.6" x2="-2.5" y2="4.6" stroke="#2f80ed" stroke-width=".8"/>' +
+    '<line x1="3" y1="-4.6" x2="3" y2="4.6" stroke="#2f80ed" stroke-width=".8"/>' +
+    '<rect x="9.5" y="-5" width="4.8" height="10" rx="1.6" fill="#0f2b3c"/>' +
+    '<rect x="-7" y="-3" width="9.5" height="6" rx="1" fill="#d79a4a" stroke="#fff" stroke-opacity=".65" stroke-width=".6"/>' +
+    '<line x1="-2.2" y1="-3" x2="-2.2" y2="3" stroke="#fff" stroke-opacity=".6" stroke-width=".6"/>' +
+    '<circle cx="14.6" cy="-3.6" r="1" fill="#fde68a"/><circle cx="14.6" cy="3.6" r="1" fill="#fde68a"/>' +
+  '</g>';
+};
