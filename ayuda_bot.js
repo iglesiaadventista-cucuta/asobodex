@@ -12,7 +12,7 @@
   var CSS =
     '.ab-fab{position:fixed;right:14px;bottom:14px;z-index:9990;display:flex;align-items:center;gap:9px;border:none;cursor:pointer;font-family:inherit;font-size:15px;font-weight:700;color:#fff;padding:15px 22px 15px 18px;border-radius:40px;background:linear-gradient(135deg,#1a9aaa,#2a6f80);box-shadow:0 8px 24px rgba(0,0,0,.45),0 0 0 4px rgba(26,154,170,.28);transition:transform .15s}' +
     '.ab-fab:hover{transform:translateY(-2px)}.ab-fab .ab-i{font-size:30px;line-height:1}' +
-    '.ab-panel{position:fixed;right:14px;bottom:88px;z-index:9991;width:370px;max-width:calc(100vw - 20px);height:min(560px,calc(100vh - 100px));display:none;flex-direction:column;background:var(--navy2,#0f2b3c);border:1px solid var(--bd,rgba(58,143,163,.3));border-radius:18px;overflow:hidden;box-shadow:0 18px 50px rgba(0,0,0,.55);font-family:inherit;color:var(--t1,#e8edf3)}' +
+    '.ab-panel{position:fixed;right:14px;bottom:88px;z-index:9991;width:370px;max-width:calc(100vw - 20px);height:min(560px,calc(100vh - 100px));display:none;flex-direction:column;background:rgba(13,30,48,.88);-webkit-backdrop-filter:blur(18px) saturate(150%);backdrop-filter:blur(18px) saturate(150%);border:1px solid rgba(255,255,255,.14);border-radius:18px;overflow:hidden;box-shadow:0 18px 50px rgba(0,0,0,.55);font-family:inherit;color:var(--t1,#e8edf3)}' +
     '.ab-panel.ab-open{display:flex;animation:abSube .22s ease both}' +
     '@keyframes abSube{from{opacity:0;transform:translateY(14px) scale(.98)}to{opacity:1;transform:none}}' +
     '.ab-head{display:flex;align-items:center;gap:10px;padding:12px 14px;background:linear-gradient(135deg,#1a9aaa,#2a6f80);color:#fff}' +

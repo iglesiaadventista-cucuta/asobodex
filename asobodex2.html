@@ -304,11 +304,43 @@ textarea.fc{resize:vertical;min-height:70px}
   .tab span{display:none}
   .uchip .un,.uchip .ur{display:none}
 }
+
+/* ═══ Efecto "vidrio" ═══ Los paneles, el menú y las ventanas son translúcidos y dejan ver el mapa de
+   fondo (fondo_mapa.js). Con el botón 🗺️ del menú se apaga el fondo y todo vuelve a colores sólidos. */
+#app{position:relative;z-index:1}
+#loginWrap{background:rgba(7,15,26,.30)}
+.lcard{width:min(380px,calc(100vw - 24px))}
+.lcard{background:rgba(15,34,54,.55);-webkit-backdrop-filter:blur(18px) saturate(150%);backdrop-filter:blur(18px) saturate(150%);border:1px solid rgba(255,255,255,.14);box-shadow:0 20px 60px rgba(0,0,0,.45)}
+.topbar{margin:10px 14px 0;border-radius:18px;background:rgba(11,25,41,.50);-webkit-backdrop-filter:blur(16px) saturate(150%);backdrop-filter:blur(16px) saturate(150%);border:1px solid rgba(255,255,255,.12);box-shadow:0 8px 28px rgba(0,0,0,.28)}
+.panel,.scard,.ad-kpi{background:rgba(15,34,54,.50);-webkit-backdrop-filter:blur(14px) saturate(140%);backdrop-filter:blur(14px) saturate(140%);border:1px solid rgba(255,255,255,.10);box-shadow:0 8px 30px rgba(0,0,0,.25),inset 0 1px 0 rgba(255,255,255,.06)}
+thead tr{background:rgba(21,45,71,.45)}
+.rcard,.mat-item{background:rgba(21,45,71,.45)}
+.fc,.linput{background:rgba(21,45,71,.62)}
+.tabnav,.uchip{background:rgba(255,255,255,.07)}
+.modal{background:rgba(13,30,48,.86);-webkit-backdrop-filter:blur(22px) saturate(150%);backdrop-filter:blur(22px) saturate(150%);border:1px solid rgba(255,255,255,.14)}
+.mo{background:rgba(3,8,15,.55);-webkit-backdrop-filter:blur(5px);backdrop-filter:blur(5px)}
+#toast,.ad-tip{background:rgba(13,30,48,.90);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px)}
+@media(max-width:768px){.topbar{margin:8px 8px 0;border-radius:16px}}
+@media(max-width:480px){.topbar{gap:7px;padding:0 10px}.uchip{display:none}.topbar .tright{gap:6px}.topbar .outbtn{padding:6px 9px}}
+.topbar.auditmode #btnFondo{display:inline-flex}
+@media(max-width:480px){.topbar.auditmode #btnFondo{display:none}}
+/* Sin fondo: colores sólidos como antes */
+body.sin-fondo #loginWrap{background:var(--navy)}
+body.sin-fondo .lcard,body.sin-fondo .modal{background:var(--navy2);backdrop-filter:none;-webkit-backdrop-filter:none}
+body.sin-fondo .topbar{background:var(--navy2);backdrop-filter:none;-webkit-backdrop-filter:none;margin:0;border-radius:0;border:none;border-bottom:1px solid var(--bd);box-shadow:none}
+body.sin-fondo .panel,body.sin-fondo .scard,body.sin-fondo .ad-kpi{background:var(--navy2);backdrop-filter:none;-webkit-backdrop-filter:none;border:1px solid var(--bd);box-shadow:none}
+body.sin-fondo thead tr{background:var(--navy3)}
+body.sin-fondo .rcard,body.sin-fondo .mat-item,body.sin-fondo .fc,body.sin-fondo .linput{background:var(--navy3)}
+body.sin-fondo .tabnav,body.sin-fondo .uchip{background:var(--navy3)}
+body.sin-fondo .mo{background:rgba(0,0,0,.75);backdrop-filter:none;-webkit-backdrop-filter:none}
+body.sin-fondo #toast,body.sin-fondo .ad-tip{background:var(--navy2);backdrop-filter:none;-webkit-backdrop-filter:none}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
 <script src="zonas_envio.js?v=20261119b"></script>
-<script src="ayuda_bot.js?v=20261119d"></script>
+<script src="fondo_mapa.js?v=20261120a"></script>
+<script>document.addEventListener('DOMContentLoaded', function(){ if(window.FondoMapa) FondoMapa.iniciar(); });</script>
+<script src="ayuda_bot.js?v=20261120b"></script>
 <script src="ayuda_contenido_sistema.js?v=20261120a"></script>
 <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
@@ -364,6 +396,7 @@ textarea.fc{resize:vertical;min-height:70px}
     <button class="tabnav" onclick="deslizarTabs(1)" title="Ver pestañas hacia la derecha">›</button>
     <div class="tright">
       <div class="uchip"><div class="uav" id="uAv"><img src="data:image/jpeg;base64,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" style="width:100%;height:100%;object-fit:cover;border-radius:50%"></div><div><div class="un" id="uNm">—</div><div class="ur" id="uRl">—</div></div></div>
+      <button class="outbtn" id="btnFondo" onclick="alternarFondo()" title="Encender o apagar el fondo del mapa">🗺️</button>
       <button class="outbtn" onclick="abrirCambiarPassword()" title="Cambiar contraseña">🔑</button>
       <button class="outbtn" onclick="doLogout()">Salir</button>
     </div>
@@ -1864,6 +1897,13 @@ function loginOk(u) {
   if(isSecretaria) { setTimeout(function(){ showView('biblias'); }, 0); }
   if(isAuditor) { setTimeout(function(){ showView('auditdash'); }, 0); }
   iniciarAyudaSistema(u);
+}
+
+// Botón 🗺️ del menú: enciende o apaga el mapa de fondo (útil en celulares lentos o para ahorrar batería).
+function alternarFondo() {
+  if(!window.FondoMapa) return;
+  var encendido = window.FondoMapa.alternar();
+  toast(encendido ? '🗺️ Fondo del mapa activado' : 'Fondo del mapa apagado');
 }
 
 // Chat de ayuda según el perfil de quien entró (preguntas en ayuda_contenido_sistema.js).
