@@ -99,7 +99,7 @@ html,body{height:100%;background:var(--navy);color:var(--t1);font-family:var(--f
 .topbar.auditmode .tab.active{background:transparent;border-color:transparent;color:#fff}
 .topbar.auditmode .tab span{display:inline !important}
 .topbar.auditmode .tab-pill{display:block;position:absolute;z-index:0;left:0;top:0;width:0;height:0;border-radius:10px;pointer-events:none;
-  background:linear-gradient(135deg,#1a9aaa,#2a6f80);box-shadow:0 4px 16px rgba(26,154,170,.4),inset 0 1px 0 rgba(255,255,255,.18);
+  background:linear-gradient(135deg,var(--ab-main,#1a9aaa),var(--ab-main2,#2a6f80));box-shadow:0 4px 16px rgba(26,154,170,.4),inset 0 1px 0 rgba(255,255,255,.18);
   transition:left .3s cubic-bezier(.3,.9,.3,1),width .3s cubic-bezier(.3,.9,.3,1),top .2s,height .2s}
 .topbar.auditmode .tab-pill.sin-anim{transition:none}
 
@@ -120,10 +120,10 @@ html,body{height:100%;background:var(--navy);color:var(--t1);font-family:var(--f
 .ad-barra{display:flex;gap:10px 18px;flex-wrap:wrap;padding:14px 16px 12px}
 .ad-barra>div{flex:1 1 280px;min-width:0}
 .ad-seg-t{font-size:10px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--t3);margin:0 2px 5px}
-.ad-seg{display:grid;grid-template-columns:repeat(4,1fr);gap:2px;padding:3px;border-radius:12px;background:rgba(255,255,255,.05);border:1px solid var(--bd)}
+.ad-seg{display:grid;grid-template-columns:repeat(4,1fr);gap:2px;padding:3px;border-radius:12px;background:var(--vidrio-th,rgba(255,255,255,.05));border:1px solid var(--bd)}
 .ad-seg button{font-family:inherit;font-size:12px;font-weight:600;padding:9px 2px;border:none;border-radius:9px;background:transparent;color:var(--t2);cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:background .15s,color .15s}
 .ad-seg button:hover{color:var(--t1)}
-.ad-seg button.on{background:linear-gradient(135deg,#1a9aaa,#2a6f80);color:#fff;box-shadow:0 2px 8px rgba(26,154,170,.35)}
+.ad-seg button.on{background:linear-gradient(135deg,var(--ab-main,#1a9aaa),var(--ab-main2,#2a6f80));color:#fff;box-shadow:0 2px 8px rgba(26,154,170,.35)}
 @media(max-width:420px){.ad-seg button{font-size:10.5px;padding:9px 0;letter-spacing:-.1px}}
 .ad-kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:14px}
 .ad-kpi{text-align:left;color:var(--t1);background:var(--navy2);border:1px solid var(--bd);border-radius:14px;padding:14px 16px;position:relative;overflow:hidden}
@@ -308,7 +308,7 @@ textarea.fc{resize:vertical;min-height:70px}
 /* ═══ Efecto "vidrio" ═══ Los paneles, el menú y las ventanas son translúcidos y dejan ver el mapa de
    fondo (fondo_mapa.js). Con el botón 🗺️ del menú se apaga el fondo y todo vuelve a colores sólidos. */
 #app{position:relative;z-index:1}
-#loginWrap{background:rgba(7,15,26,.30)}
+#loginWrap{background:var(--velo-login,rgba(7,15,26,.30))}
 .lcard{width:min(380px,calc(100vw - 24px))}
 /* Los colores del vidrio vienen del tema elegido (variables --vidrio-*, ver fondo_mapa.js). */
 .lcard{background:var(--vidrio-modal,rgba(15,34,54,.55));-webkit-backdrop-filter:blur(18px) saturate(150%);backdrop-filter:blur(18px) saturate(150%);border:1px solid var(--vidrio-borde,rgba(255,255,255,.14));box-shadow:0 20px 60px rgba(0,0,0,.40)}
@@ -317,10 +317,11 @@ textarea.fc{resize:vertical;min-height:70px}
 thead tr{background:var(--vidrio-th,rgba(21,45,71,.45))}
 .rcard,.mat-item{background:var(--vidrio-th,rgba(21,45,71,.45))}
 .fc,.linput{background:var(--vidrio-in,rgba(21,45,71,.62))}
-.tabnav,.uchip{background:rgba(255,255,255,.08)}
+.tabnav,.uchip{background:var(--vidrio-chip,rgba(255,255,255,.08))}
 .modal{background:var(--vidrio-modal,rgba(13,30,48,.86));-webkit-backdrop-filter:blur(22px) saturate(150%);backdrop-filter:blur(22px) saturate(150%);border:1px solid var(--vidrio-borde,rgba(255,255,255,.14))}
 /* Contraste sobre el vidrio claro: pestaña activa, subtítulo, avisos y la caja de prueba de correo */
-.tab.active{background:var(--tab-act,var(--teal-light));color:var(--titulo,var(--teal))}
+.tab.active{background:var(--tab-act,var(--teal-light));color:var(--tab-act-txt,var(--titulo,var(--teal)))}
+body.tema-arena select.fc option{background:#f6efe5;color:#2b2118}
 .tsub{color:var(--titulo,var(--teal))}
 .alert-warn{color:var(--rojo-txt,var(--red))}
 .alert-old{color:var(--ambar-txt,var(--amber))}
@@ -328,10 +329,10 @@ thead tr{background:var(--vidrio-th,rgba(21,45,71,.45))}
 /* Menú 🎨 (fondo y colores) */
 .menu-aspecto{position:fixed;top:72px;right:16px;z-index:60;width:260px;padding:14px;border-radius:16px;background:var(--vidrio-modal,rgba(13,30,48,.9));-webkit-backdrop-filter:blur(22px) saturate(150%);backdrop-filter:blur(22px) saturate(150%);border:1px solid var(--vidrio-borde,rgba(255,255,255,.14));box-shadow:0 18px 50px rgba(0,0,0,.5)}
 .menu-aspecto .ma-t{font-size:10px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--t2);margin:2px 2px 8px}
-.menu-aspecto .ma-fila{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 11px;margin-bottom:12px;border-radius:12px;background:rgba(255,255,255,.07);cursor:pointer;font-size:13px}
+.menu-aspecto .ma-fila{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 11px;margin-bottom:12px;border-radius:12px;background:var(--vidrio-th,rgba(255,255,255,.07));cursor:pointer;font-size:13px}
 .menu-aspecto .ma-fila input{accent-color:var(--teal);width:18px;height:18px}
 .menu-aspecto .ma-temas{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
-.menu-aspecto .ma-temas button{font-family:inherit;font-size:11px;font-weight:600;color:var(--t1);display:flex;flex-direction:column;align-items:center;gap:6px;padding:8px 4px;border-radius:12px;border:1.5px solid transparent;background:rgba(255,255,255,.06);cursor:pointer}
+.menu-aspecto .ma-temas button{font-family:inherit;font-size:11px;font-weight:600;color:var(--t1);display:flex;flex-direction:column;align-items:center;gap:6px;padding:8px 4px;border-radius:12px;border:1.5px solid transparent;background:var(--vidrio-th,rgba(255,255,255,.06));cursor:pointer}
 .menu-aspecto .ma-temas button i{display:block;width:100%;height:30px;border-radius:8px;border:1px solid rgba(255,255,255,.2)}
 .menu-aspecto .ma-temas button.on{border-color:#2dd4a8;background:rgba(45,212,168,.12)}
 @media(max-width:768px){.menu-aspecto{top:66px;right:8px}}
@@ -343,7 +344,7 @@ details.panel[open]>summary .ph{border-bottom:1px solid var(--bd)}
 .ph-flecha{transition:transform .2s;color:var(--t2);font-size:12px}
 details.panel[open] .ph-flecha{transform:rotate(180deg)}
 .mo{background:rgba(3,8,15,.55);-webkit-backdrop-filter:blur(5px);backdrop-filter:blur(5px)}
-#toast,.ad-tip{background:rgba(13,30,48,.90);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px)}
+#toast,.ad-tip{background:var(--vidrio-modal,rgba(13,30,48,.90));-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px)}
 @media(max-width:768px){.topbar{margin:8px 8px 0;border-radius:16px}}
 @media(max-width:480px){.topbar{gap:7px;padding:0 10px}.uchip{display:none}.topbar .tright{gap:6px}.topbar .outbtn{padding:6px 9px}}
 @media(max-width:480px){.topbar.auditmode #btnAspecto{display:none}}
@@ -361,9 +362,9 @@ body.sin-fondo #toast,body.sin-fondo .ad-tip{background:var(--navy2);backdrop-fi
 <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
 <script src="zonas_envio.js?v=20261119b"></script>
-<script src="fondo_mapa.js?v=20261120d"></script>
+<script src="fondo_mapa.js?v=20261120f"></script>
 <script>document.addEventListener('DOMContentLoaded', function(){ if(window.FondoMapa) FondoMapa.iniciar(); });</script>
-<script src="ayuda_bot.js?v=20261120b"></script>
+<script src="ayuda_bot.js?v=20261120c"></script>
 <script src="ayuda_contenido_sistema.js?v=20261120a"></script>
 <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
@@ -454,7 +455,7 @@ body.sin-fondo #toast,body.sin-fondo .ad-tip{background:var(--navy2);backdrop-fi
 
       <!-- Mapa: a qué distritos se ha enviado más material (todos los usuarios menos el auditor) -->
       <!-- Plegado (cerrado) para que no estorbe: el mapa de fondo ya da el ambiente; este da el dato. -->
-      <details class="panel" id="dmPanel" style="margin-bottom:14px;overflow:hidden" ontoggle="if(this.open) renderMapaDash(true)">
+      <details class="panel" id="dmPanel" open style="margin-bottom:14px;overflow:hidden" ontoggle="if(this.open) renderMapaDash(true)">
         <summary><div class="ph" style="gap:8px;flex-wrap:wrap"><span class="pt">🚌 Envíos en movimiento · a qué distritos se ha enviado más material</span><span style="display:flex;align-items:center;gap:10px"><span id="dmMapaInfo" style="font-size:11px;color:var(--t2)"></span><span class="ph-flecha">▼</span></span></div></summary>
         <div class="ad-barra"><div id="dmPeriodo"></div><div id="dmVistaSel"></div></div>
         <div id="dmMapa"></div>
@@ -1953,7 +1954,7 @@ function abrirAspecto(ev) {
   m.style.display = abrir ? 'block' : 'none';
   if(abrir) pintarMenuAspecto();
 }
-function elegirTema(t) { if(window.FondoMapa) { window.FondoMapa.tema(t); pintarMenuAspecto(); } }
+function elegirTema(t) { if(window.FondoMapa) { window.FondoMapa.tema(t); pintarMenuAspecto(); try { renderAll(); } catch(e) {} } }
 document.addEventListener('click', function(e) {
   var m = document.getElementById('menuAspecto');
   if(m && m.style.display !== 'none' && !m.contains(e.target)) m.style.display = 'none';
@@ -2288,6 +2289,9 @@ window.addEventListener('resize', function(){
 // ── RENDER ───────────────────────────────────────────────────
 function renderAll() { renderDash(); renderInv(); renderDesp(); renderSols(); renderHist(); renderPedidos(); renderMisSolicitudes(); renderLibros(); renderRemisiones(); renderDistribuciones(); renderDistribucionesBiblias(); renderAuditoria(); renderNovedadesLibros(); popSelects(); updBadges(); renderTesoreria(); renderBiblias(); renderCobros(); renderPastores(); renderMapaDash(); }
 
+// Color del texto de las gráficas: sale del tema activo (claro u oscuro).
+function graficaNum() { return (getComputedStyle(document.body).getPropertyValue('--t1') || '').trim() || '#e8edf3'; }
+function graficaTxt() { return (getComputedStyle(document.body).getPropertyValue('--chart-txt') || '').trim() || '#bccfdf'; }
 var _chartMain = null, _chartDona = null;
 var _dashActiveTab = 'resumen';
 
@@ -2416,10 +2420,10 @@ function drawResumen(items) {
   if(_chartMain) _chartMain.destroy();
   _chartMain = new Chart(ctx, {
     type:'bar', data:{labels:labels, datasets:[{data:values, backgroundColor:colors, borderRadius:6, borderSkipped:false, maxBarThickness:32}]},
-    options:{responsive:true, plugins:{legend:{display:false}, title:{display:true,text:'🔴 Menor stock          🟢 Mayor stock (escala logarítmica)',color:'#a9bfd2',font:{size:12}},
+    options:{responsive:true, plugins:{legend:{display:false}, title:{display:true,text:'🔴 Menor stock          🟢 Mayor stock (escala logarítmica)',color:graficaTxt(),font:{size:12}},
       tooltip:{backgroundColor:'#0f2b3c',titleColor:'#1a9aaa',bodyColor:'#e8edf3',titleFont:{size:14},bodyFont:{size:13},padding:12,
         callbacks:{title:function(ctx){return nombresCompletos[ctx[0].dataIndex];},label:function(ctx){return '  Stock: '+valoresReales[ctx.dataIndex]+' unidades';}}}},
-      scales:{x:{ticks:{color:'#bccfdf',font:{size:12},maxRotation:50,minRotation:50},grid:{display:false}},y:{type:'logarithmic',ticks:{color:'#a9bfd2',font:{size:12}},grid:{color:'rgba(26,154,170,0.08)'}}}}
+      scales:{x:{ticks:{color:graficaTxt(),font:{size:12},maxRotation:50,minRotation:50},grid:{display:false}},y:{type:'logarithmic',ticks:{color:graficaTxt(),font:{size:12}},grid:{color:'rgba(26,154,170,0.08)'}}}}
   });
 
   var normal=items.filter(function(i){return i.cantidad>=50&&diasEnBodega(i.fechaIngreso)<120;}).length;
@@ -2429,7 +2433,7 @@ function drawResumen(items) {
   if(_chartDona) _chartDona.destroy();
   _chartDona = new Chart(ctx2, {
     type:'doughnut', data:{labels:['Normal','Stock bajo','Viejo'], datasets:[{data:[normal,low,old], backgroundColor:['#2dd4a8','#e74c3c','#f5a623'], borderWidth:0, hoverOffset:6}]},
-    options:{responsive:true, cutout:'60%', plugins:{legend:{position:'bottom',labels:{color:'#bccfdf',padding:8,font:{size:11}}}}}
+    options:{responsive:true, cutout:'60%', plugins:{legend:{position:'bottom',labels:{color:graficaTxt(),padding:8,font:{size:11}}}}}
   });
 }
 
@@ -2445,7 +2449,7 @@ function drawBarList(items, color1, color2) {
     options:{responsive:true, plugins:{legend:{display:false},
       tooltip:{backgroundColor:'#0f2b3c',titleColor:'#1a9aaa',bodyColor:'#e8edf3',titleFont:{size:14},bodyFont:{size:13},padding:12,
         callbacks:{title:function(ctx){return nombresCompletos[ctx[0].dataIndex];},label:function(ctx){return '  Stock: '+ctx.raw+' unidades';}}}},
-      scales:{x:{ticks:{color:'#bccfdf',font:{size:12},maxRotation:50,minRotation:50},grid:{display:false}},y:{ticks:{color:'#a9bfd2',font:{size:12}},grid:{color:'rgba(26,154,170,0.08)'}}}}
+      scales:{x:{ticks:{color:graficaTxt(),font:{size:12},maxRotation:50,minRotation:50},grid:{display:false}},y:{ticks:{color:graficaTxt(),font:{size:12}},grid:{color:'rgba(26,154,170,0.08)'}}}}
   });
 }
 
@@ -5280,7 +5284,7 @@ function adBarrasH(nombres, valores, color, etiqueta, estadoClic, rojoCero) {
       plugins:{ legend:{display:false}, tooltip:Object.assign({}, AD_TOOLTIP, { callbacks:{
         title:function(c){ return nombres[c[0].dataIndex]; },
         label:function(c){ return '  ' + c.raw + ' ' + etiqueta; } } }) },
-      scales:{ x:{ beginAtZero:true, ticks:{ color:'#bccfdf', precision:0 }, grid:{ color:'rgba(26,154,170,0.08)' } },
+      scales:{ x:{ beginAtZero:true, ticks:{ color:graficaTxt(), precision:0 }, grid:{ color:'rgba(26,154,170,0.08)' } },
                y:{ ticks:{ color:'#c5d3de', font:{size:11} }, grid:{ display:false } } },
       onClick:function(e, els){ if(els.length) audIrDistrito(nombres[els[0].index], '', estadoClic); },
       onHover:function(e, els){ if(e.native && e.native.target) e.native.target.style.cursor = els.length ? 'pointer' : 'default'; }
@@ -5632,8 +5636,8 @@ function renderAuditDash() {
            datasets:[{ data:porMes, backgroundColor:'#1a9aaa', borderRadius:6, borderSkipped:false, maxBarThickness:28 }] },
     options:{ responsive:true, maintainAspectRatio:false,
       plugins:{ legend:{display:false}, tooltip:Object.assign({}, AD_TOOLTIP, { callbacks:{ label:function(c){ return '  ' + c.raw + ' libros enviados'; } } }) },
-      scales:{ x:{ ticks:{ color:'#bccfdf', font:{size:10} }, grid:{display:false} },
-               y:{ beginAtZero:true, ticks:{ color:'#bccfdf', precision:0 }, grid:{ color:'rgba(26,154,170,0.08)' } } } }
+      scales:{ x:{ ticks:{ color:graficaTxt(), font:{size:10} }, grid:{display:false} },
+               y:{ beginAtZero:true, ticks:{ color:graficaTxt(), precision:0 }, grid:{ color:'rgba(26,154,170,0.08)' } } } }
   }, hayMes);
 
   // ── Gráfica: estado de los libros
@@ -7595,7 +7599,7 @@ function renderRotacionCards(rotacion) {
       options:{ responsive:true, maintainAspectRatio:false, cutout:'68%', onClick:function(evt, elems) {
           if(elems && elems.length) filtrarRotacionPorClase(clasesDona[elems[0].index]);
         }, onHover:function(evt, elems) { evt.native.target.style.cursor = elems.length ? 'pointer' : 'default'; },
-        plugins:{ legend:{ position:'bottom', labels:{ color:'#bccfdf', padding:10, font:{size:11}, usePointStyle:true, pointStyle:'circle' } },
+        plugins:{ legend:{ position:'bottom', labels:{ color:graficaTxt(), padding:10, font:{size:11}, usePointStyle:true, pointStyle:'circle' } },
           tooltip:{ backgroundColor:'#0f2b3c', titleColor:'#1a9aaa', bodyColor:'#e8edf3', padding:10 } } },
       plugins:[{
         id:'centroDona',
@@ -7605,9 +7609,9 @@ function renderRotacionCards(rotacion) {
           var cx = (area.left+area.right)/2, cy = (area.top+area.bottom)/2;
           ctx.save();
           ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-          ctx.fillStyle = '#e8edf3'; ctx.font = '700 26px sans-serif';
+          ctx.fillStyle = graficaNum(); ctx.font = '700 26px sans-serif';
           ctx.fillText(String(totalRotacion), cx, cy-10);
-          ctx.fillStyle = '#8899aa'; ctx.font = '600 11px sans-serif';
+          ctx.fillStyle = graficaTxt(); ctx.font = '600 11px sans-serif';
           ctx.fillText('materiales', cx, cy+14);
           ctx.restore();
         }
@@ -7647,7 +7651,7 @@ function renderMasSolicitados(rotacion) {
       plugins:{ legend:{display:false},
         tooltip:{ backgroundColor:'#0f2b3c', titleColor:'#1a9aaa', bodyColor:'#e8edf3', titleFont:{size:14}, bodyFont:{size:13}, padding:12,
           callbacks:{ title:function(ctx){ return nombresCompletos[ctx[0].dataIndex]; }, label:function(ctx){ return '  '+ctx.raw.toLocaleString('es-CO')+' und en 12 meses'; } } } },
-      scales:{ x:{ ticks:{color:'#bccfdf',font:{size:11}}, grid:{color:'rgba(26,154,170,0.08)'} }, y:{ ticks:{color:'#a9bfd2',font:{size:12}}, grid:{display:false} } }
+      scales:{ x:{ ticks:{color:graficaTxt(),font:{size:11}}, grid:{color:'rgba(26,154,170,0.08)'} }, y:{ ticks:{color:graficaTxt(),font:{size:12}}, grid:{display:false} } }
     },
     plugins:[{
       id:'valorAlFinalBarraSolicitados',
@@ -7655,7 +7659,7 @@ function renderMasSolicitados(rotacion) {
         var ctx = chart.ctx;
         var meta = chart.getDatasetMeta(0);
         ctx.save();
-        ctx.fillStyle = '#e8edf3'; ctx.font = '600 11px sans-serif';
+        ctx.fillStyle = graficaNum(); ctx.font = '600 11px sans-serif';
         ctx.textBaseline = 'middle'; ctx.textAlign = 'left';
         meta.data.forEach(function(bar, idx) {
           ctx.fillText(values[idx].toLocaleString('es-CO')+' und', bar.x+8, bar.y);
@@ -7730,7 +7734,7 @@ function renderValorInventario(rotacion) {
         plugins:{ legend:{display:false},
           tooltip:{ backgroundColor:'#0f2b3c', titleColor:'#1a9aaa', bodyColor:'#e8edf3', titleFont:{size:14}, bodyFont:{size:13}, padding:12,
             callbacks:{ title:function(ctx){ return nombresCompletos[ctx[0].dataIndex]; }, label:function(ctx){ return '  $'+ctx.raw.toLocaleString('es-CO'); } } } },
-        scales:{ x:{ ticks:{color:'#bccfdf',font:{size:11}}, grid:{color:'rgba(26,154,170,0.08)'} }, y:{ ticks:{color:'#a9bfd2',font:{size:12}}, grid:{display:false} } }
+        scales:{ x:{ ticks:{color:graficaTxt(),font:{size:11}}, grid:{color:'rgba(26,154,170,0.08)'} }, y:{ ticks:{color:graficaTxt(),font:{size:12}}, grid:{display:false} } }
       },
       plugins:[{
         id:'valorAlFinalBarra',
@@ -7738,7 +7742,7 @@ function renderValorInventario(rotacion) {
           var ctx = chart.ctx;
           var meta = chart.getDatasetMeta(0);
           ctx.save();
-          ctx.fillStyle = '#e8edf3'; ctx.font = '600 11px sans-serif';
+          ctx.fillStyle = graficaNum(); ctx.font = '600 11px sans-serif';
           ctx.textBaseline = 'middle'; ctx.textAlign = 'left';
           meta.data.forEach(function(bar, idx) {
             ctx.fillText('$'+values[idx].toLocaleString('es-CO'), bar.x+8, bar.y);
