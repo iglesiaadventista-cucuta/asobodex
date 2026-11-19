@@ -308,6 +308,8 @@ textarea.fc{resize:vertical;min-height:70px}
 <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
 <script src="zonas_envio.js?v=20261119b"></script>
+<script src="ayuda_bot.js?v=20261119d"></script>
+<script src="ayuda_contenido_sistema.js?v=20261119d"></script>
 <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
@@ -1853,6 +1855,15 @@ function loginOk(u) {
   buildPedidoForm();
   if(isSecretaria) { setTimeout(function(){ showView('biblias'); }, 0); }
   if(isAuditor) { setTimeout(function(){ showView('auditdash'); }, 0); }
+  iniciarAyudaSistema(u);
+}
+
+// Chat de ayuda según el perfil de quien entró (preguntas en ayuda_contenido_sistema.js).
+function iniciarAyudaSistema(u) {
+  if(!window.AyudaBot || !window.AYUDA_CONTENIDO) return;
+  var c = window.AYUDA_CONTENIDO[u.role] || window.AYUDA_CONTENIDO.reader;
+  if(!c) return;
+  window.AyudaBot.iniciar(Object.assign({}, c, { nombre: u.nombre || '' }));
 }
 function mostrarBienvenida(u) {
   var isMaster = u.role === 'admin';
@@ -2094,6 +2105,7 @@ function doLogout() {
   if(dl) dl.classList.remove('show');
   document.getElementById('app').classList.remove('show');
   document.querySelector('.topbar').classList.remove('auditmode');
+  if(window.AyudaBot) window.AyudaBot.quitar();
   document.getElementById('loginWrap').classList.remove('hidden');
   document.getElementById('lEmail').value = '';
   document.getElementById('lPass').value = '';

@@ -10,9 +10,9 @@
 //   contacto:  { email:'', asunto:'', whatsapp:'573001234567' }  (cualquiera de los dos; opcional)
 (function () {
   var CSS =
-    '.ab-fab{position:fixed;right:14px;bottom:14px;z-index:9990;display:flex;align-items:center;gap:7px;border:none;cursor:pointer;font-family:inherit;font-size:13px;font-weight:700;color:#fff;padding:11px 16px 11px 13px;border-radius:30px;background:linear-gradient(135deg,#1a9aaa,#2a6f80);box-shadow:0 6px 20px rgba(0,0,0,.4),0 0 0 3px rgba(26,154,170,.25);transition:transform .15s}' +
-    '.ab-fab:hover{transform:translateY(-2px)}.ab-fab .ab-i{font-size:19px;line-height:1}' +
-    '.ab-panel{position:fixed;right:14px;bottom:70px;z-index:9991;width:370px;max-width:calc(100vw - 20px);height:min(560px,calc(100vh - 100px));display:none;flex-direction:column;background:var(--navy2,#0f2b3c);border:1px solid var(--bd,rgba(58,143,163,.3));border-radius:18px;overflow:hidden;box-shadow:0 18px 50px rgba(0,0,0,.55);font-family:inherit;color:var(--t1,#e8edf3)}' +
+    '.ab-fab{position:fixed;right:14px;bottom:14px;z-index:9990;display:flex;align-items:center;gap:9px;border:none;cursor:pointer;font-family:inherit;font-size:15px;font-weight:700;color:#fff;padding:15px 22px 15px 18px;border-radius:40px;background:linear-gradient(135deg,#1a9aaa,#2a6f80);box-shadow:0 8px 24px rgba(0,0,0,.45),0 0 0 4px rgba(26,154,170,.28);transition:transform .15s}' +
+    '.ab-fab:hover{transform:translateY(-2px)}.ab-fab .ab-i{font-size:30px;line-height:1}' +
+    '.ab-panel{position:fixed;right:14px;bottom:88px;z-index:9991;width:370px;max-width:calc(100vw - 20px);height:min(560px,calc(100vh - 100px));display:none;flex-direction:column;background:var(--navy2,#0f2b3c);border:1px solid var(--bd,rgba(58,143,163,.3));border-radius:18px;overflow:hidden;box-shadow:0 18px 50px rgba(0,0,0,.55);font-family:inherit;color:var(--t1,#e8edf3)}' +
     '.ab-panel.ab-open{display:flex;animation:abSube .22s ease both}' +
     '@keyframes abSube{from{opacity:0;transform:translateY(14px) scale(.98)}to{opacity:1;transform:none}}' +
     '.ab-head{display:flex;align-items:center;gap:10px;padding:12px 14px;background:linear-gradient(135deg,#1a9aaa,#2a6f80);color:#fff}' +
@@ -36,7 +36,7 @@
     '.ab-pie button{border:none;background:#1a9aaa;color:#fff;width:38px;height:38px;border-radius:50%;font-size:16px;cursor:pointer;flex-shrink:0}' +
     '.ab-esc{display:inline-flex;gap:4px;padding:2px 0}.ab-esc i{width:6px;height:6px;border-radius:50%;background:var(--t2,#8899aa);animation:abPunto 1s infinite}.ab-esc i:nth-child(2){animation-delay:.15s}.ab-esc i:nth-child(3){animation-delay:.3s}' +
     '@keyframes abPunto{0%,60%,100%{opacity:.25}30%{opacity:1}}' +
-    '@media(max-width:480px){.ab-panel{right:8px;left:8px;width:auto;max-width:none;bottom:66px;height:min(78vh,calc(100vh - 90px))}.ab-fab .ab-txt{display:none}.ab-fab{padding:13px}}';
+    '@media(max-width:480px){.ab-panel{right:8px;left:8px;width:auto;max-width:none;bottom:86px;height:min(78vh,calc(100vh - 110px))}.ab-fab .ab-txt{display:none}.ab-fab{width:64px;height:64px;padding:0;justify-content:center;border-radius:50%;right:12px;bottom:12px}.ab-fab .ab-i{font-size:32px}}';
 
   var STOP = ' de la el los las un una unos unas que como cual cuales cuando donde porque para por con sin sobre del al se lo le les mi mis tu tus su sus es son ser esta este estos estas eso esa ese y o u a en me te hay puedo puede pueden hago hacer quiero quisiera necesito saber favor ayuda ayudame ';
   var norm = function (s) {
@@ -185,9 +185,20 @@
       panel.querySelector('.ab-head button').onclick = cerrar;
       panel.querySelector('.ab-pie button').onclick = enviarTexto;
       input.addEventListener('keydown', function (e) { if (e.key === 'Enter') enviarTexto(); });
-      document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && panel.classList.contains('ab-open')) cerrar(); });
-      burbuja('bot', c.saludo || '¡Hola! 👋 Soy el asistente de ayuda. Elige una pregunta o escribe tu duda.');
+      if (!window._abEscListo) {
+        window._abEscListo = true;
+        document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && panel && panel.classList.contains('ab-open')) cerrar(); });
+      }
+      var saludo = (c.saludo || '¡Hola! 👋 Soy el asistente de ayuda. Elige una pregunta o escribe tu duda.').replace('{nombre}', esc(c.nombre || '').split(' ')[0] || 'amigo');
+      burbuja('bot', saludo);
       listaPreguntas('Preguntas frecuentes:');
+    },
+    // Quita el chat de la pantalla (por ejemplo al cerrar sesión).
+    quitar: function () {
+      var p = document.getElementById('abPanel'), f = document.getElementById('abFab');
+      if (p) p.remove();
+      if (f) f.remove();
+      panel = fab = log = input = null;
     },
     abrir: function () { if (panel) abrir(); },
     cerrar: function () { if (panel) cerrar(); },
