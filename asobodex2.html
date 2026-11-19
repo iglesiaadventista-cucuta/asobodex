@@ -110,16 +110,14 @@ html,body{height:100%;background:var(--navy);color:var(--t1);font-family:var(--f
 .ad-hero-s{font-size:12px;color:var(--t2);margin-top:2px}
 .ad-hero-s::first-letter{text-transform:uppercase}
 .ad-hero-chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
-.ad-chipx{font-size:12px;padding:5px 11px;border-radius:20px;background:rgba(255,255,255,.07);border:1px solid var(--bd);cursor:pointer;color:var(--t1);font-family:inherit}
-.ad-chipx:hover{background:rgba(255,255,255,.14)}
+.ad-chipx{font-size:12px;padding:5px 11px;border-radius:20px;background:rgba(255,255,255,.07);border:1px solid var(--bd);color:var(--t1)}
 .ad-per{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;align-items:center}
 .ad-per>span{font-size:12px;color:var(--t2);margin-right:2px}
 .ad-per button{font-family:inherit;font-size:12px;padding:6px 13px;border-radius:20px;border:1px solid var(--bd);background:transparent;color:var(--t2);cursor:pointer;transition:all .15s}
 .ad-per button:hover{color:var(--t1);border-color:var(--teal)}
 .ad-per button.on{background:var(--teal);border-color:var(--teal);color:#fff;font-weight:600}
 .ad-kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:14px}
-.ad-kpi{font-family:inherit;text-align:left;color:var(--t1);cursor:pointer;background:var(--navy2);border:1px solid var(--bd);border-radius:14px;padding:14px 16px;position:relative;overflow:hidden;transition:transform .12s,border-color .12s}
-.ad-kpi:hover{transform:translateY(-2px);border-color:var(--teal)}
+.ad-kpi{text-align:left;color:var(--t1);background:var(--navy2);border:1px solid var(--bd);border-radius:14px;padding:14px 16px;position:relative;overflow:hidden}
 .ad-kpi::before{content:'';position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--teal)}
 .ad-kpi.green::before{background:var(--green)}.ad-kpi.gold::before{background:var(--gold)}.ad-kpi.red::before{background:var(--red)}
 .ad-kpi .k-i{font-size:18px}
@@ -139,7 +137,25 @@ html,body{height:100%;background:var(--navy);color:var(--t1);font-family:var(--f
 .ad-chip.amb{background:rgba(243,156,18,.15);color:var(--amber)}
 .ad-chip.ver{background:rgba(45,212,168,.15);color:var(--green)}
 .ad-chip.gris{background:rgba(255,255,255,.07);color:var(--t2)}
-.ad-nota{font-size:11px;color:var(--t3);margin:0 0 12px;line-height:1.5}
+.ad-nota{font-size:11px;color:var(--t3);margin:0 0 8px;line-height:1.5}
+.ad-lista{max-height:340px;overflow-y:auto}
+/* Mapa de envíos: camioncitos con una caja viajan desde la bodega a cada zona */
+.ad-mapa-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
+.ad-mapa-in{position:relative;min-width:780px}
+.ad-mapa-svg{display:block;width:100%;height:auto}
+.ad-ruta{fill:none;stroke-width:2;stroke-linecap:round}
+.ad-ruta.on{stroke:#2dd4a8;stroke-opacity:.55;stroke-dasharray:3 7;animation:adFlujo 1.4s linear infinite}
+.ad-ruta.off{stroke:#5a7a8a;stroke-opacity:.35;stroke-dasharray:2 8}
+@keyframes adFlujo{to{stroke-dashoffset:-20}}
+.ad-nodo{cursor:pointer;outline:none}
+.ad-nodo:hover .ad-nodo-c,.ad-nodo:focus .ad-nodo-c{stroke:#fff;stroke-width:2}
+.ad-nodo-t{font-size:12px;fill:#dbe7ef;font-weight:600;paint-order:stroke;stroke:#0a1a26;stroke-width:3px;stroke-linejoin:round}
+.ad-nodo-n{font-size:10px;fill:#8fb2c4;paint-order:stroke;stroke:#0a1a26;stroke-width:3px;stroke-linejoin:round}
+.ad-tip{position:absolute;z-index:5;pointer-events:none;display:none;min-width:190px;max-width:260px;background:#0f2b3c;border:1px solid var(--teal);border-radius:10px;padding:10px 12px;font-size:12px;box-shadow:0 8px 24px rgba(0,0,0,.45);transform:translate(-50%,-112%)}
+.ad-tip b{display:block;font-size:13px;margin-bottom:3px}
+.ad-tip .ad-tip-d{display:flex;justify-content:space-between;gap:10px;color:var(--t2);font-size:11px;margin-top:2px}
+.ad-leyenda{display:flex;gap:14px;flex-wrap:wrap;padding:10px 16px 14px;font-size:11px;color:var(--t2);border-top:1px solid var(--bd)}
+.ad-leyenda i{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:5px;vertical-align:middle}
 @media(max-width:900px){.ad-kpis{grid-template-columns:repeat(2,1fr)}.ad-kpi:last-child{grid-column:1/-1}.ad-grid{grid-template-columns:1fr}}
 @media(max-width:768px){
   .topbar.auditmode .uchip{display:none}
@@ -863,6 +879,10 @@ textarea.fc{resize:vertical;min-height:70px}
       <div class="ad-hero" id="adHero"></div>
       <div class="ad-per" id="adPeriodo"></div>
       <div class="ad-kpis" id="adKpis"></div>
+      <div class="panel" style="margin-bottom:14px;overflow:hidden">
+        <div class="ph" style="gap:8px;flex-wrap:wrap"><span class="pt">🚚 Envíos en movimiento</span><span id="adMapaInfo" style="font-size:11px;color:var(--t2)"></span></div>
+        <div id="adMapa"></div>
+      </div>
       <div class="ad-grid">
         <div class="panel"><div class="ph"><span class="pt">🏆 Distritos con más movimiento</span></div>
           <div class="pb"><div class="ad-chart"><canvas id="adChartTop"></canvas><div class="ad-vacio" id="adChartTop_v">Ningún distrito tiene envíos con fecha en este período</div></div></div></div>
@@ -5062,6 +5082,8 @@ var AD_PERIODOS = [[30,'30 días'],[90,'90 días'],[365,'12 meses'],[0,'Todo']];
 
 function adPeriodo(d) { _adDias = d; renderAuditDash(); }
 function adVerTodos() { _adVerTodos = !_adVerTodos; renderAuditDash(); }
+var _adVerTodosNov = false;
+function adVerTodosNov() { _adVerTodosNov = !_adVerTodosNov; renderAuditDash(); }
 
 // Salta a la pantalla de libros con los filtros ya puestos (distrito / estado / filtro extra).
 function audIrDistrito(distrito, filtro, estado) {
@@ -5132,6 +5154,158 @@ function adBarrasH(nombres, valores, color, etiqueta, estadoClic, rojoCero) {
   };
 }
 
+// ── Mapa de envíos ───────────────────────────────────────────────────────────
+// Mapa esquemático (no a escala): la bodega en Cúcuta y una "zona" por destino, ubicadas más o
+// menos como en la realidad (Ocaña al occidente, Tibú al norte, Arauca al oriente...). Cada zona
+// agrupa sus distritos. Las posiciones xy están en un lienzo de 1000 x 470 y se pueden ajustar aquí.
+// Los distritos de ubicación dudosa (marcados "?") se asignaron según su lugar en la lista de
+// distritos del sistema; si alguno está en otro sitio, solo hay que moverlo de zona.
+var AD_ORIGEN = { nombre:'Bodega · Cúcuta', xy:[300, 262] };
+var AD_ZONAS = [
+  { nombre:'Ocaña',               xy:[70, 130],  distritos:['OCAÑA CENTRAL','OCAÑA NORTE'] },
+  { nombre:'El Tarra',            xy:[175, 72],  distritos:['EL TARRA'] },
+  { nombre:'Tibú',                xy:[320, 45],  distritos:['TIBU'] },
+  { nombre:'Arboledas',           xy:[150, 222], distritos:['ARBOLEDAS'] },
+  { nombre:'Pamplona',            xy:[105, 345], distritos:['PAMPLONA'] },
+  { nombre:'Chinácota',           xy:[240, 360], distritos:['CHINACOTA'] },
+  { nombre:'Cúcuta y alrededores',xy:[400, 190], distritos:['CUCUTA CENTRAL','RENACER','SION','ATALAYA','ZULIA','VIÑA DEL SEÑOR','CUCUTA OCCIDENTE','LIBERTAD','GETSEMANI','EDEN','PATIOS'] },
+  { nombre:'Cubará',              xy:[480, 385], distritos:['CUBARA'] },
+  { nombre:'Saravena',            xy:[580, 285], distritos:['CENTRAL SARAVENA','REDENCION','PALESTINA','BETHEL','MARANATHA'] },
+  { nombre:'Fortul',              xy:[610, 360], distritos:['FORTUL','NUEVO CARANAL'] },
+  { nombre:'Arauquita',           xy:[680, 232], distritos:['ARAUQUITA','LA ESMERALDA','PUERTO JORDAN','LA HERMOSA'] },
+  { nombre:'Arauca',              xy:[790, 150], distritos:['CENTRAL ARAUCA','BETANIA','PANAMA'] },
+  { nombre:'Tame',                xy:[710, 420], distritos:['TAME CENTRAL','TAME ORIENTAL'] },
+  { nombre:'Puerto Carreño',      xy:[935, 262], distritos:['PUERTO CARREÑO'] },
+  { nombre:'Vichada',             xy:[890, 395], distritos:['VICHADA'] }
+];
+var AD_OTROS = { nombre:'Otros destinos', xy:[930, 55] };
+var _adZonasCalc = [];
+
+function adAgruparZonas(ds) {
+  var porClave = {};
+  AD_ZONAS.forEach(function(z, i){ z.distritos.forEach(function(n){ porClave[claveNombreInv(n)] = i; }); });
+  var zonas = AD_ZONAS.map(function(z){ return { nombre:z.nombre, xy:z.xy, dist:[] }; });
+  var otros = { nombre:AD_OTROS.nombre, xy:AD_OTROS.xy, dist:[] };
+  ds.forEach(function(d) {
+    var i = porClave[claveNombreInv(d.nombre)];
+    (i === undefined ? otros : zonas[i]).dist.push(d);
+  });
+  if(otros.dist.length) zonas.push(otros);
+  zonas = zonas.filter(function(z){ return z.dist.length > 0; });
+  zonas.forEach(function(z) {
+    z.periodo = 0; z.enviados = 0; z.pend = 0; z.ultimo = null;
+    z.dist.forEach(function(d) {
+      z.periodo += d.periodo; z.enviados += d.enviados; z.pend += d.pend;
+      if(d.ultimo && (!z.ultimo || d.ultimo > z.ultimo)) z.ultimo = d.ultimo;
+    });
+  });
+  return zonas;
+}
+
+function adMapaTip(i, mostrar) {
+  var tip = document.getElementById('adMapaTip');
+  var z = _adZonasCalc[i];
+  if(!tip) return;
+  if(!mostrar || !z) { tip.style.display = 'none'; return; }
+  // El cuadro vive fuera del área deslizable del mapa para que no se corte; se ubica con las
+  // coordenadas reales del punto en pantalla.
+  var wrap = document.getElementById('adMapaWrap'), svg = document.getElementById('adMapaSvg');
+  var rw = wrap.getBoundingClientRect(), rs = svg.getBoundingClientRect();
+  var ancho = wrap.clientWidth;
+  var esc = rs.width / 1000;
+  var x = rs.left - rw.left + z.xy[0] * esc, y = rs.top - rw.top + z.xy[1] * esc;
+  var dias = z.ultimo ? Math.floor((new Date() - z.ultimo) / 86400000) : null;
+  var orden = z.dist.slice().sort(function(a,b){ return b.periodo - a.periodo || a.nombre.localeCompare(b.nombre); });
+  var lista = orden.slice(0, 6).map(function(d) {
+    return '<div class="ad-tip-d"><span>' + escLib(d.nombre) + '</span><span>' + d.periodo + '</span></div>';
+  }).join('') + (orden.length > 6 ? '<div class="ad-tip-d"><span>y ' + (orden.length - 6) + ' distritos más…</span></div>' : '');
+  tip.innerHTML = '<b>' + escLib(z.nombre) + '</b>' +
+    '<div style="color:var(--teal)">' + z.periodo + ' libro' + (z.periodo === 1 ? '' : 's') + ' enviado' + (z.periodo === 1 ? '' : 's') + (_adDias ? ' en el período' : ' en total') + '</div>' +
+    '<div style="color:var(--t2);font-size:11px;margin:3px 0 5px">' + (z.ultimo ? 'Último envío: ' + fmtD(z.ultimo) + ' · ' + tiempoDesde(z.ultimo) : 'Sin fecha de envío registrada') + '</div>' +
+    lista;
+  // Los destinos de la parte alta del mapa muestran el cuadro hacia abajo para que no se corte.
+  var abajo = z.xy[1] < 240;
+  tip.style.transform = abajo ? 'translate(-50%, 6px)' : 'translate(-50%, -112%)';
+  tip.style.left = Math.max(110, Math.min(ancho - 110, x)) + 'px';
+  tip.style.top = (abajo ? y + 24 : y - 14) + 'px';
+  tip.style.display = 'block';
+}
+
+function adRenderMapa(ds) {
+  var cont = document.getElementById('adMapa');
+  if(!cont) return;
+  var zonas = adAgruparZonas(ds);
+  _adZonasCalc = zonas;
+  if(!zonas.length) { cont.innerHTML = '<div class="empty" style="padding:30px">Aún no hay libros registrados</div>'; return; }
+  var ox = AD_ORIGEN.xy[0], oy = AD_ORIGEN.xy[1];
+  var maxP = zonas.reduce(function(m, z){ return Math.max(m, z.periodo); }, 0) || 1;
+  var ahora = new Date();
+  var activas = zonas.filter(function(z){ return z.periodo > 0; }).length;
+  var rutas = '', nodos = '', carros = '';
+
+  zonas.forEach(function(z, i) {
+    var x = z.xy[0], y = z.xy[1];
+    var dx = x - ox, dy = y - oy, len = Math.sqrt(dx*dx + dy*dy) || 1;
+    var nx = -dy / len, ny = dx / len;
+    if(ny > 0) { nx = -nx; ny = -ny; }                    // la curva siempre se abomba hacia arriba
+    var cx = (ox + x) / 2 + nx * len * 0.2, cy = (oy + y) / 2 + ny * len * 0.2;
+    var on = z.periodo > 0;
+    rutas += '<path id="adRuta' + i + '" class="ad-ruta ' + (on ? 'on' : 'off') + '" d="M' + ox + ',' + oy + ' Q' + cx.toFixed(1) + ',' + cy.toFixed(1) + ' ' + x + ',' + y + '"/>';
+
+    var dias = z.ultimo ? Math.floor((ahora - z.ultimo) / 86400000) : null;
+    var color = dias === null ? '#7f93a3' : (dias > 365 ? '#e74c3c' : (dias > 180 ? '#f5a623' : '#2dd4a8'));
+    var r = 7 + 11 * Math.sqrt(z.periodo / maxP);
+    nodos += '<g class="ad-nodo" tabindex="0" onmouseenter="adMapaTip(' + i + ',true)" onmouseleave="adMapaTip(' + i + ',false)" onfocus="adMapaTip(' + i + ',true)" onblur="adMapaTip(' + i + ',false)" onclick="adMapaTip(' + i + ',true)">' +
+      (on ? '<circle cx="' + x + '" cy="' + y + '" r="' + r.toFixed(1) + '" fill="' + color + '" opacity=".4"><animate attributeName="r" values="' + r.toFixed(1) + ';' + (r + 16).toFixed(1) + '" dur="2.6s" begin="' + (i * 0.37).toFixed(2) + 's" repeatCount="indefinite"/><animate attributeName="opacity" values=".45;0" dur="2.6s" begin="' + (i * 0.37).toFixed(2) + 's" repeatCount="indefinite"/></circle>' : '') +
+      '<circle class="ad-nodo-c" cx="' + x + '" cy="' + y + '" r="' + r.toFixed(1) + '" fill="' + color + '" fill-opacity="' + (on ? '.9' : '.35') + '" stroke="#0a1a26" stroke-width="2"/>' +
+      '<text class="ad-nodo-t" x="' + x + '" y="' + (y + r + 14) + '" text-anchor="middle">' + escLib(z.nombre) + '</text>' +
+      '<text class="ad-nodo-n" x="' + x + '" y="' + (y + r + 27) + '" text-anchor="middle">' + (on ? z.periodo + ' libro' + (z.periodo === 1 ? '' : 's') : 'sin envíos') + '</text>' +
+      '</g>';
+
+    if(on) {
+      var n = 1 + (z.periodo >= maxP * 0.34 ? 1 : 0) + (z.periodo >= maxP * 0.67 ? 1 : 0);
+      var dur = 4.5 + len / 110;
+      for(var k = 0; k < n; k++) {
+        var begin = (i * 0.8 + k * dur / n).toFixed(2) + 's';
+        carros += '<g opacity="0">' +
+          '<animateMotion dur="' + dur.toFixed(1) + 's" begin="' + begin + '" repeatCount="indefinite" rotate="auto"><mpath href="#adRuta' + i + '"/></animateMotion>' +
+          '<animate attributeName="opacity" values="0;1;1;0" keyTimes="0;0.07;0.9;1" dur="' + dur.toFixed(1) + 's" begin="' + begin + '" repeatCount="indefinite"/>' +
+          '<rect x="-10" y="-5.5" width="20" height="11" rx="3" fill="#f5a623" stroke="#0a1a26" stroke-width="1"/>' +
+          '<rect x="3" y="-4" width="6" height="8" rx="2" fill="#0f2b3c"/>' +
+          '<rect x="-8.5" y="-4.2" width="10" height="8.4" rx="1.2" fill="#d79a4a" stroke="#fff" stroke-opacity=".55" stroke-width=".7"/>' +
+          '<line x1="-3.5" y1="-4.2" x2="-3.5" y2="4.2" stroke="#fff" stroke-opacity=".55" stroke-width=".8"/>' +
+          '</g>';
+      }
+    }
+  });
+
+  var fondo =
+    '<defs>' +
+      '<radialGradient id="adFondo" cx="30%" cy="55%" r="85%"><stop offset="0" stop-color="#15506a"/><stop offset="1" stop-color="#08141d"/></radialGradient>' +
+      '<pattern id="adPuntos" width="16" height="16" patternUnits="userSpaceOnUse"><circle cx="2" cy="2" r="1" fill="#1a9aaa" opacity=".28"/></pattern>' +
+    '</defs>' +
+    '<rect width="1000" height="470" fill="url(#adFondo)"/><rect width="1000" height="470" fill="url(#adPuntos)"/>';
+  var origen =
+    '<circle cx="' + ox + '" cy="' + oy + '" r="30" fill="none" stroke="#1a9aaa" stroke-opacity=".55" stroke-dasharray="3 7">' +
+      '<animateTransform attributeName="transform" type="rotate" from="0 ' + ox + ' ' + oy + '" to="360 ' + ox + ' ' + oy + '" dur="14s" repeatCount="indefinite"/></circle>' +
+    '<circle cx="' + ox + '" cy="' + oy + '" r="15" fill="#1a9aaa" stroke="#fff" stroke-width="2"/>' +
+    '<text x="' + ox + '" y="' + (oy + 5) + '" text-anchor="middle" font-size="15">📦</text>' +
+    '<text class="ad-nodo-t" x="' + ox + '" y="' + (oy + 48) + '" text-anchor="middle">' + AD_ORIGEN.nombre + '</text>';
+
+  document.getElementById('adMapaInfo').textContent = activas + ' de ' + zonas.length + ' destinos con envíos' + (_adDias ? ' en el período' : '');
+  cont.innerHTML = '<div style="position:relative" id="adMapaWrap"><div class="ad-mapa-scroll"><div class="ad-mapa-in" id="adMapaIn">' +
+    '<svg class="ad-mapa-svg" id="adMapaSvg" viewBox="0 0 1000 470" role="img" aria-label="Mapa de envíos de libros desde la bodega a cada destino">' +
+    fondo + rutas + origen + carros + nodos + '</svg></div></div><div class="ad-tip" id="adMapaTip"></div></div>' +
+    '<div class="ad-leyenda">' +
+      '<span><i style="background:#2dd4a8"></i>recibió libros hace menos de 6 meses</span>' +
+      '<span><i style="background:#f5a623"></i>entre 6 y 12 meses</span>' +
+      '<span><i style="background:#e74c3c"></i>más de un año</span>' +
+      '<span><i style="background:#7f93a3"></i>sin fecha o sin envíos</span>' +
+      '<span>🚚 más camiones y punto más grande = más libros · toca un destino para ver el detalle</span></div>';
+  var svg = document.getElementById('adMapaSvg');
+  if(svg && window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches && svg.pauseAnimations) svg.pauseAnimations();
+}
+
 function renderAuditDash() {
   var vista = document.getElementById('view-auditdash');
   if(!vista || !vista.classList.contains('active')) return;
@@ -5152,14 +5326,15 @@ function renderAuditDash() {
 
   // ── Saludo
   var nombre = (STATE.user && STATE.user.nombre) || 'Auditor';
-  var chip = function(txt, fn){ return '<button type="button" class="ad-chipx" onclick="'+fn+'">'+txt+'</button>'; };
+  // Solo informativos: no llevan a ninguna otra pantalla.
+  var chip = function(txt){ return '<span class="ad-chipx">'+txt+'</span>'; };
   document.getElementById('adHero').innerHTML =
     '<div class="ad-hero-t">Hola, ' + escLib(nombre) + ' 👋</div>' +
     '<div class="ad-hero-s">' + ahora.toLocaleDateString('es-CO', { weekday:'long', day:'numeric', month:'long', year:'numeric' }) + '</div>' +
     '<div class="ad-hero-chips">' +
-      chip('🔎 ' + sinVerificar + ' libro' + (sinVerificar===1?'':'s') + ' por verificar', "audIrDistrito('','sinverificar','')") +
-      chip('⚠️ ' + novAbiertas + ' novedad' + (novAbiertas===1?'':'es') + ' abierta' + (novAbiertas===1?'':'s'), "audIrDistrito('','novedad','')") +
-      chip('⏳ ' + sinPedir6 + ' distrito' + (sinPedir6===1?'':'s') + ' sin recibir libros hace +6 meses', "document.getElementById('adInactivos').scrollIntoView({behavior:'smooth',block:'center'})") +
+      chip('🔎 ' + sinVerificar + ' libro' + (sinVerificar===1?'':'s') + ' por verificar') +
+      chip('⚠️ ' + novAbiertas + ' novedad' + (novAbiertas===1?'':'es') + ' abierta' + (novAbiertas===1?'':'s')) +
+      chip('⏳ ' + sinPedir6 + ' distrito' + (sinPedir6===1?'':'s') + ' sin recibir libros hace +6 meses') +
     '</div>';
 
   // ── Período
@@ -5168,18 +5343,22 @@ function renderAuditDash() {
   }).join('');
 
   // ── Tarjetas (botones)
-  var kpi = function(ico, val, lbl, sub, cls, fn) {
-    return '<button type="button" class="ad-kpi ' + cls + '" onclick="' + fn + '"><div class="k-i">' + ico + '</div><div class="k-v">' + val + '</div><div class="k-l">' + lbl + '</div><div class="k-s">' + sub + '</div></button>';
+  // Tarjetas solo informativas (no son botones): el que quiera ver los libros usa la pestaña "Libros".
+  var kpi = function(ico, val, lbl, sub, cls) {
+    return '<div class="ad-kpi ' + cls + '"><div class="k-i">' + ico + '</div><div class="k-v">' + val + '</div><div class="k-l">' + lbl + '</div><div class="k-s">' + sub + '</div></div>';
   };
   document.getElementById('adKpis').innerHTML =
-    kpi('📦', enviadosPeriodo, 'Libros enviados', _adDias ? 'en este período' : 'en total', 'green', "audIrDistrito('','','enviado')") +
-    kpi('🚚', pendientes, 'Por enviar', 'pendientes + en bodega', 'gold', "audIrDistrito('','','pendientes')") +
-    kpi('✓', revisables ? Math.round(verificados * 100 / revisables) + '%' : '0%', 'Verificados', verificados + ' de ' + revisables + ' libros', 'green', "audIrDistrito('','verificado','')") +
-    kpi('⚠️', novAbiertas, 'Novedades', 'sin resolver', 'red', "audIrDistrito('','novedad','')") +
-    kpi('⏳', sinPedir6, 'Sin recibir +6 meses', 'distritos', '', "document.getElementById('adInactivos').scrollIntoView({behavior:'smooth',block:'center'})");
+    kpi('📦', enviadosPeriodo, 'Libros enviados', _adDias ? 'en este período' : 'en total', 'green') +
+    kpi('🚚', pendientes, 'Por enviar', 'pendientes + en bodega', 'gold') +
+    kpi('✓', revisables ? Math.round(verificados * 100 / revisables) + '%' : '0%', 'Verificados', verificados + ' de ' + revisables + ' libros', 'green') +
+    kpi('⚠️', novAbiertas, 'Novedades', 'sin resolver', 'red') +
+    kpi('⏳', sinPedir6, 'Sin recibir +6 meses', 'distritos', '');
+
+  // ── Mapa de envíos animado
+  adRenderMapa(ds);
 
   // ── Gráfica: más movimiento
-  var top = ds.filter(function(d){ return d.periodo > 0; }).sort(function(a,b){ return b.periodo - a.periodo; }).slice(0, 8);
+  var top =ds.filter(function(d){ return d.periodo > 0; }).sort(function(a,b){ return b.periodo - a.periodo; }).slice(0, 8);
   adGrafica('adChartTop', adBarrasH(top.map(function(d){return d.nombre;}), top.map(function(d){return d.periodo;}), '#2dd4a8', 'libros enviados', 'enviado'), top.length > 0);
 
   // ── Gráfica: menos movimiento (incluye distritos con cero)
@@ -5216,9 +5395,9 @@ function renderAuditDash() {
   var conUlt = ds.filter(function(d){ return d.ultimo; }).sort(function(a,b){ return a.ultimo - b.ultimo; });
   var sinUlt = ds.filter(function(d){ return !d.ultimo; }).sort(function(a,b){ return a.nombre.localeCompare(b.nombre); });
   var filas = conUlt.concat(sinUlt);
-  var verFilas = _adVerTodos ? filas : filas.slice(0, 10);
-  var htmlIn = '<div class="ad-nota">Cuenta desde el último libro enviado con fecha registrada. 🔴 más de 12 meses · 🟠 entre 6 y 12 · 🟢 menos de 6. ' +
-    'Solo ' + conFechaTotal + ' de ' + enviados.length + ' libros enviados tienen fecha; los distritos sin fecha aparecen en gris.</div>';
+  var verFilas = _adVerTodos ? filas : filas.slice(0, 6);
+  var htmlIn = '<div class="ad-nota">Desde el último envío con fecha. 🔴 +12 meses · 🟠 6 a 12 · 🟢 menos de 6 · ⚪ sin fecha (' + conFechaTotal + ' de ' + enviados.length + ' enviados tienen fecha).</div>' +
+    '<div class="ad-lista">';
   htmlIn += verFilas.map(function(d) {
     var sub, cls, txt;
     if(d.ultimo) {
@@ -5234,21 +5413,24 @@ function renderAuditDash() {
       '<div><div class="ad-row-n">' + escLib(d.nombre) + '</div><div class="ad-row-s">' + sub + '</div></div>' +
       '<span class="ad-chip ' + cls + '">' + txt + '</span></button>';
   }).join('');
-  if(filas.length > 10) {
+  htmlIn += '</div>';
+  if(filas.length > 6) {
     htmlIn += '<div style="text-align:center;margin-top:10px"><button type="button" class="btn bsm" onclick="adVerTodos()">' + (_adVerTodos ? 'Ver menos' : 'Ver los ' + filas.length + ' distritos') + '</button></div>';
   }
   document.getElementById('adInactivos').innerHTML = filas.length ? htmlIn : '<div class="empty">Sin datos todavía</div>';
 
   // ── Lista: distritos con novedades o datos por revisar
   var conNov = ds.filter(function(d){ return d.nov > 0 || d.alertas > 0; }).sort(function(a,b){ return b.nov - a.nov || b.alertas - a.alertas; });
+  var verNov = _adVerTodosNov ? conNov : conNov.slice(0, 6);
   document.getElementById('adNovedades').innerHTML = conNov.length
-    ? '<div class="ad-nota">⚠ Novedad: la reportó el auditor y el administrador aún no la resuelve. 🔍 Datos por revisar: libros con numeración dudosa, repetida o que se cruza con otra.</div>' +
-      conNov.map(function(d) {
+    ? '<div class="ad-nota">⚠ Novedad sin resolver · 🔍 libros con datos por revisar (numeración dudosa, repetida o cruzada).</div><div class="ad-lista">' +
+      verNov.map(function(d) {
         var chips = (d.nov ? '<span class="ad-chip rojo">⚠ ' + d.nov + '</span> ' : '') + (d.alertas ? '<span class="ad-chip amb">🔍 ' + d.alertas + '</span>' : '');
         return '<button type="button" class="ad-row" data-d="' + escLib(d.nombre) + '" data-f="' + (d.nov ? 'novedad' : 'alerta') + '" onclick="audIrDistrito(this.dataset.d,this.dataset.f,\'\')">' +
           '<div><div class="ad-row-n">' + escLib(d.nombre) + '</div><div class="ad-row-s">' + d.revisables + ' libros · ' + d.verif + ' verificados</div></div>' +
           '<div style="display:flex;gap:6px">' + chips + '</div></button>';
-      }).join('')
+      }).join('') + '</div>' +
+      (conNov.length > 6 ? '<div style="text-align:center;margin-top:10px"><button type="button" class="btn bsm" onclick="adVerTodosNov()">' + (_adVerTodosNov ? 'Ver menos' : 'Ver los ' + conNov.length + ' distritos') + '</button></div>' : '')
     : '<div class="empty">Sin novedades por ahora 🎉</div>';
 }
 
