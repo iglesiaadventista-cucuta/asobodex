@@ -96,3 +96,29 @@ window.ZONAS_ENVIO.bus = function (escala) {
     '<circle cx="14.6" cy="-3.6" r="1" fill="#fde68a"/><circle cx="14.6" cy="3.6" r="1" fill="#fde68a"/>' +
   '</g>';
 };
+
+// Relieve para los mapas en tono arena: curvas de nivel (como un mapa topográfico) alrededor de las zonas
+// montañosas (la cordillera al occidente y al sur de la región) y un poco de luz y sombra. Los llanos del oriente
+// quedan lisos. P convierte [lon, lat] a las unidades del mapa; k es la escala de pantalla; f formatea números.
+window.ZONAS_ENVIO.relieve = function (pre, P, k, f) {
+  var picos = [ [-72.70, 7.35, 1.00], [-73.25, 8.15, 0.85], [-72.30, 6.40, 0.95], [-73.10, 7.70, 0.70], [-72.95, 6.85, 0.75], [-73.5, 7.1, 0.6] ];
+  var s = '<defs><radialGradient id="' + pre + 'Luz" cx="40%" cy="38%" r="65%"><stop offset="0" stop-color="#fff8ea" stop-opacity=".55"/><stop offset="1" stop-color="#fff8ea" stop-opacity="0"/></radialGradient>' +
+          '<radialGradient id="' + pre + 'Sombra" cx="50%" cy="50%" r="60%"><stop offset="0" stop-color="#6b4a2b" stop-opacity=".16"/><stop offset="1" stop-color="#6b4a2b" stop-opacity="0"/></radialGradient></defs>';
+  picos.forEach(function (pk, pi) {
+    var c = P([pk[0], pk[1]]);
+    var anillos = Math.round(8 + pk[2] * 5), paso = 5.2 * pk[2], radMax = anillos * paso * 1.2;
+    s += '<circle cx="' + f(c[0] + 6) + '" cy="' + f(c[1] + 7) + '" r="' + f(radMax) + '" fill="url(#' + pre + 'Sombra)"/>' +
+         '<circle cx="' + f(c[0] - 4) + '" cy="' + f(c[1] - 5) + '" r="' + f(radMax * 0.85) + '" fill="url(#' + pre + 'Luz)"/>';
+    for (var i = 1; i <= anillos; i++) {
+      var rad = i * paso, d = '';
+      for (var a = 0; a <= 56; a++) {
+        var ang = a / 56 * Math.PI * 2;
+        var rr = rad * (1 + 0.15 * Math.sin(3 * ang + pi * 1.7 + i * 0.33) + 0.09 * Math.sin(5 * ang + pi * 2.9) + 0.05 * Math.sin(8 * ang + i));
+        d += (a ? 'L' : 'M') + f(c[0] + rr * Math.cos(ang) * 1.18) + ',' + f(c[1] + rr * Math.sin(ang) * 0.82);
+      }
+      var fuerte = i % 4 === 0;
+      s += '<path d="' + d + 'Z" fill="none" stroke="#8a6338" stroke-opacity="' + (fuerte ? '.38' : '.20') + '" stroke-width="' + f((fuerte ? 1.3 : 0.8) * k) + '" stroke-linejoin="round"/>';
+    }
+  });
+  return s;
+};

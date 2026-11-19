@@ -180,7 +180,8 @@
   }
 
   window.FondoMapa = {
-    iniciar: function () {
+    // opciones.forzar = id de un tema: se usa siempre ese tema, con el fondo encendido, sin mirar lo que haya guardado
+    iniciar: function (opciones) {
       if (!document.getElementById('fmCss')) {
         var st = document.createElement('style');
         st.id = 'fmCss';
@@ -199,6 +200,7 @@
         var g = localStorage.getItem('abx_tema3');
         if (g && TEMAS[g]) elegido = g;
       } catch (e) {}
+      if (opciones && opciones.forzar && TEMAS[opciones.forzar]) { elegido = opciones.forzar; off = false; }
       if (off) document.body.classList.add('sin-fondo');
       actualizarAspecto();
       ultimo = '';

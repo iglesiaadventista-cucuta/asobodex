@@ -8,7 +8,7 @@
 <link rel="apple-touch-icon" href="icon_asobodex.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="AsoBodex Pedidos">
-<meta name="theme-color" content="#0f2b3c">
+<meta name="theme-color" content="#e6d8c6">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -141,10 +141,32 @@ textarea.fc{resize:vertical;min-height:70px}
 #toast.err{border-color:var(--red)}
 #toast.warn{border-color:var(--amber)}
 @media(max-width:480px){.step span:not(.step-num){display:none}}
+
+/* ═══ Apariencia Arena (igual que el sistema): fondo de cajas desenfocadas, vidrio crema y botones en carbón ═══ */
+.header{margin:10px 12px 0;border-radius:18px;background:var(--vidrio-top,var(--navy2));-webkit-backdrop-filter:blur(18px) saturate(160%);backdrop-filter:blur(18px) saturate(160%);border:1px solid var(--vidrio-borde,var(--bd));box-shadow:0 8px 28px rgba(60,40,20,.16)}
+.main{position:relative;z-index:1}
+.header{z-index:10}
+.steps,.panel{background:var(--vidrio,var(--navy2));-webkit-backdrop-filter:blur(16px) saturate(150%);backdrop-filter:blur(16px) saturate(150%);border:1px solid var(--vidrio-borde,var(--bd));box-shadow:0 8px 30px rgba(60,40,20,.14),inset 0 1px 0 rgba(255,255,255,.5)}
+.mat,.res-item{background:var(--vidrio-th,var(--navy3))}
+.step{color:var(--t2)}
+.step.active{background:#2b2118;color:#f6efe5}
+.panel-title,.hsub,.res-sub,.res-qty,.suc-title{color:var(--titulo,var(--teal))}
+.fc{background:var(--vidrio-in,var(--navy3));border:1px solid rgba(80,55,30,.34);color:var(--t1)}
+.fc::placeholder{color:#7d6b59}
+body.tema-arena select.fc option{background:#f6efe5;color:#2b2118}
+.note-red{color:#8a1f16;background:rgba(166,45,34,.12)}
+.btn-sec{background:rgba(255,255,255,.95);color:#1f160e;border:1px solid rgba(80,55,30,.40);font-weight:700}
+.btn-primary:hover{background:#4a3a2c;box-shadow:0 4px 20px rgba(43,33,24,.3)}
+.qty-btn{background:#fff;color:#1f160e}
+.qty-btn:hover{background:#2b2118;color:#f6efe5;border-color:#2b2118}
+.qty-input{background:rgba(255,255,255,.92)}
+#toast{background:var(--vidrio-modal,var(--navy2));-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);color:var(--t1)}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
-<script src="zonas_envio.js?v=20261119b"></script>
+<script src="zonas_envio.js?v=20261120a"></script>
+<script src="fondo_mapa.js?v=20261120i"></script>
+<script>document.addEventListener('DOMContentLoaded', function(){ if(window.FondoMapa) FondoMapa.iniciar({ forzar: 'arena' }); });</script>
 <script src="ayuda_bot.js?v=20261120c"></script>
 <script src="ayuda_contenido.js?v=20261119a"></script>
 </head>
@@ -473,6 +495,15 @@ function dibujarMapaPastor(dest, nombreDistrito, suf) {
   suf = suf || '';
   var G = window.ZONAS_ENVIO.geo;
   var O = G.origenLL;
+  // Paleta: tono arena con relieve (igual que el sistema); si el tema no cargó, el azul oscuro de siempre.
+  var ARENA = document.body.classList.contains('tema-arena');
+  var pal = ARENA ? {
+    f1:'#f3e8d6', f2:'#dac5a6', puntos:'#8a6a45', depFill:'rgba(120,80,40,.07)', depGlow:'#6b4a2b', depOn:'#6b4a2b', depOffFill:'rgba(120,80,40,.03)', depOff:'#8a6a45',
+    halo:'#f6efe5', txt:'#2b2118', txtB:'#1f160e', depLabel:'#6b4a2b', ruta:'#6b4a2b', nodo:'#1f8a55', nodoBorde:'#f6efe5', bod:'#2b2118'
+  } : {
+    f1:'#15506a', f2:'#08141d', puntos:'#3A8FA3', depFill:'rgba(45,212,168,.07)', depGlow:'#2dd4a8', depOn:'#2dd4a8', depOffFill:'rgba(58,143,163,.05)', depOff:'#3A8FA3',
+    halo:'#0a1a26', txt:'#dbe7ef', txtB:'#ffffff', depLabel:'#2dd4a8', ruta:'#2dd4a8', nodo:'#2dd4a8', nodoBorde:'#0a1a26', bod:'#3A8FA3'
+  };
   var P = function(ll) { return [(ll[0] - O[0]) * 99, (O[1] - ll[1]) * 100]; };   // grados → unidades planas
   var f = function(n){ return n.toFixed(2); };
   var pD = dest ? P(dest.ll) : [0, 0];
@@ -512,14 +543,14 @@ function dibujarMapaPastor(dest, nombreDistrito, suf) {
   };
   var contornos = '';
   if(deptoO !== deptoD) {
-    contornos += '<path d="' + trazo(deptoO) + '" fill="rgba(58,143,163,.05)" stroke="#3A8FA3" stroke-opacity=".5" stroke-width="' + f(1.4 * k) + '" stroke-dasharray="' + f(5 * k) + ' ' + f(4 * k) + '" stroke-linejoin="round"/>';
+    contornos += '<path d="' + trazo(deptoO) + '" fill="' + pal.depOffFill + '" stroke="' + pal.depOff + '" stroke-opacity=".5" stroke-width="' + f(1.4 * k) + '" stroke-dasharray="' + f(5 * k) + ' ' + f(4 * k) + '" stroke-linejoin="round"/>';
   }
   var dD = trazo(deptoD);
-  contornos += '<path d="' + dD + '" fill="rgba(45,212,168,.07)" stroke="#2dd4a8" stroke-opacity=".25" stroke-width="' + f(7 * k) + '" stroke-linejoin="round"/>' +
-               '<path d="' + dD + '" fill="none" stroke="#2dd4a8" stroke-opacity=".9" stroke-width="' + f(1.8 * k) + '" stroke-linejoin="round"/>';
+  contornos += '<path d="' + dD + '" fill="' + pal.depFill + '" stroke="' + pal.depGlow + '" stroke-opacity=".25" stroke-width="' + f(7 * k) + '" stroke-linejoin="round"/>' +
+               '<path d="' + dD + '" fill="none" stroke="' + pal.depOn + '" stroke-opacity=".9" stroke-width="' + f(1.8 * k) + '" stroke-linejoin="round"/>';
 
   var texto = function(t, x, y, tam, color, peso, ancla) {
-    return '<text x="' + f(x) + '" y="' + f(y) + '" text-anchor="' + (ancla || 'middle') + '" font-size="' + f(tam * k) + '" fill="' + color + '" font-weight="' + (peso || 600) + '" stroke="#0a1a26" stroke-width="' + f(3 * k) + '" paint-order="stroke" stroke-linejoin="round">' + t + '</text>';
+    return '<text x="' + f(x) + '" y="' + f(y) + '" text-anchor="' + (ancla || 'middle') + '" font-size="' + f(tam * k) + '" fill="' + color + '" font-weight="' + (peso || 600) + '" stroke="' + pal.halo + '" stroke-width="' + f(3 * k) + '" paint-order="stroke" stroke-linejoin="round">' + t + '</text>';
   };
   var camion = function(begin) {
     return '<g opacity="0">' +
@@ -530,39 +561,40 @@ function dibujarMapaPastor(dest, nombreDistrito, suf) {
 
   // Si bodega y destino quedan cerca en horizontal (poca distancia respecto al encuadre), las
   // etiquetas van a los lados para no encimarse; si están lejos, van debajo de cada punto.
-  var ladoLado = !!dest && Math.abs(pD[0]) < w * 0.45;
+  var ladoLado = !!dest && Math.abs(pD[0]) < w * 0.45 && !(pD[0] > 0 && (0 - vx) / k < 120);   // si la bodega queda pegada al borde izquierdo, su etiqueta va debajo
   var ruta = '', trenes = '', nodoDestino = '';
   if(dest) {
     var len = Math.sqrt(pD[0] * pD[0] + pD[1] * pD[1]) || 1;
     var nx = -pD[1] / len, ny = pD[0] / len;
     if(ny > 0) { nx = -nx; ny = -ny; }                     // la curva se abomba hacia arriba
     var qx = pD[0] / 2 + nx * len * 0.2, qy = pD[1] / 2 + ny * len * 0.2;
-    ruta = '<path id="segRuta' + suf + '" d="M0,0 Q' + f(qx) + ',' + f(qy) + ' ' + f(pD[0]) + ',' + f(pD[1]) + '" fill="none" stroke="#2dd4a8" stroke-opacity=".7" stroke-width="' + f(2 * k) + '" stroke-linecap="round" stroke-dasharray="' + f(3 * k) + ' ' + f(7 * k) + '">' +
+    ruta = '<path id="segRuta' + suf + '" d="M0,0 Q' + f(qx) + ',' + f(qy) + ' ' + f(pD[0]) + ',' + f(pD[1]) + '" fill="none" stroke="' + pal.ruta + '" stroke-opacity=".7" stroke-width="' + f(2 * k) + '" stroke-linecap="round" stroke-dasharray="' + f(3 * k) + ' ' + f(7 * k) + '">' +
       '<animate attributeName="stroke-dashoffset" from="0" to="' + f(-20 * k) + '" dur="1.4s" repeatCount="indefinite"/></path>';
     trenes = camion('0s') + camion('3.2s');
     nodoDestino =
-      '<circle cx="' + f(pD[0]) + '" cy="' + f(pD[1]) + '" r="' + f(9 * k) + '" fill="#2dd4a8" opacity=".45"><animate attributeName="r" values="' + f(9 * k) + ';' + f(26 * k) + '" dur="2.2s" repeatCount="indefinite"/><animate attributeName="opacity" values=".5;0" dur="2.2s" repeatCount="indefinite"/></circle>' +
-      '<circle cx="' + f(pD[0]) + '" cy="' + f(pD[1]) + '" r="' + f(8 * k) + '" fill="#2dd4a8" stroke="#0a1a26" stroke-width="' + f(2 * k) + '"/>' +
+      '<circle cx="' + f(pD[0]) + '" cy="' + f(pD[1]) + '" r="' + f(9 * k) + '" fill="' + pal.nodo + '" opacity=".45"><animate attributeName="r" values="' + f(9 * k) + ';' + f(26 * k) + '" dur="2.2s" repeatCount="indefinite"/><animate attributeName="opacity" values=".5;0" dur="2.2s" repeatCount="indefinite"/></circle>' +
+      '<circle cx="' + f(pD[0]) + '" cy="' + f(pD[1]) + '" r="' + f(8 * k) + '" fill="' + pal.nodo + '" stroke="' + pal.nodoBorde + '" stroke-width="' + f(2 * k) + '"/>' +
       (ladoLado
-        ? texto(nombreDistrito, pD[0] + (pD[0] < 0 ? -14 : 14) * k, pD[1] + 4 * k, 12, '#ffffff', 700, pD[0] < 0 ? 'end' : 'start')
-        : texto(nombreDistrito, pD[0], pD[1] + 24 * k, 12, '#ffffff', 700));
+        ? texto(nombreDistrito, pD[0] + (pD[0] < 0 ? -14 : 14) * k, pD[1] + 4 * k, 12, pal.txtB, 700, pD[0] < 0 ? 'end' : 'start')
+        : texto(nombreDistrito, pD[0], pD[1] + 24 * k, 12, pal.txtB, 700));
   }
 
   var bodega =
-    '<circle cx="0" cy="0" r="' + f(11 * k) + '" fill="#3A8FA3" opacity=".4"><animate attributeName="r" values="' + f(11 * k) + ';' + f(27 * k) + '" dur="2.2s" repeatCount="indefinite"/><animate attributeName="opacity" values=".5;0" dur="2.2s" repeatCount="indefinite"/></circle>' +
-    '<circle cx="0" cy="0" r="' + f(11 * k) + '" fill="#3A8FA3" stroke="#fff" stroke-width="' + f(1.6 * k) + '"/>' +
+    '<circle cx="0" cy="0" r="' + f(11 * k) + '" fill="' + pal.bod + '" opacity=".4"><animate attributeName="r" values="' + f(11 * k) + ';' + f(27 * k) + '" dur="2.2s" repeatCount="indefinite"/><animate attributeName="opacity" values=".5;0" dur="2.2s" repeatCount="indefinite"/></circle>' +
+    '<circle cx="0" cy="0" r="' + f(11 * k) + '" fill="' + pal.bod + '" stroke="#fff" stroke-width="' + f(1.6 * k) + '"/>' +
     '<text x="0" y="' + f(4 * k) + '" text-anchor="middle" font-size="' + f(11 * k) + '">📦</text>' +
     (ladoLado
-      ? texto('Bodega · Cúcuta', (pD[0] < 0 ? 16 : -16) * k, 4 * k, 11, '#dbe7ef', 600, pD[0] < 0 ? 'start' : 'end')
-      : texto('Bodega · Cúcuta', (dest && pD[0] > 0) ? -12 * k : ((dest && pD[0] < 0) ? 12 * k : 0), (dest && pD[1] < -8) ? -17 * k : 28 * k, 11, '#dbe7ef', 600, (dest && pD[0] > 0) ? 'start' : ((dest && pD[0] < 0) ? 'end' : 'middle')));
+      ? texto('Bodega · Cúcuta', (pD[0] < 0 ? 16 : -16) * k, 4 * k, 11, pal.txt, 600, pD[0] < 0 ? 'start' : 'end')
+      : texto('Bodega · Cúcuta', (dest && pD[0] > 0) ? -12 * k : ((dest && pD[0] < 0) ? 12 * k : 0), (dest && pD[1] < -8) ? -17 * k : 28 * k, 11, pal.txt, 600, (dest && pD[0] > 0) ? 'start' : ((dest && pD[0] < 0) ? 'end' : 'middle')));
 
-  var etiquetaDepto = texto((G.deptoNombre[deptoD] || deptoD).toUpperCase(), vx + 9 * k, vy + h - 9 * k, 11, '#2dd4a8', 700, 'start').replace('stroke-width', 'letter-spacing="' + f(1.5 * k) + '" stroke-width');
+  var etiquetaDepto = texto((G.deptoNombre[deptoD] || deptoD).toUpperCase(), vx + 9 * k, vy + h - 9 * k, 11, pal.depLabel, 700, 'start').replace('stroke-width', 'letter-spacing="' + f(1.5 * k) + '" stroke-width');
 
   return '<svg viewBox="' + f(vx) + ' ' + f(vy) + ' ' + f(w) + ' ' + f(h) + '" style="display:block;width:100%;height:auto" role="img" aria-label="Ruta de tu pedido desde la bodega de Cúcuta' + (dest ? ' hacia ' + nombreDistrito : '') + '">' +
-    '<defs><radialGradient id="segFondo' + suf + '" cx="30%" cy="55%" r="90%"><stop offset="0" stop-color="#15506a"/><stop offset="1" stop-color="#08141d"/></radialGradient>' +
-    '<pattern id="segPuntos' + suf + '" width="' + f(16 * k) + '" height="' + f(16 * k) + '" patternUnits="userSpaceOnUse"><circle cx="' + f(2 * k) + '" cy="' + f(2 * k) + '" r="' + f(k) + '" fill="#3A8FA3" opacity=".28"/></pattern></defs>' +
+    '<defs><radialGradient id="segFondo' + suf + '" cx="30%" cy="55%" r="90%"><stop offset="0" stop-color="' + pal.f1 + '"/><stop offset="1" stop-color="' + pal.f2 + '"/></radialGradient>' +
+    '<pattern id="segPuntos' + suf + '" width="' + f(16 * k) + '" height="' + f(16 * k) + '" patternUnits="userSpaceOnUse"><circle cx="' + f(2 * k) + '" cy="' + f(2 * k) + '" r="' + f(k) + '" fill="' + pal.puntos + '" opacity=".28"/></pattern></defs>' +
     '<rect x="' + f(vx) + '" y="' + f(vy) + '" width="' + f(w) + '" height="' + f(h) + '" fill="url(#segFondo' + suf + ')"/>' +
     '<rect x="' + f(vx) + '" y="' + f(vy) + '" width="' + f(w) + '" height="' + f(h) + '" fill="url(#segPuntos' + suf + ')"/>' +
+    (ARENA && window.ZONAS_ENVIO.relieve ? window.ZONAS_ENVIO.relieve('seg' + suf, P, k, f) : '') +
     contornos + ruta + trenes + nodoDestino + bodega + etiquetaDepto +
   '</svg>';
 }
