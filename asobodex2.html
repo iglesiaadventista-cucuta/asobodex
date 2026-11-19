@@ -322,6 +322,33 @@ thead tr{background:var(--vidrio-th,rgba(21,45,71,.45))}
 /* Contraste sobre el vidrio claro: pestaña activa, subtítulo, avisos y la caja de prueba de correo */
 .tab.active{background:var(--tab-act,var(--teal-light));color:var(--tab-act-txt,var(--titulo,var(--teal)))}
 body.tema-arena select.fc option{background:#f6efe5;color:#2b2118}
+/* Tema Arena: botones sólidos y etiquetas con más fuerza, para que resalten sobre el vidrio crema */
+body.tema-arena .btn{background:rgba(255,255,255,.95);border:1px solid rgba(80,55,30,.40);color:#1f160e;font-weight:700;box-shadow:0 1px 3px rgba(60,40,20,.16)}
+body.tema-arena .btn:hover{background:#fff;border-color:#1f160e}
+body.tema-arena .bpri{background:#2b2118;border-color:#2b2118;color:#f6efe5}
+body.tema-arena .bpri:hover{background:#4a3a2c;border-color:#4a3a2c}
+body.tema-arena .bgold{background:#c98a2b;border-color:#a8721f;color:#fff}
+body.tema-arena .bgold:hover{background:#b27820}
+body.tema-arena .bgrn{background:#1f6a37;border-color:#175429;color:#fff}
+body.tema-arena .bgrn:hover{background:#175429}
+body.tema-arena .bred{background:#a62d22;border-color:#86231a;color:#fff}
+body.tema-arena .bred:hover{background:#86231a}
+body.tema-arena .bic:not(.bred):not(.bgrn):not(.bgold):not(.bpri){background:#fff}
+body.tema-arena .outbtn{background:rgba(255,255,255,.92);border:1px solid rgba(80,55,30,.40);color:#1f160e;font-weight:600}
+body.tema-arena .outbtn:hover{background:#a62d22;border-color:#a62d22;color:#fff}
+body.tema-arena .fc,body.tema-arena .linput{border:1px solid rgba(80,55,30,.34);color:#1f160e}
+body.tema-arena .fc::placeholder,body.tema-arena .linput::placeholder{color:#7d6b59}
+body.tema-arena .rtag{background:rgba(255,255,255,.92);border:1px solid rgba(80,55,30,.30);color:#2b2118;font-weight:500}
+body.tema-arena .b{font-weight:700}
+body.tema-arena .b.bok{background:#cfe8d6;color:#14522a}
+body.tema-arena .b.bwn{background:#f5dca6;color:#6b4004}
+body.tema-arena .b.bre{background:#f4c9c3;color:#8a1f16}
+body.tema-arena .b.btl{background:#d9d2c8;color:#2b2118}
+body.tema-arena .b.bgd{background:#f5dca6;color:#6b4004}
+body.tema-arena .b.bgr{background:rgba(43,33,24,.14);color:#2b2118}
+body.tema-arena .tab{color:#3d2f23;font-weight:600}
+body.tema-arena .tab:hover{background:rgba(255,255,255,.7);color:#1f160e}
+body.tema-arena .ltime,body.tema-arena .ssub,body.tema-arena .slbl{color:#5b4a3a}
 .tsub{color:var(--titulo,var(--teal))}
 .alert-warn{color:var(--rojo-txt,var(--red))}
 .alert-old{color:var(--ambar-txt,var(--amber))}
@@ -362,7 +389,7 @@ body.sin-fondo #toast,body.sin-fondo .ad-tip{background:var(--navy2);backdrop-fi
 <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
 <script src="zonas_envio.js?v=20261119b"></script>
-<script src="fondo_mapa.js?v=20261120f"></script>
+<script src="fondo_mapa.js?v=20261120h"></script>
 <script>document.addEventListener('DOMContentLoaded', function(){ if(window.FondoMapa) FondoMapa.iniciar(); });</script>
 <script src="ayuda_bot.js?v=20261120c"></script>
 <script src="ayuda_contenido_sistema.js?v=20261120a"></script>
