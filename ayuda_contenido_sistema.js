@@ -30,8 +30,19 @@ window.AYUDA_CONTENIDO = window.AYUDA_CONTENIDO || {};
        '<li>Toca <b>📤 Enviar solicitud al administrador</b>.</li></ol>' +
        'En <b>Mis solicitudes recientes</b> ves cómo van.' };
 
+  // El mapa del Dashboard lo ven todos los perfiles menos el auditor (que tiene el suyo, de libros, en su Panel).
+  var mapaDash = { p: '¿Qué muestra el mapa del Dashboard?',
+    k: 'mapa dashboard envios movimiento distritos material enviado buses zona periodo colores puntos mas',
+    r: 'Muestra <b>a qué distritos se ha enviado más material</b>, saliendo de la Bodega en Cúcuta. Cuenta las unidades de pedidos entregados, distribuciones, despachos y envíos ocasionales.' +
+       '<ul><li>Los destinos con <b>más material</b> se ven <b>más grandes</b> y con más buses.</li>' +
+       '<li><b>Colores:</b> 🟢 recibió hace menos de 6 meses · 🟠 entre 6 y 12 · 🔴 más de un año · ⚪ sin envíos.</li>' +
+       '<li>Toca un destino para ver cuánto se envió, cuándo fue el último envío y <b>qué materiales fueron los más enviados</b>.</li>' +
+       '<li>Arriba cambias el <b>Período</b> (30 días, 90 días, 12 meses o Todo) y la <b>Zona</b> (Todo, N. Santander, Arauca, Vichada).</li></ul>' };
+
   function perfil(titulo, saludo, preguntas, conContacto) {
-    return { titulo: titulo, saludo: saludo, contacto: conContacto === false ? null : CONTACTO, preguntas: preguntas.concat(comunes) };
+    var lista = preguntas.slice();
+    if (titulo.indexOf('Auditor') === -1) lista.push(mapaDash);
+    return { titulo: titulo, saludo: saludo, contacto: conContacto === false ? null : CONTACTO, preguntas: lista.concat(comunes) };
   }
 
   // ── Auditor ──────────────────────────────────────────────────────────────────────────────

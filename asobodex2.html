@@ -124,7 +124,7 @@ html,body{height:100%;background:var(--navy);color:var(--t1);font-family:var(--f
 .ad-seg button{font-family:inherit;font-size:12px;font-weight:600;padding:9px 2px;border:none;border-radius:9px;background:transparent;color:var(--t2);cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:background .15s,color .15s}
 .ad-seg button:hover{color:var(--t1)}
 .ad-seg button.on{background:linear-gradient(135deg,#1a9aaa,#2a6f80);color:#fff;box-shadow:0 2px 8px rgba(26,154,170,.35)}
-@media(max-width:420px){.ad-seg button{font-size:11px}}
+@media(max-width:420px){.ad-seg button{font-size:10.5px;padding:9px 0;letter-spacing:-.1px}}
 .ad-kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:14px}
 .ad-kpi{text-align:left;color:var(--t1);background:var(--navy2);border:1px solid var(--bd);border-radius:14px;padding:14px 16px;position:relative;overflow:hidden}
 .ad-kpi::before{content:'';position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--teal)}
@@ -309,7 +309,7 @@ textarea.fc{resize:vertical;min-height:70px}
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
 <script src="zonas_envio.js?v=20261119b"></script>
 <script src="ayuda_bot.js?v=20261119d"></script>
-<script src="ayuda_contenido_sistema.js?v=20261119d"></script>
+<script src="ayuda_contenido_sistema.js?v=20261120a"></script>
 <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
@@ -386,6 +386,14 @@ textarea.fc{resize:vertical;min-height:70px}
         <div class="scard red" style="cursor:pointer;transition:all .2s" onclick="dashTab('bajo')" id="tab_bajo"><div class="slbl">Stock bajo</div><div class="sval" id="sL" style="color:var(--red)">0</div><div class="ssub">bajo mínimo</div></div>
         <div class="scard gold" style="cursor:pointer;transition:all .2s" onclick="dashTab('viejo')" id="tab_viejo"><div class="slbl">Material viejo</div><div class="sval" id="sO" style="color:var(--gold)">0</div><div class="ssub">+4 meses en bodega</div></div>
         <div class="scard green" style="cursor:pointer;transition:all .2s" onclick="dashTab('movimientos')" id="tab_movimientos"><div class="slbl">Solicitudes</div><div class="sval" id="sR" style="color:var(--green)">0</div><div class="ssub">pendientes</div></div>
+      </div>
+
+      <!-- Mapa: a qué distritos se ha enviado más material (todos los usuarios menos el auditor) -->
+      <div class="panel" id="dmPanel" style="margin-bottom:14px;overflow:hidden">
+        <div class="ph" style="gap:8px;flex-wrap:wrap"><span class="pt">🚌 Envíos en movimiento</span><span id="dmMapaInfo" style="font-size:11px;color:var(--t2)"></span></div>
+        <div style="padding:0 16px;font-size:12px;color:var(--t2)">A qué distritos se ha enviado más material.</div>
+        <div class="ad-barra"><div id="dmPeriodo"></div><div id="dmVistaSel"></div></div>
+        <div id="dmMapa"></div>
       </div>
 
       <!-- Panel de contenido dinámico -->
@@ -2141,6 +2149,7 @@ function showView(v) {
   var content = document.querySelector('.content');
   if(content) content.scrollTop = 0;
   if(v === 'auditdash') renderAuditDash();
+  if(v === 'dashboard') renderMapaDash();
   moverPildora();
 }
 
@@ -2176,10 +2185,11 @@ window.addEventListener('resize', function(){
   var v = document.getElementById('view-auditdash');
   var cont = document.getElementById('adMapa');
   if(v && v.classList.contains('active') && cont && ((cont.clientWidth || window.innerWidth) < 600) !== _adVertical) renderAuditDash();
+  renderMapaDash();   // el mapa del Dashboard se vuelve a dibujar solo si cambió entre celular y computador
 });
 
 // ── RENDER ───────────────────────────────────────────────────
-function renderAll() { renderDash(); renderInv(); renderDesp(); renderSols(); renderHist(); renderPedidos(); renderMisSolicitudes(); renderLibros(); renderRemisiones(); renderDistribuciones(); renderDistribucionesBiblias(); renderAuditoria(); renderNovedadesLibros(); popSelects(); updBadges(); renderTesoreria(); renderBiblias(); renderCobros(); renderPastores(); }
+function renderAll() { renderDash(); renderInv(); renderDesp(); renderSols(); renderHist(); renderPedidos(); renderMisSolicitudes(); renderLibros(); renderRemisiones(); renderDistribuciones(); renderDistribucionesBiblias(); renderAuditoria(); renderNovedadesLibros(); popSelects(); updBadges(); renderTesoreria(); renderBiblias(); renderCobros(); renderPastores(); renderMapaDash(); }
 
 var _chartMain = null, _chartDona = null;
 var _dashActiveTab = 'resumen';
@@ -5181,20 +5191,30 @@ function adBarrasH(nombres, valores, color, etiqueta, estadoClic, rojoCero) {
   };
 }
 
-// ── Mapa de envíos ───────────────────────────────────────────────────────────
+// ── Mapa de envíos (motor compartido) ────────────────────────────────────────────────────────
 // Mapa real (aproximado) de la región con el borde de cada departamento. La bodega está en Cúcuta
 // y cada destino es una "zona" que agrupa sus distritos. Las zonas, sus coordenadas y los contornos
 // viven en zonas_envio.js (compartido con el formulario de los pastores). Arriba hay pestañas para
 // ver todo el mapa o acercarse a un departamento (en celular se lee mucho mejor así).
+// Hay dos mapas con el mismo motor: el del AUDITOR ('ad', libros de diáconos) y el del DASHBOARD de los
+// demás usuarios ('dm', todo el material enviado a cada distrito). Cada uno usa ids con su prefijo.
 var _ZE = window.ZONAS_ENVIO || { zonas:[], otros:{ nombre:'Otros destinos' }, geo:{ ll:{}, vista:{}, depto:{}, lado:{}, contornos:{}, deptoNombre:{}, origenLL:[0,0] }, nombreVisible:function(n){ return n; } };
 var AD_ZONAS = _ZE.zonas;
 var AD_OTROS = _ZE.otros;
-var _adZonasCalc = [];
 var _adVertical = false;          // true en pantalla angosta (celular)
-var _adVista = null;              // 'todo' o el departamento que se está viendo (se decide al primer dibujo)
-var _adVB = { vx:0, vy:0, w:1, h:1 };
 var AD_VISTAS = [['todo','Todo'], ['NORTE DE SANTANDER','N. Santander'], ['ARAUCA','Arauca'], ['VICHADA','Vichada']];
-function adVista(v) { _adVista = v; renderAuditDash(); }
+var MAPAS = {
+  ad: { pre:'ad', vista:null, zonas:[], vb:{ vx:0, vy:0, w:1, h:1 }, conMateriales:false,
+        dias:function(){ return _adDias; }, rerender:function(){ renderAuditDash(); },
+        t:{ cosa:'libros', un:'libro', unp:'libros', envS:'enviado', envP:'enviados', alt:'Mapa de envíos de libros desde la bodega a cada destino',
+            vacio:'Aún no hay libros registrados', vacioZona:'No hay libros en esta zona', sinUbicar:'libros de distritos sin ubicación en el mapa no se dibujan' } },
+  dm: { pre:'dm', vista:null, zonas:[], vb:{ vx:0, vy:0, w:1, h:1 }, conMateriales:true,
+        dias:function(){ return _dmDias; }, rerender:function(){ renderMapaDash(true); },
+        t:{ cosa:'material', un:'unidad', unp:'unidades', envS:'enviada', envP:'enviadas', alt:'Mapa del material enviado desde la bodega a cada distrito',
+            vacio:'Aún no hay envíos a distritos registrados', vacioZona:'No hay envíos en esta zona', sinUbicar:'unidades enviadas a distritos sin ubicación en el mapa no se dibujan' } }
+};
+function mapaVista(pre, v) { MAPAS[pre].vista = v; MAPAS[pre].rerender(); }
+function adVista(v) { mapaVista('ad', v); }
 
 function adAgruparZonas(ds) {
   var G = _ZE.geo;
@@ -5209,34 +5229,43 @@ function adAgruparZonas(ds) {
   if(otros.dist.length) zonas.push(otros);
   zonas = zonas.filter(function(z){ return z.dist.length > 0; });
   zonas.forEach(function(z) {
-    z.periodo = 0; z.enviados = 0; z.pend = 0; z.ultimo = null;
+    z.periodo = 0; z.enviados = 0; z.pend = 0; z.ultimo = null; z.mats = {};
     z.dist.forEach(function(d) {
       z.periodo += d.periodo; z.enviados += d.enviados; z.pend += d.pend;
       if(d.ultimo && (!z.ultimo || d.ultimo > z.ultimo)) z.ultimo = d.ultimo;
+      if(d.mats) Object.keys(d.mats).forEach(function(m){ z.mats[m] = (z.mats[m] || 0) + d.mats[m]; });
     });
   });
   return zonas;
 }
 
-function adMapaTip(i, mostrar) {
-  var tip = document.getElementById('adMapaTip');
-  var z = _adZonasCalc[i];
+function adMapaTip(i, mostrar) { mapaTip('ad', i, mostrar); }
+function mapaTip(pre, i, mostrar) {
+  var M = MAPAS[pre], t = M.t;
+  var tip = document.getElementById(pre + 'MapaTip');
+  var z = M.zonas[i];
   if(!tip) return;
   if(!mostrar || !z) { tip.style.display = 'none'; return; }
   // El cuadro vive fuera del área del mapa para que no se corte; se ubica con la posición real en pantalla.
-  var wrap = document.getElementById('adMapaWrap'), svg = document.getElementById('adMapaSvg');
+  var wrap = document.getElementById(pre + 'MapaWrap'), svg = document.getElementById(pre + 'MapaSvg');
   var rw = wrap.getBoundingClientRect(), rs = svg.getBoundingClientRect();
   var ancho = wrap.clientWidth;
-  var esc = rs.width / _adVB.w;
-  var x = rs.left - rw.left + (z.sx - _adVB.vx) * esc, y = rs.top - rw.top + (z.sy - _adVB.vy) * esc;
+  var esc = rs.width / M.vb.w;
+  var x = rs.left - rw.left + (z.sx - M.vb.vx) * esc, y = rs.top - rw.top + (z.sy - M.vb.vy) * esc;
   var orden = z.dist.slice().sort(function(a,b){ return b.periodo - a.periodo || a.nombre.localeCompare(b.nombre); });
   var lista = orden.slice(0, 6).map(function(d) {
-    return '<div class="ad-tip-d"><span>' + escLib(_ZE.nombreVisible(d.nombre)) + '</span><span>' + d.periodo + '</span></div>';
+    return '<div class="ad-tip-d"><span>' + escLib(_ZE.nombreVisible(d.nombre)) + '</span><span>' + d.periodo.toLocaleString('es-CO') + '</span></div>';
   }).join('') + (orden.length > 6 ? '<div class="ad-tip-d"><span>y ' + (orden.length - 6) + ' distritos más…</span></div>' : '');
+  var materiales = '';
+  if(M.conMateriales) {
+    var topM = Object.keys(z.mats).map(function(k){ return [k, z.mats[k]]; }).sort(function(a,b){ return b[1] - a[1]; }).slice(0, 3);
+    if(topM.length) materiales = '<div style="color:var(--t2);font-size:11px;margin:6px 0 2px">Lo que más se envió:</div>' +
+      topM.map(function(m){ return '<div class="ad-tip-d"><span>' + escLib(m[0]) + '</span><span>' + m[1].toLocaleString('es-CO') + '</span></div>'; }).join('');
+  }
   tip.innerHTML = '<b>' + escLib(z.nombre) + '</b>' +
-    '<div style="color:var(--teal)">' + z.periodo + ' libro' + (z.periodo === 1 ? '' : 's') + ' enviado' + (z.periodo === 1 ? '' : 's') + (_adDias ? ' en el período' : ' en total') + '</div>' +
+    '<div style="color:var(--teal)">' + z.periodo.toLocaleString('es-CO') + ' ' + (z.periodo === 1 ? t.un : t.unp) + ' ' + (z.periodo === 1 ? t.envS : t.envP) + (M.dias() ? ' en el período' : ' en total') + '</div>' +
     '<div style="color:var(--t2);font-size:11px;margin:3px 0 5px">' + (z.ultimo ? 'Último envío: ' + fmtD(z.ultimo) + ' · ' + tiempoDesde(z.ultimo) : 'Sin fecha de envío registrada') + '</div>' +
-    lista;
+    lista + materiales;
   // Los puntos de la parte alta muestran el cuadro hacia abajo para que no se corte.
   var abajo = (y - rs.top + rw.top) < rs.height * 0.5;
   tip.style.transform = abajo ? 'translate(-50%, 6px)' : 'translate(-50%, -112%)';
@@ -5245,37 +5274,41 @@ function adMapaTip(i, mostrar) {
   tip.style.display = 'block';
 }
 
-function adRenderMapa(ds) {
-  var cont = document.getElementById('adMapa');
+function adRenderMapa(ds) { mapaRender('ad', ds); }
+function mapaRender(pre, ds) {
+  var M = MAPAS[pre], t = M.t;
+  var cont = document.getElementById(pre + 'Mapa');
   if(!cont) return;
   var G = _ZE.geo, O = G.origenLL;
   var P = function(ll) { return [(ll[0] - O[0]) * 99, (O[1] - ll[1]) * 100]; };    // grados → unidades planas (1° ≈ 100)
   var f = function(n){ return n.toFixed(2); };
+  var dias = M.dias();
+  var hMapa = function(fn, extra) { return fn + "('" + pre + "'," + extra + ")"; };
   // En pantallas muy anchas el mapa se limita a 1100 px de ancho (centrado) para que no quede enorme.
   var cw = Math.min(cont.clientWidth || window.innerWidth || 340, 1100);
   _adVertical = cw < 600;
-  if(!_adVista) _adVista = _adVertical ? 'NORTE DE SANTANDER' : 'todo';
-  var vista = _adVista;
+  if(!M.vista) M.vista = _adVertical ? 'NORTE DE SANTANDER' : 'todo';
+  var vista = M.vista;
 
   var todas = adAgruparZonas(ds);
   var zonas = todas.filter(function(z){ return z.ll && (vista === 'todo' || z.vista === vista); });
   var sinUbicar = todas.filter(function(z){ return !z.ll; }).reduce(function(s, z){ return s + z.periodo; }, 0);
 
   // Pestañas de vista (todo / departamento)
-  document.getElementById('adVistaSel').innerHTML = '<div class="ad-seg-t">Zona</div><div class="ad-seg">' + AD_VISTAS.map(function(v) {
-    return '<button type="button" class="' + (vista === v[0] ? 'on' : '') + '" onclick="adVista(\'' + v[0] + '\')">' + v[1] + '</button>';
+  document.getElementById(pre + 'VistaSel').innerHTML = '<div class="ad-seg-t">Zona</div><div class="ad-seg">' + AD_VISTAS.map(function(v) {
+    return '<button type="button" class="' + (vista === v[0] ? 'on' : '') + '" onclick="mapaVista(\'' + pre + '\',\'' + v[0] + '\')">' + v[1] + '</button>';
   }).join('') + '</div>';
 
   if(!zonas.length) {
-    document.getElementById('adMapaInfo').textContent = '';
-    cont.innerHTML = '<div class="empty" style="padding:30px">' + (todas.length ? 'No hay libros en esta zona' : 'Aún no hay libros registrados') + '</div>';
-    _adZonasCalc = [];
+    document.getElementById(pre + 'MapaInfo').textContent = '';
+    cont.innerHTML = '<div class="empty" style="padding:30px">' + (todas.length ? t.vacioZona : t.vacio) + '</div>';
+    M.zonas = [];
     return;
   }
 
   // Encuadre: bodega + destinos + contorno del departamento que se está viendo.
   // En Arauca y Vichada no se encuadra la bodega (queda muy lejos y todo se vería diminuto): los
-  // camiones entran al recuadro desde el borde, saliendo de Cúcuta.
+  // buses entran al recuadro desde el borde, saliendo de Cúcuta.
   var conBodega = vista === 'todo' || vista === 'NORTE DE SANTANDER';
   var pts = conBodega ? [[0, 0]] : [];
   zonas.forEach(function(z){ pts.push(P(z.ll)); });
@@ -5297,7 +5330,7 @@ function adRenderMapa(ds) {
   var h = w * ASP;
   var vx = (x0 + x1) / 2 - w / 2, vy = (y0 + y1) / 2 - h / 2;
   var k = w / cwEf;                     // 1 px de pantalla ≈ k unidades: así los textos miden lo mismo siempre
-  _adVB = { vx:vx, vy:vy, w:w, h:h };
+  M.vb = { vx:vx, vy:vy, w:w, h:h };
 
   // Posición donde se dibuja cada zona. Cúcuta cae en el mismo sitio que la bodega: se corre un poco.
   zonas.forEach(function(z) {
@@ -5305,7 +5338,7 @@ function adRenderMapa(ds) {
     if(Math.abs(p[0]) < 5 && Math.abs(p[1]) < 5) { p = [-30 * k, -22 * k]; }
     z.sx = p[0]; z.sy = p[1];
   });
-  _adZonasCalc = zonas;
+  M.zonas = zonas;
 
   var maxP = zonas.reduce(function(m, z){ return Math.max(m, z.periodo); }, 0) || 1;
   var ahora = new Date();
@@ -5329,13 +5362,13 @@ function adRenderMapa(ds) {
       contornos += '<path d="' + d + '" fill="rgba(58,143,163,.04)" stroke="#3A8FA3" stroke-opacity=".45" stroke-width="' + f(1.2 * k) + '" stroke-dasharray="' + f(5 * k) + ' ' + f(4 * k) + '" stroke-linejoin="round"/>';
     }
   });
-  var texto = function(t, x, y, tam, color, peso, ancla) {
-    return '<text x="' + f(x) + '" y="' + f(y) + '" text-anchor="' + (ancla || 'middle') + '" font-size="' + f(tam * k) + '" fill="' + color + '" font-weight="' + (peso || 600) + '" stroke="#0a1a26" stroke-width="' + f(3 * k) + '" paint-order="stroke" stroke-linejoin="round">' + t + '</text>';
+  var texto = function(tx, x, y, tam, color, peso, ancla) {
+    return '<text x="' + f(x) + '" y="' + f(y) + '" text-anchor="' + (ancla || 'middle') + '" font-size="' + f(tam * k) + '" fill="' + color + '" font-weight="' + (peso || 600) + '" stroke="#0a1a26" stroke-width="' + f(3 * k) + '" paint-order="stroke" stroke-linejoin="round">' + tx + '</text>';
   };
   // Nombre del departamento: en la esquina cuando se ve uno solo; en el centro de cada uno en "Todo".
   if(vista === 'todo') {
     ['NORTE DE SANTANDER', 'ARAUCA', 'VICHADA'].forEach(function(n) {
-      var pp = [], sx = 0, sy = 0, c = 0;
+      var sx = 0, sy = 0, c = 0;
       contor(n, function(q){ sx += q[0]; sy += q[1]; c++; });
       if(!c) return;
       etiquetasDepto += '<text x="' + f(sx / c) + '" y="' + f(sy / c) + '" text-anchor="middle" font-size="' + f(10 * k) + '" fill="#2dd4a8" opacity=".5" font-weight="700" letter-spacing="' + f(1.5 * k) + '">' + (G.deptoNombre[n] || n).toUpperCase() + '</text>';
@@ -5352,18 +5385,18 @@ function adRenderMapa(ds) {
     if(ny > 0) { nx = -nx; ny = -ny; }                    // la curva siempre se abomba hacia arriba
     var qx = x / 2 + nx * len * 0.2, qy = y / 2 + ny * len * 0.2;
     var on = z.periodo > 0;
-    rutas += '<path id="adRuta' + i + '" class="ad-ruta ' + (on ? 'on' : 'off') + '" style="stroke-width:' + f(2 * k) + 'px" d="M0,0 Q' + f(qx) + ',' + f(qy) + ' ' + f(x) + ',' + f(y) + '"/>';
+    rutas += '<path id="' + pre + 'Ruta' + i + '" class="ad-ruta ' + (on ? 'on' : 'off') + '" style="stroke-width:' + f(2 * k) + 'px" d="M0,0 Q' + f(qx) + ',' + f(qy) + ' ' + f(x) + ',' + f(y) + '"/>';
 
-    var dias = z.ultimo ? Math.floor((ahora - z.ultimo) / 86400000) : null;
-    var color = dias === null ? '#7f93a3' : (dias > 365 ? '#e74c3c' : (dias > 180 ? '#f5a623' : '#2dd4a8'));
+    var dd = z.ultimo ? Math.floor((ahora - z.ultimo) / 86400000) : null;
+    var color = dd === null ? '#7f93a3' : (dd > 365 ? '#e74c3c' : (dd > 180 ? '#f5a623' : '#2dd4a8'));
     var r = (7 + 10 * Math.sqrt(z.periodo / maxP)) * k;
-    var ln = escLib(z.nombre), sub = on ? z.periodo + ' libro' + (z.periodo === 1 ? '' : 's') : 'sin envíos';
+    var ln = escLib(z.nombre), sub = on ? z.periodo.toLocaleString('es-CO') + ' ' + (z.periodo === 1 ? t.un : t.unp) : 'sin envíos';
     var lado = G.lado[z.nombre] || 'b', et;
     if(lado === 'l') et = texto(ln, x - r - 6 * k, y - 1 * k, 12, '#dbe7ef', 700, 'end') + texto(sub, x - r - 6 * k, y + 11 * k, 10, '#8fb2c4', 600, 'end');
     else if(lado === 'r') et = texto(ln, x + r + 6 * k, y - 1 * k, 12, '#dbe7ef', 700, 'start') + texto(sub, x + r + 6 * k, y + 11 * k, 10, '#8fb2c4', 600, 'start');
     else if(lado === 't') et = texto(ln, x, y - r - 15 * k, 12, '#dbe7ef', 700) + texto(sub, x, y - r - 3 * k, 10, '#8fb2c4', 600);
     else et = texto(ln, x, y + r + 14 * k, 12, '#dbe7ef', 700) + texto(sub, x, y + r + 26 * k, 10, '#8fb2c4', 600);
-    nodos += '<g class="ad-nodo" tabindex="0" onmouseenter="adMapaTip(' + i + ',true)" onmouseleave="adMapaTip(' + i + ',false)" onfocus="adMapaTip(' + i + ',true)" onblur="adMapaTip(' + i + ',false)" onclick="adMapaTip(' + i + ',true)">' +
+    nodos += '<g class="ad-nodo" tabindex="0" onmouseenter="' + hMapa('mapaTip', i + ',true') + '" onmouseleave="' + hMapa('mapaTip', i + ',false') + '" onfocus="' + hMapa('mapaTip', i + ',true') + '" onblur="' + hMapa('mapaTip', i + ',false') + '" onclick="' + hMapa('mapaTip', i + ',true') + '">' +
       (on ? '<circle cx="' + f(x) + '" cy="' + f(y) + '" r="' + f(r) + '" fill="' + color + '" opacity=".4"><animate attributeName="r" values="' + f(r) + ';' + f(r + 16 * k) + '" dur="2.6s" begin="' + (i * 0.37).toFixed(2) + 's" repeatCount="indefinite"/><animate attributeName="opacity" values=".45;0" dur="2.6s" begin="' + (i * 0.37).toFixed(2) + 's" repeatCount="indefinite"/></circle>' : '') +
       '<circle class="ad-nodo-c" cx="' + f(x) + '" cy="' + f(y) + '" r="' + f(r) + '" fill="' + color + '" fill-opacity="' + (on ? '.9' : '.35') + '" stroke="#0a1a26" stroke-width="' + f(2 * k) + '"/>' +
       et + '</g>';
@@ -5374,7 +5407,7 @@ function adRenderMapa(ds) {
       for(var j = 0; j < n; j++) {
         var begin = (i * 0.8 + j * dur / n).toFixed(2) + 's';
         carros += '<g opacity="0">' +
-          '<animateMotion dur="' + dur.toFixed(1) + 's" begin="' + begin + '" repeatCount="indefinite" rotate="auto"><mpath href="#adRuta' + i + '"/></animateMotion>' +
+          '<animateMotion dur="' + dur.toFixed(1) + 's" begin="' + begin + '" repeatCount="indefinite" rotate="auto"><mpath href="#' + pre + 'Ruta' + i + '"/></animateMotion>' +
           '<animate attributeName="opacity" values="0;1;1;0" keyTimes="0;0.07;0.9;1" dur="' + dur.toFixed(1) + 's" begin="' + begin + '" repeatCount="indefinite"/>' +
           _ZE.bus(f(k * 1.05)) + '</g>';
       }
@@ -5383,12 +5416,11 @@ function adRenderMapa(ds) {
 
   var fondo =
     '<defs>' +
-      '<radialGradient id="adFondo" cx="30%" cy="55%" r="85%"><stop offset="0" stop-color="#15506a"/><stop offset="1" stop-color="#08141d"/></radialGradient>' +
-      '<pattern id="adPuntos" width="' + f(16 * k) + '" height="' + f(16 * k) + '" patternUnits="userSpaceOnUse"><circle cx="' + f(2 * k) + '" cy="' + f(2 * k) + '" r="' + f(k) + '" fill="#1a9aaa" opacity=".28"/></pattern>' +
+      '<radialGradient id="' + pre + 'Fondo" cx="30%" cy="55%" r="85%"><stop offset="0" stop-color="#15506a"/><stop offset="1" stop-color="#08141d"/></radialGradient>' +
+      '<pattern id="' + pre + 'Puntos" width="' + f(16 * k) + '" height="' + f(16 * k) + '" patternUnits="userSpaceOnUse"><circle cx="' + f(2 * k) + '" cy="' + f(2 * k) + '" r="' + f(k) + '" fill="#1a9aaa" opacity=".28"/></pattern>' +
     '</defs>' +
-    '<rect x="' + f(vx) + '" y="' + f(vy) + '" width="' + f(w) + '" height="' + f(h) + '" fill="url(#adFondo)"/>' +
-    '<rect x="' + f(vx) + '" y="' + f(vy) + '" width="' + f(w) + '" height="' + f(h) + '" fill="url(#adPuntos)"/>';
-  var ladoB = 'r';
+    '<rect x="' + f(vx) + '" y="' + f(vy) + '" width="' + f(w) + '" height="' + f(h) + '" fill="url(#' + pre + 'Fondo)"/>' +
+    '<rect x="' + f(vx) + '" y="' + f(vy) + '" width="' + f(w) + '" height="' + f(h) + '" fill="url(#' + pre + 'Puntos)"/>';
   var etiquetaBodega = _ZE.origen ? _ZE.origen.nombre : 'Bodega · Cúcuta';
   var origen = !conBodega
     ? '<text x="' + f(vx + 10 * k) + '" y="' + f(vy + 20 * k) + '" font-size="' + f(11 * k) + '" fill="#dbe7ef" font-weight="700" stroke="#0a1a26" stroke-width="' + f(3 * k) + '" paint-order="stroke">📦 Los envíos salen de ' + etiquetaBodega + '</text>'
@@ -5397,23 +5429,68 @@ function adRenderMapa(ds) {
       '<animateTransform attributeName="transform" type="rotate" from="0 0 0" to="360 0 0" dur="14s" repeatCount="indefinite"/></circle>' +
     '<circle cx="0" cy="0" r="' + f(13 * k) + '" fill="#1a9aaa" stroke="#fff" stroke-width="' + f(1.8 * k) + '"/>' +
     '<text x="0" y="' + f(4.5 * k) + '" text-anchor="middle" font-size="' + f(13 * k) + '">📦</text>' +
-    (ladoB === 'r' ? texto(_ZE.origen ? _ZE.origen.nombre : 'Bodega · Cúcuta', 18 * k, 4 * k, 12, '#ffffff', 700, 'start') : texto(_ZE.origen ? _ZE.origen.nombre : 'Bodega · Cúcuta', 0, 38 * k, 12, '#ffffff', 700));
+    texto(etiquetaBodega, 18 * k, 4 * k, 12, '#ffffff', 700, 'start');
 
-  document.getElementById('adMapaInfo').textContent = activas + ' de ' + zonas.length + ' destinos con envíos' + (_adDias ? ' en el período' : '');
+  document.getElementById(pre + 'MapaInfo').textContent = activas + ' de ' + zonas.length + ' destinos con envíos' + (dias ? ' en el período' : '');
   cont.innerHTML =
-    '<div style="position:relative;max-width:1100px;margin:0 auto" id="adMapaWrap"><div class="ad-mapa-scroll"><div class="ad-mapa-in v" id="adMapaIn" style="' + (ancho ? 'min-width:780px' : '') + '">' +
-    '<svg class="ad-mapa-svg" id="adMapaSvg" viewBox="' + f(vx) + ' ' + f(vy) + ' ' + f(w) + ' ' + f(h) + '" role="img" aria-label="Mapa de envíos de libros desde la bodega a cada destino">' +
-    fondo + contornos + etiquetasDepto + rutas + origen + carros + nodos + '</svg></div></div><div class="ad-tip" id="adMapaTip"></div></div>' +
+    '<div style="position:relative;max-width:1100px;margin:0 auto" id="' + pre + 'MapaWrap"><div class="ad-mapa-scroll"><div class="ad-mapa-in v" id="' + pre + 'MapaIn" style="' + (ancho ? 'min-width:780px' : '') + '">' +
+    '<svg class="ad-mapa-svg" id="' + pre + 'MapaSvg" viewBox="' + f(vx) + ' ' + f(vy) + ' ' + f(w) + ' ' + f(h) + '" role="img" aria-label="' + t.alt + '">' +
+    fondo + contornos + etiquetasDepto + rutas + origen + carros + nodos + '</svg></div></div><div class="ad-tip" id="' + pre + 'MapaTip"></div></div>' +
     '<div class="ad-leyenda">' +
-      '<span><i style="background:#2dd4a8"></i>recibió libros hace menos de 6 meses</span>' +
+      '<span><i style="background:#2dd4a8"></i>recibió ' + t.cosa + ' hace menos de 6 meses</span>' +
       '<span><i style="background:#f5a623"></i>entre 6 y 12 meses</span>' +
       '<span><i style="background:#e74c3c"></i>más de un año</span>' +
       '<span><i style="background:#7f93a3"></i>sin fecha o sin envíos</span>' +
-      '<span>🚌 más buses y punto más grande = más libros · toca un destino para ver el detalle</span>' +
+      '<span>🚌 más buses y punto más grande = más ' + t.cosa + ' · toca un destino para ver el detalle</span>' +
       (ancho ? '<span>↔️ desliza el mapa hacia los lados para verlo completo</span>' : '') +
-      (sinUbicar ? '<span>ℹ️ ' + sinUbicar + ' libros de distritos sin ubicación en el mapa no se dibujan</span>' : '') + '</div>';
-  var svg = document.getElementById('adMapaSvg');
+      (sinUbicar ? '<span>ℹ️ ' + sinUbicar.toLocaleString('es-CO') + ' ' + t.sinUbicar + '</span>' : '') + '</div>';
+  var svg = document.getElementById(pre + 'MapaSvg');
   if(svg && window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches && svg.pauseAnimations) svg.pauseAnimations();
+}
+
+// ── Mapa del Dashboard (todos los usuarios menos el auditor): material enviado a cada distrito ──
+var _dmDias = 365;      // período: 30, 90, 365 días o 0 = todo
+var _dmSig = '';
+function dmPeriodo(d) { _dmDias = d; renderMapaDash(true); }
+
+// Unidades enviadas a cada distrito, sacadas del historial de movimientos (despachos, entregas de
+// pedidos, distribuciones y envíos ocasionales). Las correcciones por distribuciones eliminadas restan.
+function dmDatos() {
+  var corte = _dmDias ? new Date(Date.now() - _dmDias * 86400000) : null;
+  var por = {};
+  (STATE.movements || []).forEach(function(m) {
+    if(!m.distrito) return;
+    var nota = m.nota || '';
+    if(nota.indexOf('Descuento automático') === 0) return;                       // certificados que salen junto con las Biblias
+    var cant = Number(m.cantidad) || 0;
+    if(!cant) return;
+    if(m.tipo === 'ingreso') { if(nota.indexOf('Corrección') === 0) cant = -cant; else return; }
+    var d = por[m.distrito] || (por[m.distrito] = { nombre:m.distrito, enviados:0, periodo:0, ultimo:null, pend:0, mats:{} });
+    d.enviados += cant;
+    if(cant > 0 && (!d.ultimo || m.fecha > d.ultimo)) d.ultimo = m.fecha;
+    if(!corte || m.fecha >= corte) {
+      d.periodo += cant;
+      d.mats[m.material] = (d.mats[m.material] || 0) + cant;
+    }
+  });
+  return Object.keys(por).map(function(k){ var d = por[k]; d.periodo = Math.max(0, d.periodo); d.enviados = Math.max(0, d.enviados); return d; });
+}
+
+function renderMapaDash(forzar) {
+  var vista = document.getElementById('view-dashboard');
+  var cont = document.getElementById('dmMapa');
+  if(!vista || !cont || !vista.classList.contains('active')) return;
+  if(STATE.user && STATE.user.role === 'auditor') return;
+  var mov = STATE.movements || [];
+  var cw = Math.min(cont.clientWidth || window.innerWidth || 340, 1100);
+  var sig = [mov.length, mov.length ? mov[0].id : '', _dmDias, MAPAS.dm.vista, cw < 600 ? 'm' : 'd'].join('|');
+  // Si no cambió nada no se vuelve a dibujar, así no se reinician los buses cada vez que llega un dato.
+  if(!forzar && sig === _dmSig && cont.innerHTML) return;
+  _dmSig = sig;
+  document.getElementById('dmPeriodo').innerHTML = '<div class="ad-seg-t">Período</div><div class="ad-seg">' + AD_PERIODOS.map(function(p) {
+    return '<button type="button" class="' + (_dmDias === p[0] ? 'on' : '') + '" onclick="dmPeriodo(' + p[0] + ')">' + p[1] + '</button>';
+  }).join('') + '</div>';
+  mapaRender('dm', dmDatos());
 }
 
 function renderAuditDash() {
