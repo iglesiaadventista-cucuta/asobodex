@@ -137,6 +137,8 @@ window.AYUDA_CONTENIDO = window.AYUDA_CONTENIDO || {};
     [
       { p: '¿Para qué es mi usuario?', k: 'usuario auxiliar contable para que sirve funcion',
         r: 'Para llevar los <b>cobros a pastores y distritos</b> de los materiales con costo (talonarios, libro misionero, etc.) y marcar si están pendientes, en pago, atrasados o pagados.' },
+      { p: '¿Qué es el balance por distrito?', k: 'balance distrito año informativo gasto envio dinero pedidos unidades pedido resumen excel',
+        r: 'Es un resumen <b>solo informativo</b> que está arriba en Cobros. Por cada distrito muestra, en el año que elijas: <b>pedidos</b> hechos, <b>unidades pedidas</b>, <b>gasto de envío</b> (lo que costó el transporte), lo <b>por cobrar</b> y lo <b>más pedido</b>. Puedes cambiar el año, buscar un distrito, ordenar y bajarlo a <b>Excel</b> con el botón ⬇.' },
       { p: '¿Cómo aparecen los cobros en mi lista?', k: 'cobros aparecen solos automatico aprobado pedido correo aviso llegan',
         r: 'Cuando el administrador <b>aprueba un pedido</b> con materiales con costo, el cobro <b>aparece solo</b> en tu lista y te llega un correo de aviso. También puedes agregar cobros a mano o importarlos desde Excel.' },
       { p: '¿Cómo cambio el estado de un cobro?', k: 'estado cambiar cobro pagado pagando atrasado pendiente marcar',

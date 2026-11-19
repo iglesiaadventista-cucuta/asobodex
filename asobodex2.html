@@ -357,6 +357,18 @@ body.tema-arena .ltime,body.tema-arena .ssub,body.tema-arena .slbl{color:#5b4a3a
 .alert-warn{color:var(--rojo-txt,var(--red))}
 .alert-old{color:var(--ambar-txt,var(--amber))}
 #emailTestBox{background:var(--vidrio,var(--navy2)) !important;border-color:var(--vidrio-borde,var(--bd)) !important;-webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px)}
+/* Balance por distrito (pantalla de Cobros) */
+#balanceResumen{grid-template-columns:repeat(4,1fr)}
+@media(max-width:900px){#balanceResumen{display:grid !important;grid-template-columns:1fr 1fr !important;overflow:visible !important}#balanceResumen .ad-kpi{min-width:0 !important;width:auto !important}#balanceResumen .ad-kpi:last-child{grid-column:auto !important}}
+.bal-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:10px}
+.bal-card{border:1px solid var(--bd);border-radius:14px;padding:12px 14px;background:var(--vidrio-th,rgba(255,255,255,.04))}
+.bal-t{font-size:13px;font-weight:800;letter-spacing:.02em;margin-bottom:9px}
+.bal-g{display:grid;grid-template-columns:1fr 1fr;gap:9px 10px}
+.bal-g b{display:block;font-size:17px;font-weight:800;line-height:1.1}
+.bal-g span{font-size:11px;color:var(--t2)}
+.bal-bar{height:6px;border-radius:6px;background:var(--bd);margin:11px 0 7px;overflow:hidden}
+.bal-bar i{display:block;height:100%;border-radius:6px;background:var(--gold)}
+.bal-m,.bal-s{font-size:11.5px;color:var(--t2);line-height:1.5}
 /* Menú 🎨 (fondo y colores) */
 .menu-aspecto{position:fixed;top:72px;right:16px;z-index:60;width:260px;padding:14px;border-radius:16px;background:var(--vidrio-modal,rgba(13,30,48,.9));-webkit-backdrop-filter:blur(22px) saturate(150%);backdrop-filter:blur(22px) saturate(150%);border:1px solid var(--vidrio-borde,rgba(255,255,255,.14));box-shadow:0 18px 50px rgba(0,0,0,.5)}
 .menu-aspecto .ma-t{font-size:10px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--t2);margin:2px 2px 8px}
@@ -396,7 +408,7 @@ body.sin-fondo #toast,body.sin-fondo .ad-tip{background:var(--navy2);backdrop-fi
 <script src="fondo_mapa.js?v=20261120h"></script>
 <script>document.addEventListener('DOMContentLoaded', function(){ if(window.FondoMapa) FondoMapa.iniciar(); });</script>
 <script src="ayuda_bot.js?v=20261120c"></script>
-<script src="ayuda_contenido_sistema.js?v=20261120a"></script>
+<script src="ayuda_contenido_sistema.js?v=20261120b"></script>
 <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
@@ -756,6 +768,29 @@ body.sin-fondo #toast,body.sin-fondo .ad-tip{background:var(--navy2);backdrop-fi
       <div style="margin-bottom:14px">
         <div style="font-size:16px;font-weight:700">💵 Cobros a pastores y distritos</div>
         <div style="font-size:12px;color:var(--t2);margin-top:2px">Materiales con costo (talonarios, libro misionero, etc.) — se agregan solos cuando se aprueba un pedido con costo, o los podés agregar a mano. Marcá el estado de cada uno cuando cambie.</div>
+      </div>
+
+      <div class="panel" id="balancePanel" style="margin-bottom:16px">
+        <div class="ph" style="gap:8px;flex-wrap:wrap">
+          <span class="pt">📊 Balance por distrito</span>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <select class="fc" id="balAnio" onchange="renderBalance()" style="width:auto;padding:6px 10px;font-size:12px" aria-label="Año"></select>
+            <input type="text" class="fc" id="balBuscar" placeholder="Buscar distrito..." oninput="renderBalance()" style="width:150px;padding:6px 10px;font-size:12px">
+            <select class="fc" id="balOrden" onchange="renderBalance()" style="width:auto;padding:6px 10px;font-size:12px" aria-label="Ordenar por">
+              <option value="gasto">Más gasto de envío</option>
+              <option value="unidades">Más material pedido</option>
+              <option value="pedidos">Más pedidos</option>
+              <option value="cobrar">Más por cobrar</option>
+              <option value="nombre">Orden A–Z</option>
+            </select>
+            <button class="btn bsm bgold" onclick="exportarBalance()">⬇ Excel</button>
+          </div>
+        </div>
+        <div class="pb">
+          <div class="ad-nota">Solo informativo: lo que cada distrito ha pedido en el año, cuánto material se le ha enviado y lo que costó el transporte. Sale de los pedidos, los envíos y los cobros del sistema.</div>
+          <div id="balanceResumen" class="ad-kpis"></div>
+          <div id="balanceLista" class="bal-grid"></div>
+        </div>
       </div>
 
       <div class="g3" id="cobrosResumen" style="margin-bottom:16px"></div>
@@ -4142,10 +4177,143 @@ function calcularCobrosResumen() {
   return {totalPendiente:totalPendiente, totalAtrasado:totalAtrasado, totalPagado:totalPagado, cantidad:cobros.length};
 }
 
+// ── Balance por distrito (informativo, para el auxiliar) ──────────────────────────────────
+function _balAnios() {
+  var anios = {};
+  anios[new Date().getFullYear()] = true;
+  (STATE.requests || []).forEach(function(r){ if(r.fecha) anios[r.fecha.getFullYear()] = true; });
+  (STATE.gastosEnvio || []).forEach(function(g){ if(g.fecha) anios[g.fecha.getFullYear()] = true; });
+  (STATE.cobros || []).forEach(function(c){ if(c.fecha) anios[c.fecha.getFullYear()] = true; });
+  return Object.keys(anios).map(Number).sort(function(a, b){ return b - a; });
+}
+// Un registro por distrito con lo pedido, lo enviado, el costo del transporte y lo que está por cobrar en el año.
+function balanceDatos(anio) {
+  var por = {};
+  var get = function(nom) {
+    var k = claveNombreInv(nom || 'Sin distrito');
+    return por[k] || (por[k] = { nombre:(nom || 'Sin distrito'), pedidos:0, entregados:0, unidades:0, directas:0, gasto:0, cobrar:0, cobrado:0, mats:{}, ultimo:null });
+  };
+  (STATE.requests || []).forEach(function(r) {
+    if(!r.distrito || !r.fecha || r.fecha.getFullYear() !== anio) return;
+    var d = get(r.distrito);
+    d.pedidos++;
+    if(r.estado === 'entregado') d.entregados++;
+    if(!d.ultimo || r.fecha > d.ultimo) d.ultimo = r.fecha;
+    if(r.estado === 'rechazado') return;
+    (r.items || []).forEach(function(it) {
+      if(it.rechazado) return;
+      var c = Number(it.cantidad) || 0;
+      d.unidades += c;
+      d.mats[it.nombre] = (d.mats[it.nombre] || 0) + c;
+    });
+  });
+  // Envíos que no vinieron de un pedido: distribuciones, envíos ocasionales y despachos directos
+  (STATE.movements || []).forEach(function(m) {
+    if(!m.distrito || !m.fecha || m.fecha.getFullYear() !== anio) return;
+    var directo = m.tipo === 'distribucion' || m.tipo === 'envio_ocasional' || (m.tipo === 'despacho' && !m.origenPedido);
+    if(!directo || (m.nota || '').indexOf('Descuento automático') === 0) return;
+    var c = Number(m.cantidad) || 0;
+    if(c > 0) get(m.distrito).directas += c;
+  });
+  (STATE.gastosEnvio || []).forEach(function(g) {
+    if(!g.fecha || g.fecha.getFullYear() !== anio) return;
+    get(g.distrito).gasto += Number(g.costo) || 0;
+  });
+  (STATE.cobros || []).forEach(function(c) {
+    if(!c.distrito || !c.fecha || c.fecha.getFullYear() !== anio) return;
+    var d = get(c.distrito), v = Number(c.valorTotal) || 0;
+    if(c.estado === 'pagado') d.cobrado += v; else d.cobrar += v;
+  });
+  return Object.keys(por).map(function(k){ return por[k]; });
+}
+function _balTop(d, n) {
+  return Object.keys(d.mats).map(function(k){ return [k, d.mats[k]]; }).sort(function(a, b){ return b[1] - a[1]; }).slice(0, n);
+}
+function renderBalance() {
+  var selA = document.getElementById('balAnio');
+  var cont = document.getElementById('balanceLista');
+  if(!selA || !cont) return;
+  var anios = _balAnios(), llave = anios.join(',');
+  if(selA.getAttribute('data-k') !== llave) {
+    var previo = selA.value;
+    selA.innerHTML = anios.map(function(a){ return '<option value="' + a + '">' + a + '</option>'; }).join('');
+    selA.value = (previo && anios.indexOf(Number(previo)) > -1) ? previo : String(anios[0]);
+    selA.setAttribute('data-k', llave);
+  }
+  var anio = Number(selA.value);
+  var datos = balanceDatos(anio);
+  var plata = function(n){ return '$' + Math.round(n).toLocaleString('es-CO'); };
+  var num = function(n){ return Math.round(n).toLocaleString('es-CO'); };
+
+  var T = datos.reduce(function(t, d) {
+    t.pedidos += d.pedidos; t.entregados += d.entregados; t.unidades += d.unidades; t.directas += d.directas;
+    t.gasto += d.gasto; t.cobrar += d.cobrar; t.cobrado += d.cobrado;
+    return t;
+  }, { pedidos:0, entregados:0, unidades:0, directas:0, gasto:0, cobrar:0, cobrado:0 });
+  var kpi = function(ico, val, lbl, sub, cls) {
+    return '<div class="ad-kpi ' + cls + '"><div class="k-i">' + ico + '</div><div class="k-v">' + val + '</div><div class="k-l">' + lbl + '</div><div class="k-s">' + sub + '</div></div>';
+  };
+  document.getElementById('balanceResumen').innerHTML =
+    kpi('📋', num(T.pedidos), 'Pedidos en ' + anio, num(T.entregados) + ' entregados', '') +
+    kpi('📦', num(T.unidades), 'Unidades pedidas', num(T.directas) + ' enviadas sin pedido', 'green') +
+    kpi('🚌', plata(T.gasto), 'Gasto de envío', 'transporte del año', 'gold') +
+    kpi('💵', plata(T.cobrar), 'Por cobrar', plata(T.cobrado) + ' ya cobrado', 'red');
+
+  var q = claveNombreInv(document.getElementById('balBuscar').value);
+  var orden = document.getElementById('balOrden').value;
+  var cmp = {
+    gasto:function(a, b){ return b.gasto - a.gasto; }, unidades:function(a, b){ return b.unidades - a.unidades; },
+    pedidos:function(a, b){ return b.pedidos - a.pedidos; }, cobrar:function(a, b){ return b.cobrar - a.cobrar; },
+    nombre:function(a, b){ return a.nombre.localeCompare(b.nombre); }
+  }[orden];
+  var lista = datos.filter(function(d){ return !q || claveNombreInv(d.nombre).indexOf(q) !== -1; })
+    .sort(function(a, b){ return cmp(a, b) || a.nombre.localeCompare(b.nombre); });
+  if(!lista.length) {
+    cont.innerHTML = '<div class="empty" style="grid-column:1/-1">' + (datos.length ? 'Ningún distrito coincide con la búsqueda.' : 'Aún no hay pedidos, envíos ni cobros registrados en ' + anio + '.') + '</div>';
+    return;
+  }
+  var maxGasto = lista.reduce(function(m, d){ return Math.max(m, d.gasto); }, 0);
+  cont.innerHTML = lista.map(function(d) {
+    var top = _balTop(d, 3).map(function(m){ return escLib(m[0]) + ' (' + num(m[1]) + ')'; }).join(' · ');
+    return '<div class="bal-card">' +
+      '<div class="bal-t">' + escLib(_ZE.nombreVisible ? _ZE.nombreVisible(d.nombre) : d.nombre) + '</div>' +
+      '<div class="bal-g">' +
+        '<div><b>' + num(d.pedidos) + '</b><span>pedidos' + (d.pedidos ? ' · ' + num(d.entregados) + ' entregados' : '') + '</span></div>' +
+        '<div><b>' + num(d.unidades) + '</b><span>unidades pedidas</span></div>' +
+        '<div><b>' + plata(d.gasto) + '</b><span>gasto de envío</span></div>' +
+        '<div><b>' + plata(d.cobrar) + '</b><span>por cobrar</span></div>' +
+      '</div>' +
+      (maxGasto > 0 ? '<div class="bal-bar" title="Gasto de envío frente al distrito que más ha costado"><i style="width:' + Math.max(d.gasto ? 4 : 0, Math.round(d.gasto * 100 / maxGasto)) + '%"></i></div>' : '<div style="height:10px"></div>') +
+      (top ? '<div class="bal-m">Lo más pedido: ' + top + '</div>' : '') +
+      '<div class="bal-s">' + (d.ultimo ? 'Último pedido: ' + fmtD(d.ultimo) : 'Sin pedidos en el año') + (d.directas ? ' · ' + num(d.directas) + ' u enviadas sin pedido' : '') + '</div>' +
+    '</div>';
+  }).join('');
+}
+function exportarBalance() {
+  if(typeof XLSX === 'undefined') { toast('No cargó la librería de Excel, recarga la página', 'err'); return; }
+  var anio = Number(document.getElementById('balAnio').value);
+  var datos = balanceDatos(anio).sort(function(a, b){ return a.nombre.localeCompare(b.nombre); });
+  if(!datos.length) { toast('No hay datos para exportar en ' + anio, 'warn'); return; }
+  var filas = datos.map(function(d) {
+    return {
+      'Distrito': d.nombre, 'Pedidos': d.pedidos, 'Pedidos entregados': d.entregados, 'Unidades pedidas': d.unidades,
+      'Unidades enviadas sin pedido': d.directas, 'Gasto de envío': Math.round(d.gasto), 'Por cobrar': Math.round(d.cobrar), 'Ya cobrado': Math.round(d.cobrado),
+      'Lo más pedido': _balTop(d, 3).map(function(m){ return m[0] + ' (' + m[1] + ')'; }).join(' · '),
+      'Último pedido': d.ultimo ? d.ultimo.toISOString().slice(0, 10) : ''
+    };
+  });
+  var ws = XLSX.utils.json_to_sheet(filas);
+  ws['!cols'] = [{wch:24},{wch:9},{wch:12},{wch:14},{wch:16},{wch:14},{wch:12},{wch:12},{wch:50},{wch:13}];
+  var wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Balance ' + anio);
+  XLSX.writeFile(wb, 'balance_distritos_' + anio + '.xlsx');
+}
+
 function renderCobros() {
   var contResumen = document.getElementById('cobrosResumen');
   var contLista = document.getElementById('cobrosLista');
   if(!contResumen || !contLista) return;
+  renderBalance();
   poblarDistritoCobro();
   poblarPastoresCobro();
   var fechaInput = document.getElementById('cbFecha');

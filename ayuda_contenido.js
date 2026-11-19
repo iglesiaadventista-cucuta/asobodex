@@ -21,6 +21,10 @@ window.AYUDA_CONTENIDO.pastor = {
          '<li><b>Confirmar:</b> revisa el resumen y toca <b>Enviar solicitud</b>.</li></ol>' +
          'Al terminar verás la referencia de tu pedido.' },
 
+    { p: '¿Puedo ver el material en grande?',
+      k: 'foto imagen ver grande material ampliar zoom tocar lupa como es',
+      r: 'Sí. En el paso de materiales, <b>toca la foto pequeña</b> (tiene una lupa 🔍) y se abre en grande. Desde ahí puedes tocar <b>Elegir este material</b>, o cerrarla con la ✕.' },
+
     { p: '¿Hasta cuándo puedo hacer pedidos?',
       k: 'hora plazo miercoles cuando fecha limite tiempo dias recibe reciben cierre',
       r: 'Los pedidos se reciben <b>hasta el miércoles a las 12:00 PM</b>.' },

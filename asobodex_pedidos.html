@@ -161,6 +161,48 @@ body.tema-arena select.fc option{background:#f6efe5;color:#2b2118}
 .qty-btn:hover{background:#2b2118;color:#f6efe5;border-color:#2b2118}
 .qty-input{background:rgba(255,255,255,.92)}
 #toast{background:var(--vidrio-modal,var(--navy2));-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);color:var(--t1)}
+
+/* Que nada se salga del ancho de la pantalla (antes, al escoger materiales, la página se ensanchaba) */
+html,body{max-width:100%;overflow-x:hidden}
+.main{width:100%;max-width:640px}
+.panel,.mat,.mat-body,.mat-top,.mat-label,.fg,.qty-row{max-width:100%;min-width:0}
+.fc,.qty-input,input[type=file].fc{min-width:0;max-width:100%}
+input[type=file].fc{font-size:13px;padding:9px}
+.qty-row>*{min-width:0}
+.mat-name,.mat-rule,.res-name,.res-sub,.note-teal,.note-gold,.note-red,.suc-sub{overflow-wrap:anywhere}
+
+/* Letras más grandes y con más fuerza */
+html,body{font-size:16px}
+.htitle{font-size:17px}
+.hsub{font-size:12px;font-weight:600}
+.step{font-size:13px}
+.panel-title{font-size:14px}
+.fg label{font-size:12.5px;font-weight:700;color:var(--t2)}
+.fc{font-size:16px}
+.note-teal,.note-gold,.note-red{font-size:14px;line-height:1.55}
+.mat-name{font-size:15.5px;font-weight:700}
+.mat-rule{font-size:13px;color:var(--t2)}
+.qty-range{font-size:12.5px;color:var(--t2)}
+.qty-input{font-size:20px}
+.res-name{font-size:15px}
+.res-sub{font-size:13px}
+.btn{font-size:16px}
+.btn-row .btn-sec{font-size:14.5px}
+.suc-sub{font-size:15px}
+.suc-ref{font-size:13px}
+.mat-body label,.mat-body div[style*="font-size:10px"],.mat-body div[style*="font-size:11px"]{font-size:12.5px !important}
+#resumen div[style*="font-size:11px"]{font-size:13px !important}
+#resumen div[style*="font-size:13px"]{font-size:15px !important}
+
+/* Foto del material: se puede tocar para verla grande */
+.mat-fotow{position:relative;flex-shrink:0;width:56px;height:56px;border-radius:12px;cursor:zoom-in;-webkit-tap-highlight-color:transparent}
+.mat-foto{width:56px;height:56px;object-fit:cover;border-radius:12px;border:1px solid rgba(80,55,30,.35);display:block}
+.mat-fotow i{position:absolute;right:-5px;bottom:-5px;width:22px;height:22px;border-radius:50%;background:#2b2118;color:#f6efe5;font-size:12px;font-style:normal;display:flex;align-items:center;justify-content:center;border:2px solid #fff}
+#visorFoto{position:fixed;inset:0;z-index:10000;display:none;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:18px;background:rgba(24,15,8,.82);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px)}
+#visorFoto img{max-width:100%;max-height:70vh;border-radius:16px;box-shadow:0 20px 60px rgba(0,0,0,.5);background:#fff}
+#visorFoto .vf-t{color:#f6efe5;font-size:18px;font-weight:700;text-align:center}
+#visorFoto .vf-x{position:absolute;top:14px;right:14px;width:44px;height:44px;border-radius:50%;border:none;background:rgba(255,255,255,.92);color:#1f160e;font-size:20px;cursor:pointer}
+#visorFoto .vf-b{padding:13px 22px;border:none;border-radius:12px;background:#f6efe5;color:#1f160e;font-family:var(--font);font-size:15px;font-weight:700;cursor:pointer}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
@@ -168,7 +210,7 @@ body.tema-arena select.fc option{background:#f6efe5;color:#2b2118}
 <script src="fondo_mapa.js?v=20261120i"></script>
 <script>document.addEventListener('DOMContentLoaded', function(){ if(window.FondoMapa) FondoMapa.iniciar({ forzar: 'arena' }); });</script>
 <script src="ayuda_bot.js?v=20261120c"></script>
-<script src="ayuda_contenido.js?v=20261119a"></script>
+<script src="ayuda_contenido.js?v=20261120b"></script>
 </head>
 <body>
 
@@ -308,6 +350,12 @@ body.tema-arena select.fc option{background:#f6efe5;color:#2b2118}
     <div id="mapaEnvio" style="display:none;margin-top:18px;border:1px solid var(--bd);border-radius:var(--r2);overflow:hidden;background:var(--navy2)"></div>
   </div>
 
+</div>
+<div id="visorFoto" onclick="cerrarVisorFoto()" role="dialog" aria-label="Foto del material">
+  <button class="vf-x" onclick="cerrarVisorFoto()" aria-label="Cerrar">✕</button>
+  <img id="vfImg" alt="" onclick="event.stopPropagation()">
+  <div class="vf-t" id="vfTit"></div>
+  <button class="vf-b" id="vfBtn" onclick="event.stopPropagation()">Elegir este material</button>
 </div>
 <div id="toast"></div>
 
@@ -867,7 +915,7 @@ function buildMats() {
       ? `<div class="${m.tipo==='diacono'?'note-teal':'note-gold'}">${m.regla}</div>`
       : '';
     const foto = FOTOS_MATERIALES[claveMaterial(m.nombre)];
-    const fotoHtml = foto ? `<img src="${foto}" style="width:40px;height:40px;object-fit:cover;border-radius:8px;border:1px solid rgba(255,255,255,.15);flex-shrink:0">` : '';
+    const fotoHtml = foto ? `<span class="mat-fotow" onclick="event.stopPropagation();verFotoMaterial('${m.id}')" role="button" aria-label="Ver foto de ${m.nombre}"><img class="mat-foto" src="${foto}" alt="${m.nombre}" loading="lazy"><i aria-hidden="true">🔍</i></span>` : '';
     return `<div class="mat" id="mat_${m.id}">
       <div class="mat-top" onclick="toggleMat('${m.id}')">
         <div class="mat-chk" id="chk_${m.id}">✓</div>
@@ -894,6 +942,30 @@ function buildMats() {
   }).join('');
   MATS.filter(m => m.tipo==='diacono').forEach(m => actualizarCamposIglesia(m.id, m.min));
 }
+
+// Visor de la foto de un material: se abre al tocar la miniatura (sin marcar el material) y permite elegirlo desde ahí.
+function verFotoMaterial(id) {
+  const m = MATS.find(x => x.id === id);
+  if(!m) return;
+  const foto = FOTOS_MATERIALES[claveMaterial(m.nombre)];
+  if(!foto) return;
+  document.getElementById('vfImg').src = foto;
+  document.getElementById('vfImg').alt = m.nombre;
+  document.getElementById('vfTit').textContent = m.nombre;
+  const yaMarcado = document.getElementById('mat_' + id) && document.getElementById('mat_' + id).classList.contains('sel');
+  const b = document.getElementById('vfBtn');
+  b.textContent = yaMarcado ? '✓ Ya lo elegiste' : 'Elegir este material';
+  b.onclick = function(e) {
+    e.stopPropagation();
+    const el = document.getElementById('mat_' + id);
+    if(el && !el.classList.contains('sel')) el.classList.add('sel');
+    cerrarVisorFoto();
+    if(el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  };
+  document.getElementById('visorFoto').style.display = 'flex';
+}
+function cerrarVisorFoto() { document.getElementById('visorFoto').style.display = 'none'; }
+document.addEventListener('keydown', function(e) { if(e.key === 'Escape') cerrarVisorFoto(); });
 
 function toggleMat(id) {
   const el = document.getElementById('mat_'+id);
@@ -952,7 +1024,7 @@ function actualizarCamposIglesia(id, cantidad) {
     html += '<div style="background:var(--navy4);border:1px solid var(--bd);border-radius:8px;padding:10px;margin-bottom:8px">' +
       '<div style="font-size:10px;font-weight:700;color:var(--teal);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Libro ' + i + '</div>' +
       '<input type="text" class="fc" id="igl_'+id+'_'+i+'" placeholder="Nombre de la iglesia" onclick="event.stopPropagation()" style="margin-bottom:6px" value="'+iglPrevia+'">' +
-      '<input type="text" class="fc" id="cod_'+id+'_'+i+'" placeholder="Número del talonario, ej: 167150 (opcional, solo el número)" onclick="event.stopPropagation()" style="margin-bottom:6px" value="'+codPrevio+'">' +
+      '<input type="text" class="fc" id="cod_'+id+'_'+i+'" placeholder="Número del talonario (opcional)" onclick="event.stopPropagation()" style="margin-bottom:6px" value="'+codPrevio+'">' +
       '<label style="font-size:10px;font-weight:600;color:var(--t2);text-transform:uppercase;letter-spacing:.06em;display:block;margin-bottom:5px">Foto del talonario anterior (opcional)</label>' +
       '<input type="file" accept="image/*" class="fc" id="foto_'+id+'_'+i+'" style="padding:8px" onclick="event.stopPropagation()">' +
     '</div>';
