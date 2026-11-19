@@ -194,15 +194,33 @@ html,body{font-size:16px}
 #resumen div[style*="font-size:11px"]{font-size:13px !important}
 #resumen div[style*="font-size:13px"]{font-size:15px !important}
 
-/* Balance del distrito (aparece al elegir el distrito) */
-#balanceDistritoBox{margin-top:6px;margin-bottom:6px;border:1px solid rgba(80,55,30,.28);border-radius:16px;padding:14px;background:rgba(255,255,255,.62)}
-.bd-t{font-size:13px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:#2b2118;margin-bottom:10px}
-.bd-g{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.bd-c{background:#fff;border:1px solid rgba(80,55,30,.2);border-radius:12px;padding:10px 12px;min-width:0}
-.bd-c b{display:block;font-size:20px;font-weight:800;line-height:1.1;color:#1f160e;overflow-wrap:anywhere}
-.bd-c span{font-size:12px;color:#4f3f31}
-.bd-m{font-size:13px;color:#4f3f31;line-height:1.55;margin-top:10px}
-.bd-n{font-size:11.5px;color:#76644f;margin-top:8px}
+/* Balance del distrito: arriba, junto al mapa */
+#balanceDistritoBox{margin-bottom:14px;border:1px solid rgba(80,55,30,.28);border-radius:20px;padding:15px 14px;background:rgba(255,255,255,.66);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);box-shadow:0 8px 28px rgba(60,40,20,.14);animation:fadeUp .5s ease both}
+.bd-t{font-size:13px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:#2b2118;margin-bottom:2px}
+.bd-s{font-size:12.5px;color:#4f3f31;margin-bottom:12px}
+.bd-top{display:grid;grid-template-columns:96px 1fr;gap:12px;align-items:center;margin-bottom:12px}
+.bd-dona{position:relative;width:96px;height:96px}
+.bd-dona svg{width:96px;height:96px;transform:rotate(-90deg)}
+.bd-dona b{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:22px;font-weight:800;color:#1f160e;line-height:1}
+.bd-dona b small{font-size:8.5px;font-weight:700;color:#4f3f31;margin-top:2px;letter-spacing:0}
+.bd-g{display:grid;grid-template-columns:1fr 1fr;gap:8px;min-width:0}
+.bd-c{background:#fff;border:1px solid rgba(80,55,30,.2);border-radius:12px;padding:8px 10px;min-width:0}
+.bd-c b{display:block;font-size:18px;font-weight:800;line-height:1.1;color:#1f160e;overflow-wrap:anywhere}
+.bd-c span{font-size:11.5px;color:#4f3f31;line-height:1.3;display:block}
+.bd-c.wide{grid-column:1/-1}
+.bd-card{background:#fff;border:1px solid rgba(80,55,30,.2);border-radius:14px;padding:11px 12px;margin-top:10px}
+.bd-card h4{margin:0 0 8px;font-size:12px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:#4f3f31}
+.bd-svg{width:100%;height:auto;display:block;overflow:visible}
+.bd-svg rect.b{transform-box:fill-box;transform-origin:bottom;animation:bdUp .7s cubic-bezier(.2,.8,.2,1) both}
+@keyframes bdUp{from{transform:scaleY(0)}to{transform:scaleY(1)}}
+.bd-mat{display:flex;align-items:center;gap:8px;font-size:13px;margin-bottom:8px}
+.bd-mat .n{flex:0 0 40%;min-width:0;overflow-wrap:anywhere;font-weight:700;color:#1f160e}
+.bd-mat .bar{flex:1;height:10px;border-radius:10px;background:rgba(80,55,30,.14);overflow:hidden}
+.bd-mat .bar i{display:block;height:10px;border-radius:10px;background:#9a5f0c;transform-origin:left;animation:bdRight .8s cubic-bezier(.2,.8,.2,1) both}
+@keyframes bdRight{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+.bd-mat .v{flex:0 0 auto;font-weight:800;color:#4f3f31}
+.bd-n{font-size:12px;color:#76644f;margin-top:10px}
+.bd-vacio{font-size:14px;color:#4f3f31;line-height:1.5}
 /* Foto del material: se puede tocar para verla grande */
 .mat-fotow{position:relative;flex-shrink:0;width:56px;height:56px;border-radius:12px;cursor:zoom-in;-webkit-tap-highlight-color:transparent}
 .mat-foto{width:56px;height:56px;object-fit:cover;border-radius:12px;border:1px solid rgba(80,55,30,.35);display:block}
@@ -254,6 +272,7 @@ html,body{font-size:16px}
   <div id="p1">
     <!-- Mapa de la ruta del pedido (arriba): bodega → distrito, con el borde del departamento -->
     <div id="seguimientoBox" style="margin-bottom:14px;border:1px solid var(--bd);border-radius:var(--r2);overflow:hidden;background:var(--navy2)"></div>
+    <div id="balanceDistritoBox" style="display:none"></div>
     <div class="panel">
       <div class="panel-title">👤 Información del pastor</div>
       <div class="fg"><label>Nombre completo <span style="color:var(--teal)">*</span></label>
@@ -307,7 +326,6 @@ html,body{font-size:16px}
 <option value="LA HERMOSA">LA HERMOSA</option>
         </select>
       </div>
-      <div id="balanceDistritoBox" style="display:none"></div>
       <div id="resumenCobrosBox" style="display:none;background:var(--teal-light);border:1px solid var(--bd);border-radius:var(--r);padding:12px 14px;margin-top:4px"></div>
     </div>
     <div class="note-teal">Incluye todo lo que necesitas en este pedido.</div>
@@ -727,19 +745,19 @@ function _balPedir(dist) {
     const db = getFirestore(apps.length ? apps[0] : initializeApp(FIREBASE_CONFIG));
     const anio = new Date().getFullYear();
     const aFecha = function(f){ return f && f.toDate ? f.toDate() : (f ? new Date(f) : null); };
-    const res = { anio: anio, pedidos: 0, entregados: 0, unidades: 0, mats: {}, ultimo: null, gasto: null };
+    const res = { anio: anio, pedidos: 0, entregados: 0, unidades: 0, mats: {}, ultimo: null, gasto: null, pedMes: [0,0,0,0,0,0,0,0,0,0,0,0], uniMes: [0,0,0,0,0,0,0,0,0,0,0,0], gastoMes: [0,0,0,0,0,0,0,0,0,0,0,0] };
     const ped = await getDocs(query(collection(db, 'pedidos'), where('distrito', '==', dist)));
     ped.forEach(function(d) {
       const r = d.data(), f = aFecha(r.fecha);
       if(!f || f.getFullYear() !== anio) return;
-      res.pedidos++;
+      res.pedidos++; res.pedMes[f.getMonth()]++;
       if(r.estado === 'entregado') res.entregados++;
       if(!res.ultimo || f > res.ultimo) res.ultimo = f;
       if(r.estado === 'rechazado') return;
       (r.items || []).forEach(function(it) {
         if(it.rechazado) return;
         const c = Number(it.cantidad) || 0;
-        res.unidades += c;
+        res.unidades += c; res.uniMes[f.getMonth()] += c;
         res.mats[it.nombre] = (res.mats[it.nombre] || 0) + c;
       });
     });
@@ -747,13 +765,30 @@ function _balPedir(dist) {
     try {
       const g = await getDocs(query(collection(db, 'gastos_envio'), where('distrito', '==', dist)));
       let t = 0;
-      g.forEach(function(d) { const x = d.data(), f = aFecha(x.fecha); if(f && f.getFullYear() === anio) t += Number(x.costo) || 0; });
+      g.forEach(function(d) { const x = d.data(), f = aFecha(x.fecha); if(f && f.getFullYear() === anio) { const cc = Number(x.costo) || 0; t += cc; res.gastoMes[f.getMonth()] += cc; } });
       res.gasto = t;
     } catch(e) { res.gasto = null; }
     return res;
   })();
   BAL_CACHE[dist].catch(function(){ delete BAL_CACHE[dist]; });
   return BAL_CACHE[dist];
+}
+// Barras por mes en SVG (sin librerías, para que cargue rápido en el celular). El mes actual va resaltado.
+function _barrasMes(vals, color, fmt) {
+  const W = 300, H = 118, base = 96, paso = W / 12, ancho = 17;
+  const max = Math.max.apply(null, vals.concat([1]));
+  const ini = ['E','F','M','A','M','J','J','A','S','O','N','D'];
+  const hoy = new Date().getMonth();
+  let g = '';
+  for(let i = 0; i < 12; i++) {
+    const h = vals[i] > 0 ? Math.max(4, Math.round(vals[i] / max * 70)) : 0;
+    const x = Math.round(i * paso + (paso - ancho) / 2);
+    if(h) g += '<rect class="b" x="' + x + '" y="' + (base - h) + '" width="' + ancho + '" height="' + h + '" rx="4" fill="' + color + '" opacity="' + (i === hoy ? 1 : .78) + '" style="animation-delay:' + (i * 40) + 'ms"></rect>' +
+      '<text x="' + (x + ancho / 2) + '" y="' + (base - h - 4) + '" text-anchor="middle" font-size="9.5" font-weight="700" fill="#1f160e">' + fmt(vals[i]) + '</text>';
+    else g += '<rect x="' + x + '" y="' + (base - 2) + '" width="' + ancho + '" height="2" rx="1" fill="rgba(80,55,30,.25)"></rect>';
+    g += '<text x="' + (x + ancho / 2) + '" y="' + (base + 15) + '" text-anchor="middle" font-size="10.5" font-weight="' + (i === hoy ? 800 : 600) + '" fill="' + (i === hoy ? '#1f160e' : '#76644f') + '">' + ini[i] + '</text>';
+  }
+  return '<svg class="bd-svg" viewBox="0 0 ' + W + ' ' + H + '" role="img">' + g + '</svg>';
 }
 async function actualizarBalanceDistrito() {
   const box = document.getElementById('balanceDistritoBox');
@@ -765,20 +800,35 @@ async function actualizarBalanceDistrito() {
   try { r = await _balPedir(dist); } catch(e) { box.style.display = 'none'; return; }
   if(box.getAttribute('data-dist') !== dist) return; // cambió de distrito mientras cargaba
   const num = function(n){ return Math.round(n).toLocaleString('es-CO'); };
-  const top = Object.keys(r.mats).map(function(k){ return [k, r.mats[k]]; }).sort(function(a, b){ return b[1] - a[1]; }).slice(0, 3)
-    .map(function(m){ return m[0] + ' (' + num(m[1]) + ')'; }).join(' · ');
+  const kfmt = function(n){ return n >= 1000000 ? (n / 1000000).toFixed(1).replace('.0','') + 'M' : (n >= 1000 ? Math.round(n / 1000) + 'k' : String(n)); };
   const nombreD = (window.ZONAS_ENVIO && ZONAS_ENVIO.nombreVisible) ? ZONAS_ENVIO.nombreVisible(dist) : dist;
+  const sinGasto = r.gasto === null || r.gasto === 0;
   let html = '<div class="bd-t">📊 ' + nombreD + ' en ' + r.anio + '</div>';
-  if(!r.pedidos && !r.gasto) {
-    html += '<div class="bd-m" style="margin-top:0">Tu distrito aún no tiene pedidos en ' + r.anio + '. ¡Este puede ser el primero!</div>';
+  if(!r.pedidos && sinGasto) {
+    html += '<div class="bd-vacio" style="margin-top:6px">Tu distrito aún no tiene pedidos en ' + r.anio + '. ¡Este puede ser el primero!</div>';
   } else {
-    html += '<div class="bd-g">' +
-      '<div class="bd-c"><b>' + num(r.pedidos) + '</b><span>pedidos' + (r.pedidos ? ' · ' + num(r.entregados) + ' entregados' : '') + '</span></div>' +
-      '<div class="bd-c"><b>' + num(r.unidades) + '</b><span>unidades pedidas</span></div>' +
-      (r.gasto !== null ? '<div class="bd-c" style="grid-column:1/-1"><b>$' + num(r.gasto) + '</b><span>en envíos de material a tu distrito</span></div>' : '') +
-    '</div>' +
-    (top ? '<div class="bd-m"><b>Lo más pedido:</b> ' + top + '</div>' : '') +
-    (r.ultimo ? '<div class="bd-n">Último pedido: ' + r.ultimo.toLocaleDateString('es-CO', { day:'2-digit', month:'short', year:'numeric' }) + '</div>' : '');
+    html += '<div class="bd-s">Lo que ha pedido tu distrito en el año</div>';
+    const pct = r.pedidos ? Math.round(r.entregados * 100 / r.pedidos) : 0;
+    const C = 2 * Math.PI * 38, L = C * pct / 100;
+    html += '<div class="bd-top">' +
+      '<div class="bd-dona"><svg viewBox="0 0 96 96"><circle cx="48" cy="48" r="38" fill="none" stroke="rgba(80,55,30,.16)" stroke-width="11"></circle>' +
+        '<circle cx="48" cy="48" r="38" fill="none" stroke="#2b2118" stroke-width="11" stroke-linecap="round" stroke-dasharray="' + L.toFixed(1) + ' ' + C.toFixed(1) + '"></circle></svg>' +
+        '<b>' + pct + '%<small>ENTREGADO</small></b></div>' +
+      '<div class="bd-g">' +
+        '<div class="bd-c"><b>' + num(r.pedidos) + '</b><span>pedidos · ' + num(r.entregados) + ' entregados</span></div>' +
+        '<div class="bd-c"><b>' + num(r.unidades) + '</b><span>unidades pedidas</span></div>' +
+        (r.gasto !== null ? '<div class="bd-c wide"><b>$' + num(r.gasto) + '</b><span>en envíos de material a tu distrito</span></div>' : '') +
+      '</div></div>';
+    html += '<div class="bd-card"><h4>📦 Unidades pedidas por mes</h4>' + _barrasMes(r.uniMes, '#2b2118', function(v){ return kfmt(v); }) + '</div>';
+    if(r.gasto) html += '<div class="bd-card"><h4>🚌 Dinero de envíos por mes</h4>' + _barrasMes(r.gastoMes, '#9a5f0c', function(v){ return '$' + kfmt(v); }) + '</div>';
+    const top = Object.keys(r.mats).map(function(k){ return [k, r.mats[k]]; }).sort(function(a, b){ return b[1] - a[1]; }).slice(0, 5);
+    if(top.length) {
+      const mx = top[0][1] || 1;
+      html += '<div class="bd-card"><h4>⭐ Lo más pedido</h4>' + top.map(function(m, i) {
+        return '<div class="bd-mat"><span class="n">' + m[0] + '</span><span class="bar"><i style="width:' + Math.max(5, Math.round(m[1] * 100 / mx)) + '%;animation-delay:' + (i * 90) + 'ms"></i></span><span class="v">' + num(m[1]) + '</span></div>';
+      }).join('') + '</div>';
+    }
+    if(r.ultimo) html += '<div class="bd-n">Último pedido: ' + r.ultimo.toLocaleDateString('es-CO', { day:'2-digit', month:'short', year:'numeric' }) + '</div>';
   }
   box.innerHTML = html;
   box.style.display = 'block';
