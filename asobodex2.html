@@ -319,6 +319,12 @@ thead tr{background:var(--vidrio-th,rgba(21,45,71,.45))}
 .fc,.linput{background:var(--vidrio-in,rgba(21,45,71,.62))}
 .tabnav,.uchip{background:rgba(255,255,255,.08)}
 .modal{background:var(--vidrio-modal,rgba(13,30,48,.86));-webkit-backdrop-filter:blur(22px) saturate(150%);backdrop-filter:blur(22px) saturate(150%);border:1px solid var(--vidrio-borde,rgba(255,255,255,.14))}
+/* Contraste sobre el vidrio claro: pestaña activa, subtítulo, avisos y la caja de prueba de correo */
+.tab.active{background:var(--tab-act,var(--teal-light));color:var(--titulo,var(--teal))}
+.tsub{color:var(--titulo,var(--teal))}
+.alert-warn{color:var(--rojo-txt,var(--red))}
+.alert-old{color:var(--ambar-txt,var(--amber))}
+#emailTestBox{background:var(--vidrio,var(--navy2)) !important;border-color:var(--vidrio-borde,var(--bd)) !important;-webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px)}
 /* Menú 🎨 (fondo y colores) */
 .menu-aspecto{position:fixed;top:72px;right:16px;z-index:60;width:260px;padding:14px;border-radius:16px;background:var(--vidrio-modal,rgba(13,30,48,.9));-webkit-backdrop-filter:blur(22px) saturate(150%);backdrop-filter:blur(22px) saturate(150%);border:1px solid var(--vidrio-borde,rgba(255,255,255,.14));box-shadow:0 18px 50px rgba(0,0,0,.5)}
 .menu-aspecto .ma-t{font-size:10px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--t2);margin:2px 2px 8px}
@@ -355,7 +361,7 @@ body.sin-fondo #toast,body.sin-fondo .ad-tip{background:var(--navy2);backdrop-fi
 <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
 <script src="zonas_envio.js?v=20261119b"></script>
-<script src="fondo_mapa.js?v=20261120c"></script>
+<script src="fondo_mapa.js?v=20261120d"></script>
 <script>document.addEventListener('DOMContentLoaded', function(){ if(window.FondoMapa) FondoMapa.iniciar(); });</script>
 <script src="ayuda_bot.js?v=20261120b"></script>
 <script src="ayuda_contenido_sistema.js?v=20261120a"></script>

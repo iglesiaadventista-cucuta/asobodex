@@ -7,23 +7,23 @@
   // Temas: colores del fondo y del vidrio. Todo se aplica como variables CSS en <body>.
   var TEMAS = {
     cristal: { nombre: 'Cristal',
-      fondo: 'radial-gradient(ellipse at 20% 15%,#2f95bb 0%,transparent 55%),radial-gradient(ellipse at 88% 85%,#1c6585 0%,transparent 55%),linear-gradient(160deg,#10405f 0%,#0a2a46 55%,#071c30 100%)',
+      fondo: 'radial-gradient(ellipse at 20% 15%,#2685aa 0%,transparent 55%),radial-gradient(ellipse at 88% 85%,#17607f 0%,transparent 55%),linear-gradient(160deg,#0e3a58 0%,#092741 55%,#061a2c 100%)',
       linea: '#a6e4f2',
       vars: { '--vidrio': 'rgba(255,255,255,.085)', '--vidrio-borde': 'rgba(255,255,255,.22)', '--vidrio-top': 'rgba(255,255,255,.10)',
               '--vidrio-th': 'rgba(255,255,255,.07)', '--vidrio-in': 'rgba(6,26,46,.48)', '--vidrio-modal': 'rgba(14,42,70,.84)',
-              '--t2': '#bcd3e6', '--t3': '#8fb1cb', '--titulo': '#8fe0f0' } },
+              '--t2': '#c4d8e9', '--t3': '#96b6cf', '--titulo': '#a8ecfa', '--tab-act': 'rgba(255,255,255,.22)', '--rojo-txt': '#ffc4bd', '--ambar-txt': '#ffe2a0' } },
     oceano: { nombre: 'Océano',
       fondo: 'radial-gradient(ellipse at 30% 20%,#12324a 0%,#0b1929 55%,#070f1a 100%)',
       linea: '#5fb8cc',
       vars: { '--vidrio': 'rgba(15,34,54,.50)', '--vidrio-borde': 'rgba(255,255,255,.10)', '--vidrio-top': 'rgba(11,25,41,.50)',
               '--vidrio-th': 'rgba(21,45,71,.45)', '--vidrio-in': 'rgba(21,45,71,.62)', '--vidrio-modal': 'rgba(13,30,48,.86)',
-              '--t2': '#8BA8C4', '--t3': '#4d6a85', '--titulo': '#3A8FA3' } },
+              '--t2': '#8BA8C4', '--t3': '#4d6a85', '--titulo': '#3A8FA3', '--tab-act': 'rgba(58,143,163,.12)', '--rojo-txt': '#e74c3c', '--ambar-txt': '#F5A623' } },
     aurora: { nombre: 'Aurora',
       fondo: 'radial-gradient(ellipse at 18% 14%,#6a30b0 0%,transparent 55%),radial-gradient(ellipse at 88% 88%,#128a82 0%,transparent 55%),linear-gradient(160deg,#241a58 0%,#10264d 60%,#071c30 100%)',
       linea: '#d2baff',
       vars: { '--vidrio': 'rgba(255,255,255,.075)', '--vidrio-borde': 'rgba(222,204,255,.24)', '--vidrio-top': 'rgba(255,255,255,.09)',
               '--vidrio-th': 'rgba(255,255,255,.06)', '--vidrio-in': 'rgba(22,14,54,.48)', '--vidrio-modal': 'rgba(28,20,66,.85)',
-              '--t2': '#cdc4ee', '--t3': '#9d93c9', '--titulo': '#cbb6ff' } }
+              '--t2': '#d3cbf2', '--t3': '#a59dcf', '--titulo': '#dccaff', '--tab-act': 'rgba(255,255,255,.20)', '--rojo-txt': '#ffc4cf', '--ambar-txt': '#ffe2a0' } }
   };
   var TEMA_INICIAL = 'cristal';
   var temaActual = TEMA_INICIAL;
