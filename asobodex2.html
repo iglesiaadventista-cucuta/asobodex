@@ -142,6 +142,7 @@ html,body{height:100%;background:var(--navy);color:var(--t1);font-family:var(--f
 /* Mapa de envíos: camioncitos con una caja viajan desde la bodega a cada zona */
 .ad-mapa-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
 .ad-mapa-in{position:relative;min-width:780px}
+.ad-mapa-in.v{min-width:0}
 .ad-mapa-svg{display:block;width:100%;height:auto}
 .ad-ruta{fill:none;stroke-width:2;stroke-linecap:round}
 .ad-ruta.on{stroke:#2dd4a8;stroke-opacity:.55;stroke-dasharray:3 7;animation:adFlujo 1.4s linear infinite}
@@ -297,6 +298,7 @@ textarea.fc{resize:vertical;min-height:70px}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+<script src="zonas_envio.js"></script>
 <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
@@ -876,11 +878,9 @@ textarea.fc{resize:vertical;min-height:70px}
 
     <!-- PANEL DEL AUDITOR: resumen con gráficas de movimiento de libros por distrito -->
     <div class="view" id="view-auditdash">
-      <div class="ad-hero" id="adHero"></div>
-      <div class="ad-per" id="adPeriodo"></div>
-      <div class="ad-kpis" id="adKpis"></div>
       <div class="panel" style="margin-bottom:14px;overflow:hidden">
         <div class="ph" style="gap:8px;flex-wrap:wrap"><span class="pt">🚚 Envíos en movimiento</span><span id="adMapaInfo" style="font-size:11px;color:var(--t2)"></span></div>
+        <div class="ad-per" id="adPeriodo" style="padding:10px 16px 2px;margin:0"></div>
         <div id="adMapa"></div>
       </div>
       <div class="ad-grid">
@@ -2149,7 +2149,13 @@ function moverPildora(inmediato) {
   clearTimeout(pill._t);
   pill._t = setTimeout(function(){ pill.style.left = L + 'px'; pill.style.width = W + 'px'; }, 130);
 }
-window.addEventListener('resize', function(){ moverPildora(true); });
+window.addEventListener('resize', function(){
+  moverPildora(true);
+  // Si la pantalla cruza el límite celular/computador, el mapa cambia de horizontal a vertical.
+  var v = document.getElementById('view-auditdash');
+  var cont = document.getElementById('adMapa');
+  if(v && v.classList.contains('active') && cont && ((cont.clientWidth || window.innerWidth) < 600) !== _adVertical) renderAuditDash();
+});
 
 // ── RENDER ───────────────────────────────────────────────────
 function renderAll() { renderDash(); renderInv(); renderDesp(); renderSols(); renderHist(); renderPedidos(); renderMisSolicitudes(); renderLibros(); renderRemisiones(); renderDistribuciones(); renderDistribucionesBiblias(); renderAuditoria(); renderNovedadesLibros(); popSelects(); updBadges(); renderTesoreria(); renderBiblias(); renderCobros(); renderPastores(); }
@@ -5155,31 +5161,14 @@ function adBarrasH(nombres, valores, color, etiqueta, estadoClic, rojoCero) {
 }
 
 // ── Mapa de envíos ───────────────────────────────────────────────────────────
-// Mapa esquemático (no a escala): la bodega en Cúcuta y una "zona" por destino, ubicadas más o
-// menos como en la realidad (Ocaña al occidente, Tibú al norte, Arauca al oriente...). Cada zona
-// agrupa sus distritos. Las posiciones xy están en un lienzo de 1000 x 470 y se pueden ajustar aquí.
-// Los distritos de ubicación dudosa (marcados "?") se asignaron según su lugar en la lista de
-// distritos del sistema; si alguno está en otro sitio, solo hay que moverlo de zona.
-var AD_ORIGEN = { nombre:'Bodega · Cúcuta', xy:[300, 262] };
-var AD_ZONAS = [
-  { nombre:'Ocaña',               xy:[70, 130],  distritos:['OCAÑA CENTRAL','OCAÑA NORTE'] },
-  { nombre:'El Tarra',            xy:[175, 72],  distritos:['EL TARRA'] },
-  { nombre:'Tibú',                xy:[320, 45],  distritos:['TIBU'] },
-  { nombre:'Arboledas',           xy:[150, 222], distritos:['ARBOLEDAS'] },
-  { nombre:'Pamplona',            xy:[105, 345], distritos:['PAMPLONA'] },
-  { nombre:'Chinácota',           xy:[240, 360], distritos:['CHINACOTA'] },
-  { nombre:'Cúcuta y alrededores',xy:[400, 190], distritos:['CUCUTA CENTRAL','RENACER','SION','ATALAYA','ZULIA','VIÑA DEL SEÑOR','CUCUTA OCCIDENTE','LIBERTAD','GETSEMANI','EDEN','PATIOS'] },
-  { nombre:'Cubará',              xy:[480, 385], distritos:['CUBARA'] },
-  { nombre:'Saravena',            xy:[580, 285], distritos:['CENTRAL SARAVENA','REDENCION','PALESTINA','BETHEL','MARANATHA'] },
-  { nombre:'Fortul',              xy:[610, 360], distritos:['FORTUL','NUEVO CARANAL'] },
-  { nombre:'Arauquita',           xy:[680, 232], distritos:['ARAUQUITA','LA ESMERALDA','PUERTO JORDAN','LA HERMOSA'] },
-  { nombre:'Arauca',              xy:[790, 150], distritos:['CENTRAL ARAUCA','BETANIA','PANAMA'] },
-  { nombre:'Tame',                xy:[710, 420], distritos:['TAME CENTRAL','TAME ORIENTAL'] },
-  { nombre:'Puerto Carreño',      xy:[935, 262], distritos:['PUERTO CARREÑO'] },
-  { nombre:'Vichada',             xy:[890, 395], distritos:['VICHADA'] }
-];
-var AD_OTROS = { nombre:'Otros destinos', xy:[930, 55] };
+// Las zonas (posiciones y qué distritos tiene cada una) viven en zonas_envio.js, compartido con el
+// formulario de los pastores. Mapa esquemático: bodega en Cúcuta y una zona por destino.
+var _ZE = window.ZONAS_ENVIO || { origen:{ nombre:'Bodega · Cúcuta', xy:[300, 262] }, zonas:[], otros:{ nombre:'Otros destinos', xy:[930, 55] }, vertical:function(xy){ return xy; } };
+var AD_ORIGEN = _ZE.origen;
+var AD_ZONAS = _ZE.zonas;
+var AD_OTROS = _ZE.otros;
 var _adZonasCalc = [];
+var _adVertical = false;   // true en celular: el mapa se gira para que entre completo
 
 function adAgruparZonas(ds) {
   var porClave = {};
@@ -5193,6 +5182,8 @@ function adAgruparZonas(ds) {
   if(otros.dist.length) zonas.push(otros);
   zonas = zonas.filter(function(z){ return z.dist.length > 0; });
   zonas.forEach(function(z) {
+    var p = _adVertical ? _ZE.vertical(z.xy) : z.xy;   // posición según el modo (horizontal / vertical)
+    z.px = p[0]; z.py = p[1];
     z.periodo = 0; z.enviados = 0; z.pend = 0; z.ultimo = null;
     z.dist.forEach(function(d) {
       z.periodo += d.periodo; z.enviados += d.enviados; z.pend += d.pend;
@@ -5212,8 +5203,8 @@ function adMapaTip(i, mostrar) {
   var wrap = document.getElementById('adMapaWrap'), svg = document.getElementById('adMapaSvg');
   var rw = wrap.getBoundingClientRect(), rs = svg.getBoundingClientRect();
   var ancho = wrap.clientWidth;
-  var esc = rs.width / 1000;
-  var x = rs.left - rw.left + z.xy[0] * esc, y = rs.top - rw.top + z.xy[1] * esc;
+  var esc = rs.width / (_adVertical ? 420 : 1000);
+  var x = rs.left - rw.left + z.px * esc, y = rs.top - rw.top + z.py * esc;
   var dias = z.ultimo ? Math.floor((new Date() - z.ultimo) / 86400000) : null;
   var orden = z.dist.slice().sort(function(a,b){ return b.periodo - a.periodo || a.nombre.localeCompare(b.nombre); });
   var lista = orden.slice(0, 6).map(function(d) {
@@ -5224,7 +5215,7 @@ function adMapaTip(i, mostrar) {
     '<div style="color:var(--t2);font-size:11px;margin:3px 0 5px">' + (z.ultimo ? 'Último envío: ' + fmtD(z.ultimo) + ' · ' + tiempoDesde(z.ultimo) : 'Sin fecha de envío registrada') + '</div>' +
     lista;
   // Los destinos de la parte alta del mapa muestran el cuadro hacia abajo para que no se corte.
-  var abajo = z.xy[1] < 240;
+  var abajo = z.py < (_adVertical ? 350 : 240);
   tip.style.transform = abajo ? 'translate(-50%, 6px)' : 'translate(-50%, -112%)';
   tip.style.left = Math.max(110, Math.min(ancho - 110, x)) + 'px';
   tip.style.top = (abajo ? y + 24 : y - 14) + 'px';
@@ -5234,17 +5225,21 @@ function adMapaTip(i, mostrar) {
 function adRenderMapa(ds) {
   var cont = document.getElementById('adMapa');
   if(!cont) return;
+  // En pantallas angostas (celular) el mapa se gira a vertical para verse completo, sin deslizar.
+  _adVertical = (cont.clientWidth || window.innerWidth) < 600;
+  var VBW = _adVertical ? 420 : 1000, VBH = _adVertical ? 740 : 470;
   var zonas = adAgruparZonas(ds);
   _adZonasCalc = zonas;
   if(!zonas.length) { cont.innerHTML = '<div class="empty" style="padding:30px">Aún no hay libros registrados</div>'; return; }
-  var ox = AD_ORIGEN.xy[0], oy = AD_ORIGEN.xy[1];
+  var oxy = _adVertical ? _ZE.vertical(AD_ORIGEN.xy) : AD_ORIGEN.xy;
+  var ox = oxy[0], oy = oxy[1];
   var maxP = zonas.reduce(function(m, z){ return Math.max(m, z.periodo); }, 0) || 1;
   var ahora = new Date();
   var activas = zonas.filter(function(z){ return z.periodo > 0; }).length;
   var rutas = '', nodos = '', carros = '';
 
   zonas.forEach(function(z, i) {
-    var x = z.xy[0], y = z.xy[1];
+    var x = z.px, y = z.py;
     var dx = x - ox, dy = y - oy, len = Math.sqrt(dx*dx + dy*dy) || 1;
     var nx = -dy / len, ny = dx / len;
     if(ny > 0) { nx = -nx; ny = -ny; }                    // la curva siempre se abomba hacia arriba
@@ -5284,7 +5279,7 @@ function adRenderMapa(ds) {
       '<radialGradient id="adFondo" cx="30%" cy="55%" r="85%"><stop offset="0" stop-color="#15506a"/><stop offset="1" stop-color="#08141d"/></radialGradient>' +
       '<pattern id="adPuntos" width="16" height="16" patternUnits="userSpaceOnUse"><circle cx="2" cy="2" r="1" fill="#1a9aaa" opacity=".28"/></pattern>' +
     '</defs>' +
-    '<rect width="1000" height="470" fill="url(#adFondo)"/><rect width="1000" height="470" fill="url(#adPuntos)"/>';
+    '<rect width="' + VBW + '" height="' + VBH + '" fill="url(#adFondo)"/><rect width="' + VBW + '" height="' + VBH + '" fill="url(#adPuntos)"/>';
   var origen =
     '<circle cx="' + ox + '" cy="' + oy + '" r="30" fill="none" stroke="#1a9aaa" stroke-opacity=".55" stroke-dasharray="3 7">' +
       '<animateTransform attributeName="transform" type="rotate" from="0 ' + ox + ' ' + oy + '" to="360 ' + ox + ' ' + oy + '" dur="14s" repeatCount="indefinite"/></circle>' +
@@ -5293,8 +5288,8 @@ function adRenderMapa(ds) {
     '<text class="ad-nodo-t" x="' + ox + '" y="' + (oy + 48) + '" text-anchor="middle">' + AD_ORIGEN.nombre + '</text>';
 
   document.getElementById('adMapaInfo').textContent = activas + ' de ' + zonas.length + ' destinos con envíos' + (_adDias ? ' en el período' : '');
-  cont.innerHTML = '<div style="position:relative" id="adMapaWrap"><div class="ad-mapa-scroll"><div class="ad-mapa-in" id="adMapaIn">' +
-    '<svg class="ad-mapa-svg" id="adMapaSvg" viewBox="0 0 1000 470" role="img" aria-label="Mapa de envíos de libros desde la bodega a cada destino">' +
+  cont.innerHTML = '<div style="position:relative" id="adMapaWrap"><div class="ad-mapa-scroll"><div class="ad-mapa-in' + (_adVertical ? ' v' : '') + '" id="adMapaIn">' +
+    '<svg class="ad-mapa-svg" id="adMapaSvg" viewBox="0 0 ' + VBW + ' ' + VBH + '" role="img" aria-label="Mapa de envíos de libros desde la bodega a cada destino">' +
     fondo + rutas + origen + carros + nodos + '</svg></div></div><div class="ad-tip" id="adMapaTip"></div></div>' +
     '<div class="ad-leyenda">' +
       '<span><i style="background:#2dd4a8"></i>recibió libros hace menos de 6 meses</span>' +
@@ -5315,44 +5310,12 @@ function renderAuditDash() {
   var dias = function(f){ return Math.floor((ahora - f) / 86400000); };
 
   var enviados = todos.filter(function(l){ return l.estado === 'enviado'; });
-  var enviadosPeriodo = ds.reduce(function(s, d){ return s + d.periodo; }, 0);
-  var pendientes = todos.filter(function(l){ return l.estado === 'por_enviar' || l.estado === 'en_bodega'; }).length;
-  var revisables = todos.filter(function(l){ return l.estado !== 'siguiente'; }).length;
-  var verificados = todos.filter(function(l){ return l.verificado; }).length;
-  var sinVerificar = revisables - todos.filter(function(l){ return l.verificado && l.estado !== 'siguiente'; }).length;
-  var novAbiertas = todos.filter(function(l){ return l.novedad && !l.novedadResuelta; }).length;
-  var sinPedir6 = ds.filter(function(d){ return d.ultimo && dias(d.ultimo) > 180; }).length;
   var conFechaTotal = enviados.filter(function(l){ return l.fechaEntrega; }).length;
 
-  // ── Saludo
-  var nombre = (STATE.user && STATE.user.nombre) || 'Auditor';
-  // Solo informativos: no llevan a ninguna otra pantalla.
-  var chip = function(txt){ return '<span class="ad-chipx">'+txt+'</span>'; };
-  document.getElementById('adHero').innerHTML =
-    '<div class="ad-hero-t">Hola, ' + escLib(nombre) + ' 👋</div>' +
-    '<div class="ad-hero-s">' + ahora.toLocaleDateString('es-CO', { weekday:'long', day:'numeric', month:'long', year:'numeric' }) + '</div>' +
-    '<div class="ad-hero-chips">' +
-      chip('🔎 ' + sinVerificar + ' libro' + (sinVerificar===1?'':'s') + ' por verificar') +
-      chip('⚠️ ' + novAbiertas + ' novedad' + (novAbiertas===1?'':'es') + ' abierta' + (novAbiertas===1?'':'s')) +
-      chip('⏳ ' + sinPedir6 + ' distrito' + (sinPedir6===1?'':'s') + ' sin recibir libros hace +6 meses') +
-    '</div>';
-
-  // ── Período
+  // ── Período (vive dentro del panel del mapa; el resumen de números ya está en "Libros")
   document.getElementById('adPeriodo').innerHTML = '<span>Período:</span>' + AD_PERIODOS.map(function(p) {
     return '<button type="button" class="' + (_adDias === p[0] ? 'on' : '') + '" onclick="adPeriodo(' + p[0] + ')">' + p[1] + '</button>';
   }).join('');
-
-  // ── Tarjetas (botones)
-  // Tarjetas solo informativas (no son botones): el que quiera ver los libros usa la pestaña "Libros".
-  var kpi = function(ico, val, lbl, sub, cls) {
-    return '<div class="ad-kpi ' + cls + '"><div class="k-i">' + ico + '</div><div class="k-v">' + val + '</div><div class="k-l">' + lbl + '</div><div class="k-s">' + sub + '</div></div>';
-  };
-  document.getElementById('adKpis').innerHTML =
-    kpi('📦', enviadosPeriodo, 'Libros enviados', _adDias ? 'en este período' : 'en total', 'green') +
-    kpi('🚚', pendientes, 'Por enviar', 'pendientes + en bodega', 'gold') +
-    kpi('✓', revisables ? Math.round(verificados * 100 / revisables) + '%' : '0%', 'Verificados', verificados + ' de ' + revisables + ' libros', 'green') +
-    kpi('⚠️', novAbiertas, 'Novedades', 'sin resolver', 'red') +
-    kpi('⏳', sinPedir6, 'Sin recibir +6 meses', 'distritos', '');
 
   // ── Mapa de envíos animado
   adRenderMapa(ds);

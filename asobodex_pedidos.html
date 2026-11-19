@@ -140,6 +140,7 @@ textarea.fc{resize:vertical;min-height:70px}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+<script src="zonas_envio.js"></script>
 </head>
 <body>
 
@@ -224,6 +225,7 @@ textarea.fc{resize:vertical;min-height:70px}
 <option value="LA HERMOSA">LA HERMOSA</option>
         </select>
       </div>
+      <div id="seguimientoBox" style="display:none;margin-top:4px;border:1px solid var(--bd);border-radius:var(--r);overflow:hidden;background:var(--navy2)"></div>
       <div id="resumenCobrosBox" style="display:none;background:var(--teal-light);border:1px solid var(--bd);border-radius:var(--r);padding:12px 14px;margin-top:4px"></div>
     </div>
     <div class="note-teal">Incluye todo lo que necesitas en este pedido.</div>
@@ -417,6 +419,203 @@ function mostrarResumenCobros() {
       '<span>Total pendiente</span><span>$'+totalDebe.toLocaleString('es-CO')+'</span></div>' : '') +
     '<div style="font-size:11px;color:var(--t2);margin-top:8px">Solo informativo — la Asociación descuenta estos valores por remesas.</div>';
 }
+
+// ── Seguimiento del envío (mapa animado) ─────────────────────────────────────
+// Cuando el pastor pone su nombre / correo / distrito, se muestra un mapa con la ruta desde la
+// bodega hasta su zona y, si ya hizo pedidos, en qué paso va el último: recibido → aprobado →
+// enviado (el camioncito solo viaja cuando ya fue enviado). Lee 'pedidos' (lectura pública).
+var PEDIDOS_POR_DISTRITO = {};
+var _cargandoPedidosDist = {};
+async function cargarPedidosDistrito(dist) {
+  if(PEDIDOS_POR_DISTRITO[dist] || _cargandoPedidosDist[dist]) return;
+  _cargandoPedidosDist[dist] = true;
+  try {
+    const { initializeApp, getApps } = await import("https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js");
+    const { getFirestore, collection, getDocs, query, where } = await import("https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js");
+    const apps  = getApps();
+    const fbapp = apps.length ? apps[0] : initializeApp(FIREBASE_CONFIG);
+    const db    = getFirestore(fbapp);
+    const snap  = await getDocs(query(collection(db, 'pedidos'), where('distrito', '==', dist)));
+    PEDIDOS_POR_DISTRITO[dist] = snap.docs.map(function(d){ return d.data(); });
+  } catch(e) {
+    console.warn('No se pudieron cargar los pedidos del distrito:', e.message);
+    PEDIDOS_POR_DISTRITO[dist] = [];
+  }
+  _cargandoPedidosDist[dist] = false;
+  actualizarSeguimiento();
+}
+
+function _mismoPastor(a, b) {
+  var A = _normalizarNombrePastor(a), B = _normalizarNombrePastor(b);
+  if(!A || !B) return false;
+  if(A === B) return true;
+  var ta = A.split(' '), tb = B.split(' ');
+  return ta.every(function(t){ return tb.indexOf(t) !== -1; }) || tb.every(function(t){ return ta.indexOf(t) !== -1; });
+}
+
+function _zonaDeDistrito(dist) {
+  var ZE = window.ZONAS_ENVIO;
+  if(!ZE) return null;
+  var k = claveMaterial(dist);
+  for(var i = 0; i < ZE.zonas.length; i++) {
+    if(ZE.zonas[i].distritos.some(function(n){ return claveMaterial(n) === k; })) return ZE.zonas[i];
+  }
+  return ZE.otros;
+}
+
+function dibujarMapaPastor(zona, estado) {
+  var ZE = window.ZONAS_ENVIO;
+  var o = ZE.origen.xy, d = zona.xy;
+  var dx = d[0] - o[0], dy = d[1] - o[1], len = Math.sqrt(dx*dx + dy*dy) || 1;
+  // Se enmarca solo la bodega y el destino (con margen) para que se vea grande en el celular.
+  var w = Math.max(380, Math.abs(dx) * 1.45 + 240), h = w * 0.66;
+  var cx = (o[0] + d[0]) / 2, cy = (o[1] + d[1]) / 2;
+  var vx = cx - w / 2, vy = cy - h / 2, k = w / 340;
+  var nx = -dy / len, ny = dx / len;
+  if(ny > 0) { nx = -nx; ny = -ny; }
+  var qx = cx + nx * len * 0.2, qy = cy + ny * len * 0.2;
+  var colores = { pendiente:'#f5a623', aprobado:'#3A8FA3', entregado:'#2dd4a8', rechazado:'#e74c3c', ninguno:'#7f93a3' };
+  var col = colores[estado] || colores.ninguno;
+  var viaja = estado === 'entregado';
+  var f = function(n){ return n.toFixed(1); };
+
+  var puntos = '';
+  ZE.zonas.forEach(function(z) {
+    if(z === zona) return;
+    if(z.xy[0] < vx || z.xy[0] > vx + w || z.xy[1] < vy || z.xy[1] > vy + h) return;
+    puntos += '<circle cx="' + z.xy[0] + '" cy="' + z.xy[1] + '" r="' + f(3.2 * k) + '" fill="#7f93a3" opacity=".4"/>';
+  });
+
+  var camion = function(extra, begin) {
+    return '<g opacity="0">' + extra +
+      '<animateMotion dur="7s" begin="' + begin + '" repeatCount="indefinite" rotate="auto"><mpath href="#segRuta"/></animateMotion>' +
+      '<animate attributeName="opacity" values="0;1;1;0" keyTimes="0;0.07;0.9;1" dur="7s" begin="' + begin + '" repeatCount="indefinite"/>' +
+      '<g transform="scale(' + f(k * 1.15) + ')">' +
+        '<rect x="-10" y="-5.5" width="20" height="11" rx="3" fill="#f5a623" stroke="#0a1a26" stroke-width="1"/>' +
+        '<rect x="3" y="-4" width="6" height="8" rx="2" fill="#0f2b3c"/>' +
+        '<rect x="-8.5" y="-4.2" width="10" height="8.4" rx="1.2" fill="#d79a4a" stroke="#fff" stroke-opacity=".55" stroke-width=".7"/>' +
+        '<line x1="-3.5" y1="-4.2" x2="-3.5" y2="4.2" stroke="#fff" stroke-opacity=".55" stroke-width=".8"/>' +
+      '</g></g>';
+  };
+  var carros = '';
+  if(viaja) carros = camion('', '0s') + camion('', '3.5s');
+  else if(estado === 'aprobado') {
+    // Camión estacionado junto a la bodega, "cargando".
+    carros = '<g transform="translate(' + f(o[0] + 20 * k) + ',' + f(o[1] - 16 * k) + ') rotate(-20)"><g transform="scale(' + f(k * 1.15) + ')">' +
+      '<animateTransform attributeName="transform" type="translate" values="0,0;0,-1.6;0,0" dur="0.9s" repeatCount="indefinite" additive="sum"/>' +
+      '<rect x="-10" y="-5.5" width="20" height="11" rx="3" fill="#f5a623" stroke="#0a1a26" stroke-width="1"/>' +
+      '<rect x="3" y="-4" width="6" height="8" rx="2" fill="#0f2b3c"/>' +
+      '<rect x="-8.5" y="-4.2" width="10" height="8.4" rx="1.2" fill="#d79a4a" stroke="#fff" stroke-opacity=".55" stroke-width=".7"/>' +
+    '</g></g>';
+  }
+
+  var ringOrigen = (estado === 'pendiente' || estado === 'aprobado')
+    ? '<circle cx="' + o[0] + '" cy="' + o[1] + '" r="' + f(11 * k) + '" fill="' + col + '" opacity=".4"><animate attributeName="r" values="' + f(11 * k) + ';' + f(26 * k) + '" dur="2s" repeatCount="indefinite"/><animate attributeName="opacity" values=".5;0" dur="2s" repeatCount="indefinite"/></circle>' : '';
+  var ringDestino = viaja
+    ? '<circle cx="' + d[0] + '" cy="' + d[1] + '" r="' + f(9 * k) + '" fill="' + col + '" opacity=".4"><animate attributeName="r" values="' + f(9 * k) + ';' + f(24 * k) + '" dur="2.4s" repeatCount="indefinite"/><animate attributeName="opacity" values=".5;0" dur="2.4s" repeatCount="indefinite"/></circle>' : '';
+  var ruta = '<path id="segRuta" d="M' + o[0] + ',' + o[1] + ' Q' + f(qx) + ',' + f(qy) + ' ' + d[0] + ',' + d[1] + '" fill="none" stroke="' + (estado === 'rechazado' || estado === 'ninguno' ? '#5a7a8a' : '#2dd4a8') + '" stroke-opacity=".6" stroke-width="' + f(2 * k) + '" stroke-linecap="round" stroke-dasharray="' + f(3 * k) + ' ' + f(7 * k) + '">' +
+    (viaja ? '<animate attributeName="stroke-dashoffset" from="0" to="' + f(-20 * k) + '" dur="1.4s" repeatCount="indefinite"/>' : '') + '</path>';
+  var texto = function(t, x, y, tam, color, peso) {
+    return '<text x="' + x + '" y="' + y + '" text-anchor="middle" font-size="' + f(tam * k) + '" fill="' + color + '" font-weight="' + (peso || 600) + '" stroke="#0a1a26" stroke-width="' + f(3 * k) + '" paint-order="stroke" stroke-linejoin="round">' + t + '</text>';
+  };
+
+  return '<svg viewBox="' + f(vx) + ' ' + f(vy) + ' ' + f(w) + ' ' + f(h) + '" style="display:block;width:100%;height:auto" role="img" aria-label="Ruta de tu envío desde la bodega hasta ' + zona.nombre + '">' +
+    '<defs><radialGradient id="segFondo" cx="30%" cy="55%" r="90%"><stop offset="0" stop-color="#15506a"/><stop offset="1" stop-color="#08141d"/></radialGradient>' +
+    '<pattern id="segPuntos" width="' + f(16 * k) + '" height="' + f(16 * k) + '" patternUnits="userSpaceOnUse"><circle cx="' + f(2 * k) + '" cy="' + f(2 * k) + '" r="' + f(k) + '" fill="#3A8FA3" opacity=".28"/></pattern></defs>' +
+    '<rect x="' + f(vx) + '" y="' + f(vy) + '" width="' + f(w) + '" height="' + f(h) + '" fill="url(#segFondo)"/>' +
+    '<rect x="' + f(vx) + '" y="' + f(vy) + '" width="' + f(w) + '" height="' + f(h) + '" fill="url(#segPuntos)"/>' +
+    puntos + ruta + ringOrigen + ringDestino + carros +
+    '<circle cx="' + o[0] + '" cy="' + o[1] + '" r="' + f(11 * k) + '" fill="#3A8FA3" stroke="#fff" stroke-width="' + f(1.6 * k) + '"/>' +
+    '<text x="' + o[0] + '" y="' + f(o[1] + 4 * k) + '" text-anchor="middle" font-size="' + f(11 * k) + '">📦</text>' +
+    texto('Bodega · Cúcuta', o[0], f(o[1] + 28 * k), 11, '#dbe7ef') +
+    '<circle cx="' + d[0] + '" cy="' + d[1] + '" r="' + f(9 * k) + '" fill="' + col + '" stroke="#0a1a26" stroke-width="' + f(2 * k) + '"/>' +
+    texto(zona.nombre, d[0], f(d[1] + 25 * k), 12, '#ffffff', 700) +
+  '</svg>';
+}
+
+function actualizarSeguimiento() {
+  var box = document.getElementById('seguimientoBox');
+  if(!box) return;
+  var dist = document.getElementById('pDistrito').value;
+  var nombre = document.getElementById('pNombre').value.trim();
+  if(!dist || !window.ZONAS_ENVIO) { box.style.display = 'none'; return; }
+  var zona = _zonaDeDistrito(dist);
+  if(!PEDIDOS_POR_DISTRITO[dist]) { cargarPedidosDistrito(dist); }
+  var lista = PEDIDOS_POR_DISTRITO[dist] || [];
+
+  // Último pedido de ESTE pastor (los más nuevos primero).
+  var fechaDe = function(p){ return p.fecha && p.fecha.toDate ? p.fecha.toDate() : (p.fecha ? new Date(p.fecha) : new Date(0)); };
+  var propios = nombre ? lista.filter(function(p){ return _mismoPastor(p.pastor, nombre); }) : [];
+  propios.sort(function(a, b){ return fechaDe(b) - fechaDe(a); });
+  var ult = propios[0] || null;
+  var estado = ult ? (ult.estado || 'pendiente') : 'ninguno';
+
+  var textos = {
+    pendiente: ['📝', 'Recibimos tu pedido', 'Está en revisión por la administración.'],
+    aprobado:  ['✅', 'Tu pedido fue aprobado', 'Estamos preparando el envío.'],
+    entregado: ['🚚', 'Tu pedido va en camino', 'Ya salió de la bodega hacia ' + zona.nombre + '.'],
+    rechazado: ['❌', 'Tu pedido no fue aprobado', (ult && ult.motivo) ? ult.motivo : 'Comunícate con la administración para más información.'],
+    ninguno:   ['🗺️', 'Así viajará tu pedido', nombre ? 'Aún no tienes pedidos registrados. Cuando hagas uno, aquí verás cómo avanza hasta ' + zona.nombre + '.' : 'Escribe tu nombre para ver el seguimiento de tus pedidos.']
+  };
+  var t = textos[estado] || textos.ninguno;
+
+  var paso = estado === 'entregado' ? 3 : (estado === 'aprobado' ? 2 : (estado === 'pendiente' ? 1 : 0));
+  var pills = ['Recibido', 'Aprobado', 'Enviado'].map(function(n, i) {
+    var hecho = estado !== 'rechazado' && paso >= i + 1;
+    return '<span style="flex:1;text-align:center;font-size:11px;padding:5px 4px;border-radius:20px;border:1px solid ' + (hecho ? '#2dd4a8' : 'var(--bd)') + ';color:' + (hecho ? '#2dd4a8' : 'var(--t3)') + ';background:' + (hecho ? 'rgba(45,212,168,.12)' : 'transparent') + ';font-weight:' + (hecho ? '700' : '500') + '">' + (hecho ? '✓ ' : '') + n + '</span>';
+  }).join('');
+
+  var detalle = '';
+  if(ult) {
+    var f = fechaDe(ult);
+    var items = (ult.items || []).filter(function(i){ return !i.rechazado; }).slice(0, 3).map(function(i){ return i.nombre + ' ×' + i.cantidad; }).join(' · ');
+    detalle = '<div style="font-size:11px;color:var(--t3);margin-top:8px">Pedido del ' + f.toLocaleDateString('es-CO', { day:'numeric', month:'short', year:'numeric' }) +
+      (items ? ' · ' + items.replace(/</g, '&lt;') : '') + '</div>' +
+      (ult.guiaUrl && estado === 'entregado' ? '<a href="' + ult.guiaUrl + '" target="_blank" rel="noopener" style="display:inline-block;margin-top:6px;font-size:12px;color:var(--teal);font-weight:600">📎 Ver guía de envío</a>' : '');
+  }
+
+  box.innerHTML =
+    '<div style="padding:12px 14px 10px">' +
+      '<div style="font-size:11px;font-weight:700;color:var(--teal);text-transform:uppercase;letter-spacing:.06em">📍 Seguimiento de tu envío</div>' +
+    '</div>' +
+    dibujarMapaPastor(zona, estado) +
+    '<div style="padding:12px 14px 14px">' +
+      '<div style="font-size:15px;font-weight:700">' + t[0] + ' ' + t[1] + '</div>' +
+      '<div style="font-size:12px;color:var(--t2);margin-top:3px;line-height:1.5">' + String(t[2]).replace(/</g, '&lt;') + '</div>' +
+      (estado === 'ninguno' ? '' : '<div style="display:flex;gap:6px;margin-top:10px">' + pills + '</div>') +
+      detalle +
+    '</div>';
+  box.style.display = 'block';
+  var svg = box.querySelector('svg');
+  if(svg && window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches && svg.pauseAnimations) svg.pauseAnimations();
+}
+
+var _segTimer = null;
+function programarSeguimiento() {
+  clearTimeout(_segTimer);
+  _segTimer = setTimeout(actualizarSeguimiento, 250);
+}
+// Si el pastor escribe primero su correo corporativo, se reconoce con el roster (nombre + distrito).
+function autocompletarPorCorreo() {
+  var c = document.getElementById('pCorreo').value.trim().toLowerCase();
+  if(!c || document.getElementById('pNombre').value.trim()) return;
+  var p = PASTORES_ROSTER.find(function(x){ return (x.correo || '').trim().toLowerCase() === c; });
+  if(!p) return;
+  if(p.nombre) document.getElementById('pNombre').value = p.nombre;
+  if(p.distrito) document.getElementById('pDistrito').value = p.distrito;
+  mostrarResumenCobros();
+}
+window.addEventListener('DOMContentLoaded', function() {
+  ['pNombre', 'pCorreo'].forEach(function(id) {
+    var el = document.getElementById(id);
+    if(!el) return;
+    ['input', 'change', 'blur'].forEach(function(ev){ el.addEventListener(ev, programarSeguimiento); });
+  });
+  var c = document.getElementById('pCorreo');
+  if(c) ['change', 'blur'].forEach(function(ev){ c.addEventListener(ev, function(){ autocompletarPorCorreo(); programarSeguimiento(); }); });
+  var s = document.getElementById('pDistrito');
+  if(s) s.addEventListener('change', programarSeguimiento);
+});
 
 // Subida de imágenes a Cloudinary (reemplaza a ImgBB, que bloqueó la llave). Recibe
 // el mismo FormData de siempre (campo "image") y devuelve algo con .json() que
