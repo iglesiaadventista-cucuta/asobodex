@@ -158,8 +158,10 @@ service cloud.firestore {
     // ── gastos_envio: costo de transporte de cada despacho (Tesorería). Un registro
     // por viaje, no por material, para no duplicar el gasto al sumarlo. Solo lo crea
     // quien puede despachar; nunca se edita ni se borra desde la app.
+    // Lectura pública (aprobado por el administrador): el formulario del pastor muestra,
+    // al elegir su distrito, el dinero de envíos del año. Solo trae distrito, costo y fecha.
     match /gastos_envio/{id} {
-      allow read: if estaLogueado();
+      allow read: if true;
       allow create: if puedeEditar();
       allow update, delete: if false;
     }

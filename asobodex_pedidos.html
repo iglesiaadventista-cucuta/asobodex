@@ -794,7 +794,12 @@ async function actualizarBalanceDistrito() {
   const box = document.getElementById('balanceDistritoBox');
   if(!box) return;
   const dist = document.getElementById('pDistrito').value;
-  if(!dist) { box.style.display = 'none'; box.innerHTML = ''; return; }
+  if(!dist) {
+    box.setAttribute('data-dist', '');
+    box.innerHTML = '<div class="bd-t">📊 Tu distrito en ' + new Date().getFullYear() + '</div><div class="bd-vacio" style="margin-top:6px">Escribe tu nombre o elige tu distrito y aquí verás lo que ha pedido en el año: pedidos, entregas, material y dinero de envíos, con gráficas.</div>';
+    box.style.display = 'block';
+    return;
+  }
   box.setAttribute('data-dist', dist);
   let r;
   try { r = await _balPedir(dist); } catch(e) { box.style.display = 'none'; return; }
