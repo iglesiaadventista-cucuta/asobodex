@@ -570,11 +570,12 @@ function actualizarSeguimiento() {
   if(box.getAttribute('data-clave') === clave && box.innerHTML) return;
   box.setAttribute('data-clave', clave);
   var G = window.ZONAS_ENVIO.geo;
+  var visible = window.ZONAS_ENVIO.nombreVisible ? window.ZONAS_ENVIO.nombreVisible(dist) : dist;   // ej. VICHADA → EL VICHADA
   var pie = dest
-    ? '<b>' + dist.replace(/</g, '&lt;') + '</b> · ' + (G.deptoNombre[dest.depto] || dest.depto) + (dest.cerca ? ' · dentro de Cúcuta' : '')
+    ? '<b>' + String(visible).replace(/</g, '&lt;') + '</b> · ' + (G.deptoNombre[dest.depto] || dest.depto) + (dest.cerca ? ' · dentro de Cúcuta' : '')
     : 'Escribe tu nombre o elige tu distrito para ver hacia dónde viaja tu pedido.';
   box.innerHTML =
-    dibujarMapaPastor(dest, (dist || '').replace(/</g, '&lt;')) +
+    dibujarMapaPastor(dest, String(visible || '').replace(/</g, '&lt;')) +
     '<div style="padding:10px 14px 12px;display:flex;align-items:center;gap:8px;font-size:13px">' +
       '<span style="font-size:18px">🚚</span>' +
       '<div><div style="font-size:11px;font-weight:700;color:var(--teal);text-transform:uppercase;letter-spacing:.06em">Ruta de tu pedido</div>' +
