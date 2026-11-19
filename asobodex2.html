@@ -188,7 +188,7 @@ html,body{height:100%;background:var(--navy);color:var(--t1);font-family:var(--f
 /* PANELS */
 .panel{background:var(--navy2);border:1px solid var(--bd);border-radius:var(--r2);overflow:hidden;margin-bottom:16px}
 .ph{padding:12px 16px;border-bottom:1px solid var(--bd);display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
-.pt{font-size:11px;font-weight:600;color:var(--teal);text-transform:uppercase;letter-spacing:.08em}
+.pt{font-size:11px;font-weight:600;color:var(--titulo,var(--teal));text-transform:uppercase;letter-spacing:.08em}
 .pb{padding:16px}
 .g2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
 .g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
@@ -197,7 +197,7 @@ html,body{height:100%;background:var(--navy);color:var(--t1);font-family:var(--f
 .tw{overflow-x:auto}
 table{width:100%;border-collapse:collapse;font-size:13px}
 thead tr{background:var(--navy3)}
-th{padding:9px 14px;text-align:left;font-size:10px;font-weight:600;color:var(--teal);text-transform:uppercase;letter-spacing:.07em;white-space:nowrap;border-bottom:1px solid var(--bd)}
+th{padding:9px 14px;text-align:left;font-size:10px;font-weight:600;color:var(--titulo,var(--teal));text-transform:uppercase;letter-spacing:.07em;white-space:nowrap;border-bottom:1px solid var(--bd)}
 td{padding:10px 14px;color:var(--t1);border-bottom:1px solid var(--bd);vertical-align:middle}
 tr:last-child td{border-bottom:none}
 tbody tr:hover td{background:rgba(58,143,163,.04)}
@@ -310,20 +310,37 @@ textarea.fc{resize:vertical;min-height:70px}
 #app{position:relative;z-index:1}
 #loginWrap{background:rgba(7,15,26,.30)}
 .lcard{width:min(380px,calc(100vw - 24px))}
-.lcard{background:rgba(15,34,54,.55);-webkit-backdrop-filter:blur(18px) saturate(150%);backdrop-filter:blur(18px) saturate(150%);border:1px solid rgba(255,255,255,.14);box-shadow:0 20px 60px rgba(0,0,0,.45)}
-.topbar{margin:10px 14px 0;border-radius:18px;background:rgba(11,25,41,.50);-webkit-backdrop-filter:blur(16px) saturate(150%);backdrop-filter:blur(16px) saturate(150%);border:1px solid rgba(255,255,255,.12);box-shadow:0 8px 28px rgba(0,0,0,.28)}
-.panel,.scard,.ad-kpi{background:rgba(15,34,54,.50);-webkit-backdrop-filter:blur(14px) saturate(140%);backdrop-filter:blur(14px) saturate(140%);border:1px solid rgba(255,255,255,.10);box-shadow:0 8px 30px rgba(0,0,0,.25),inset 0 1px 0 rgba(255,255,255,.06)}
-thead tr{background:rgba(21,45,71,.45)}
-.rcard,.mat-item{background:rgba(21,45,71,.45)}
-.fc,.linput{background:rgba(21,45,71,.62)}
-.tabnav,.uchip{background:rgba(255,255,255,.07)}
-.modal{background:rgba(13,30,48,.86);-webkit-backdrop-filter:blur(22px) saturate(150%);backdrop-filter:blur(22px) saturate(150%);border:1px solid rgba(255,255,255,.14)}
+/* Los colores del vidrio vienen del tema elegido (variables --vidrio-*, ver fondo_mapa.js). */
+.lcard{background:var(--vidrio-modal,rgba(15,34,54,.55));-webkit-backdrop-filter:blur(18px) saturate(150%);backdrop-filter:blur(18px) saturate(150%);border:1px solid var(--vidrio-borde,rgba(255,255,255,.14));box-shadow:0 20px 60px rgba(0,0,0,.40)}
+.topbar{margin:10px 14px 0;border-radius:18px;background:var(--vidrio-top,rgba(11,25,41,.50));-webkit-backdrop-filter:blur(18px) saturate(160%);backdrop-filter:blur(18px) saturate(160%);border:1px solid var(--vidrio-borde,rgba(255,255,255,.12));box-shadow:0 8px 28px rgba(0,0,0,.25),inset 0 1px 0 rgba(255,255,255,.12)}
+.panel,.scard,.ad-kpi{background:var(--vidrio,rgba(15,34,54,.50));-webkit-backdrop-filter:blur(16px) saturate(150%);backdrop-filter:blur(16px) saturate(150%);border:1px solid var(--vidrio-borde,rgba(255,255,255,.10));box-shadow:0 8px 30px rgba(0,0,0,.22),inset 0 1px 0 rgba(255,255,255,.14)}
+thead tr{background:var(--vidrio-th,rgba(21,45,71,.45))}
+.rcard,.mat-item{background:var(--vidrio-th,rgba(21,45,71,.45))}
+.fc,.linput{background:var(--vidrio-in,rgba(21,45,71,.62))}
+.tabnav,.uchip{background:rgba(255,255,255,.08)}
+.modal{background:var(--vidrio-modal,rgba(13,30,48,.86));-webkit-backdrop-filter:blur(22px) saturate(150%);backdrop-filter:blur(22px) saturate(150%);border:1px solid var(--vidrio-borde,rgba(255,255,255,.14))}
+/* Menú 🎨 (fondo y colores) */
+.menu-aspecto{position:fixed;top:72px;right:16px;z-index:60;width:260px;padding:14px;border-radius:16px;background:var(--vidrio-modal,rgba(13,30,48,.9));-webkit-backdrop-filter:blur(22px) saturate(150%);backdrop-filter:blur(22px) saturate(150%);border:1px solid var(--vidrio-borde,rgba(255,255,255,.14));box-shadow:0 18px 50px rgba(0,0,0,.5)}
+.menu-aspecto .ma-t{font-size:10px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--t2);margin:2px 2px 8px}
+.menu-aspecto .ma-fila{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 11px;margin-bottom:12px;border-radius:12px;background:rgba(255,255,255,.07);cursor:pointer;font-size:13px}
+.menu-aspecto .ma-fila input{accent-color:var(--teal);width:18px;height:18px}
+.menu-aspecto .ma-temas{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.menu-aspecto .ma-temas button{font-family:inherit;font-size:11px;font-weight:600;color:var(--t1);display:flex;flex-direction:column;align-items:center;gap:6px;padding:8px 4px;border-radius:12px;border:1.5px solid transparent;background:rgba(255,255,255,.06);cursor:pointer}
+.menu-aspecto .ma-temas button i{display:block;width:100%;height:30px;border-radius:8px;border:1px solid rgba(255,255,255,.2)}
+.menu-aspecto .ma-temas button.on{border-color:#2dd4a8;background:rgba(45,212,168,.12)}
+@media(max-width:768px){.menu-aspecto{top:66px;right:8px}}
+/* Panel plegable del Dashboard (el mapa de material enviado) */
+details.panel>summary{list-style:none;cursor:pointer}
+details.panel>summary::-webkit-details-marker{display:none}
+details.panel>summary .ph{border-bottom:none}
+details.panel[open]>summary .ph{border-bottom:1px solid var(--bd)}
+.ph-flecha{transition:transform .2s;color:var(--t2);font-size:12px}
+details.panel[open] .ph-flecha{transform:rotate(180deg)}
 .mo{background:rgba(3,8,15,.55);-webkit-backdrop-filter:blur(5px);backdrop-filter:blur(5px)}
 #toast,.ad-tip{background:rgba(13,30,48,.90);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px)}
 @media(max-width:768px){.topbar{margin:8px 8px 0;border-radius:16px}}
 @media(max-width:480px){.topbar{gap:7px;padding:0 10px}.uchip{display:none}.topbar .tright{gap:6px}.topbar .outbtn{padding:6px 9px}}
-.topbar.auditmode #btnFondo{display:inline-flex}
-@media(max-width:480px){.topbar.auditmode #btnFondo{display:none}}
+@media(max-width:480px){.topbar.auditmode #btnAspecto{display:none}}
 /* Sin fondo: colores sólidos como antes */
 body.sin-fondo #loginWrap{background:var(--navy)}
 body.sin-fondo .lcard,body.sin-fondo .modal{background:var(--navy2);backdrop-filter:none;-webkit-backdrop-filter:none}
@@ -338,7 +355,7 @@ body.sin-fondo #toast,body.sin-fondo .ad-tip{background:var(--navy2);backdrop-fi
 <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
 <script src="zonas_envio.js?v=20261119b"></script>
-<script src="fondo_mapa.js?v=20261120a"></script>
+<script src="fondo_mapa.js?v=20261120c"></script>
 <script>document.addEventListener('DOMContentLoaded', function(){ if(window.FondoMapa) FondoMapa.iniciar(); });</script>
 <script src="ayuda_bot.js?v=20261120b"></script>
 <script src="ayuda_contenido_sistema.js?v=20261120a"></script>
@@ -396,10 +413,18 @@ body.sin-fondo #toast,body.sin-fondo .ad-tip{background:var(--navy2);backdrop-fi
     <button class="tabnav" onclick="deslizarTabs(1)" title="Ver pestañas hacia la derecha">›</button>
     <div class="tright">
       <div class="uchip"><div class="uav" id="uAv"><img src="data:image/jpeg;base64,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" style="width:100%;height:100%;object-fit:cover;border-radius:50%"></div><div><div class="un" id="uNm">—</div><div class="ur" id="uRl">—</div></div></div>
-      <button class="outbtn" id="btnFondo" onclick="alternarFondo()" title="Encender o apagar el fondo del mapa">🗺️</button>
+      <button class="outbtn" id="btnAspecto" onclick="abrirAspecto(event)" title="Aspecto: fondo del mapa y colores">🎨</button>
       <button class="outbtn" onclick="abrirCambiarPassword()" title="Cambiar contraseña">🔑</button>
       <button class="outbtn" onclick="doLogout()">Salir</button>
     </div>
+  </div>
+
+  <!-- Menú 🎨: fondo del mapa y colores -->
+  <div class="menu-aspecto" id="menuAspecto" style="display:none">
+    <div class="ma-t">Fondo</div>
+    <label class="ma-fila"><span>🗺️ Mapa animado de fondo</span><input type="checkbox" id="maFondo" onchange="alternarFondo()"></label>
+    <div class="ma-t">Colores</div>
+    <div class="ma-temas" id="maTemas"></div>
   </div>
 
   <div class="content">
@@ -422,12 +447,12 @@ body.sin-fondo #toast,body.sin-fondo .ad-tip{background:var(--navy2);backdrop-fi
       </div>
 
       <!-- Mapa: a qué distritos se ha enviado más material (todos los usuarios menos el auditor) -->
-      <div class="panel" id="dmPanel" style="margin-bottom:14px;overflow:hidden">
-        <div class="ph" style="gap:8px;flex-wrap:wrap"><span class="pt">🚌 Envíos en movimiento</span><span id="dmMapaInfo" style="font-size:11px;color:var(--t2)"></span></div>
-        <div style="padding:0 16px;font-size:12px;color:var(--t2)">A qué distritos se ha enviado más material.</div>
+      <!-- Plegado (cerrado) para que no estorbe: el mapa de fondo ya da el ambiente; este da el dato. -->
+      <details class="panel" id="dmPanel" style="margin-bottom:14px;overflow:hidden" ontoggle="if(this.open) renderMapaDash(true)">
+        <summary><div class="ph" style="gap:8px;flex-wrap:wrap"><span class="pt">🚌 Envíos en movimiento · a qué distritos se ha enviado más material</span><span style="display:flex;align-items:center;gap:10px"><span id="dmMapaInfo" style="font-size:11px;color:var(--t2)"></span><span class="ph-flecha">▼</span></span></div></summary>
         <div class="ad-barra"><div id="dmPeriodo"></div><div id="dmVistaSel"></div></div>
         <div id="dmMapa"></div>
-      </div>
+      </details>
 
       <!-- Panel de contenido dinámico -->
       <div class="g2" style="margin-top:4px">
@@ -1903,8 +1928,34 @@ function loginOk(u) {
 function alternarFondo() {
   if(!window.FondoMapa) return;
   var encendido = window.FondoMapa.alternar();
+  var chk = document.getElementById('maFondo'); if(chk) chk.checked = encendido;
   toast(encendido ? '🗺️ Fondo del mapa activado' : 'Fondo del mapa apagado');
 }
+// Menú 🎨: se abre bajo el botón, con el interruptor del fondo y los colores disponibles.
+function pintarMenuAspecto() {
+  if(!window.FondoMapa) return;
+  var chk = document.getElementById('maFondo'); if(chk) chk.checked = window.FondoMapa.encendido();
+  var actual = window.FondoMapa.temaActual();
+  document.getElementById('maTemas').innerHTML = window.FondoMapa.temas().map(function(t) {
+    return '<button type="button" class="' + (t.id === actual ? 'on' : '') + '" onclick="elegirTema(\'' + t.id + '\')"><i style="background:' + t.fondo + '"></i>' + t.nombre + '</button>';
+  }).join('');
+}
+function abrirAspecto(ev) {
+  if(ev) ev.stopPropagation();
+  var m = document.getElementById('menuAspecto');
+  var abrir = m.style.display === 'none';
+  m.style.display = abrir ? 'block' : 'none';
+  if(abrir) pintarMenuAspecto();
+}
+function elegirTema(t) { if(window.FondoMapa) { window.FondoMapa.tema(t); pintarMenuAspecto(); } }
+document.addEventListener('click', function(e) {
+  var m = document.getElementById('menuAspecto');
+  if(m && m.style.display !== 'none' && !m.contains(e.target)) m.style.display = 'none';
+});
+document.addEventListener('keydown', function(e) {
+  var m = document.getElementById('menuAspecto');
+  if(e.key === 'Escape' && m && m.style.display !== 'none') m.style.display = 'none';
+});
 
 // Chat de ayuda según el perfil de quien entró (preguntas en ayuda_contenido_sistema.js).
 function iniciarAyudaSistema(u) {
@@ -2359,10 +2410,10 @@ function drawResumen(items) {
   if(_chartMain) _chartMain.destroy();
   _chartMain = new Chart(ctx, {
     type:'bar', data:{labels:labels, datasets:[{data:values, backgroundColor:colors, borderRadius:6, borderSkipped:false, maxBarThickness:32}]},
-    options:{responsive:true, plugins:{legend:{display:false}, title:{display:true,text:'🔴 Menor stock          🟢 Mayor stock (escala logarítmica)',color:'#5a7a8a',font:{size:12}},
+    options:{responsive:true, plugins:{legend:{display:false}, title:{display:true,text:'🔴 Menor stock          🟢 Mayor stock (escala logarítmica)',color:'#a9bfd2',font:{size:12}},
       tooltip:{backgroundColor:'#0f2b3c',titleColor:'#1a9aaa',bodyColor:'#e8edf3',titleFont:{size:14},bodyFont:{size:13},padding:12,
         callbacks:{title:function(ctx){return nombresCompletos[ctx[0].dataIndex];},label:function(ctx){return '  Stock: '+valoresReales[ctx.dataIndex]+' unidades';}}}},
-      scales:{x:{ticks:{color:'#8899aa',font:{size:12},maxRotation:50,minRotation:50},grid:{display:false}},y:{type:'logarithmic',ticks:{color:'#5a7a8a',font:{size:12}},grid:{color:'rgba(26,154,170,0.08)'}}}}
+      scales:{x:{ticks:{color:'#bccfdf',font:{size:12},maxRotation:50,minRotation:50},grid:{display:false}},y:{type:'logarithmic',ticks:{color:'#a9bfd2',font:{size:12}},grid:{color:'rgba(26,154,170,0.08)'}}}}
   });
 
   var normal=items.filter(function(i){return i.cantidad>=50&&diasEnBodega(i.fechaIngreso)<120;}).length;
@@ -2372,7 +2423,7 @@ function drawResumen(items) {
   if(_chartDona) _chartDona.destroy();
   _chartDona = new Chart(ctx2, {
     type:'doughnut', data:{labels:['Normal','Stock bajo','Viejo'], datasets:[{data:[normal,low,old], backgroundColor:['#2dd4a8','#e74c3c','#f5a623'], borderWidth:0, hoverOffset:6}]},
-    options:{responsive:true, cutout:'60%', plugins:{legend:{position:'bottom',labels:{color:'#8899aa',padding:8,font:{size:11}}}}}
+    options:{responsive:true, cutout:'60%', plugins:{legend:{position:'bottom',labels:{color:'#bccfdf',padding:8,font:{size:11}}}}}
   });
 }
 
@@ -2388,7 +2439,7 @@ function drawBarList(items, color1, color2) {
     options:{responsive:true, plugins:{legend:{display:false},
       tooltip:{backgroundColor:'#0f2b3c',titleColor:'#1a9aaa',bodyColor:'#e8edf3',titleFont:{size:14},bodyFont:{size:13},padding:12,
         callbacks:{title:function(ctx){return nombresCompletos[ctx[0].dataIndex];},label:function(ctx){return '  Stock: '+ctx.raw+' unidades';}}}},
-      scales:{x:{ticks:{color:'#8899aa',font:{size:12},maxRotation:50,minRotation:50},grid:{display:false}},y:{ticks:{color:'#5a7a8a',font:{size:12}},grid:{color:'rgba(26,154,170,0.08)'}}}}
+      scales:{x:{ticks:{color:'#bccfdf',font:{size:12},maxRotation:50,minRotation:50},grid:{display:false}},y:{ticks:{color:'#a9bfd2',font:{size:12}},grid:{color:'rgba(26,154,170,0.08)'}}}}
   });
 }
 
@@ -5223,7 +5274,7 @@ function adBarrasH(nombres, valores, color, etiqueta, estadoClic, rojoCero) {
       plugins:{ legend:{display:false}, tooltip:Object.assign({}, AD_TOOLTIP, { callbacks:{
         title:function(c){ return nombres[c[0].dataIndex]; },
         label:function(c){ return '  ' + c.raw + ' ' + etiqueta; } } }) },
-      scales:{ x:{ beginAtZero:true, ticks:{ color:'#8899aa', precision:0 }, grid:{ color:'rgba(26,154,170,0.08)' } },
+      scales:{ x:{ beginAtZero:true, ticks:{ color:'#bccfdf', precision:0 }, grid:{ color:'rgba(26,154,170,0.08)' } },
                y:{ ticks:{ color:'#c5d3de', font:{size:11} }, grid:{ display:false } } },
       onClick:function(e, els){ if(els.length) audIrDistrito(nombres[els[0].index], '', estadoClic); },
       onHover:function(e, els){ if(e.native && e.native.target) e.native.target.style.cursor = els.length ? 'pointer' : 'default'; }
@@ -5519,7 +5570,9 @@ function dmDatos() {
 function renderMapaDash(forzar) {
   var vista = document.getElementById('view-dashboard');
   var cont = document.getElementById('dmMapa');
+  var panelDm = document.getElementById('dmPanel');
   if(!vista || !cont || !vista.classList.contains('active')) return;
+  if(panelDm && !panelDm.open) return;          // plegado: no se dibuja hasta que lo abran
   if(STATE.user && STATE.user.role === 'auditor') return;
   var mov = STATE.movements || [];
   var cw = Math.min(cont.clientWidth || window.innerWidth || 340, 1100);
@@ -5573,8 +5626,8 @@ function renderAuditDash() {
            datasets:[{ data:porMes, backgroundColor:'#1a9aaa', borderRadius:6, borderSkipped:false, maxBarThickness:28 }] },
     options:{ responsive:true, maintainAspectRatio:false,
       plugins:{ legend:{display:false}, tooltip:Object.assign({}, AD_TOOLTIP, { callbacks:{ label:function(c){ return '  ' + c.raw + ' libros enviados'; } } }) },
-      scales:{ x:{ ticks:{ color:'#8899aa', font:{size:10} }, grid:{display:false} },
-               y:{ beginAtZero:true, ticks:{ color:'#8899aa', precision:0 }, grid:{ color:'rgba(26,154,170,0.08)' } } } }
+      scales:{ x:{ ticks:{ color:'#bccfdf', font:{size:10} }, grid:{display:false} },
+               y:{ beginAtZero:true, ticks:{ color:'#bccfdf', precision:0 }, grid:{ color:'rgba(26,154,170,0.08)' } } } }
   }, hayMes);
 
   // ── Gráfica: estado de los libros
@@ -7536,7 +7589,7 @@ function renderRotacionCards(rotacion) {
       options:{ responsive:true, maintainAspectRatio:false, cutout:'68%', onClick:function(evt, elems) {
           if(elems && elems.length) filtrarRotacionPorClase(clasesDona[elems[0].index]);
         }, onHover:function(evt, elems) { evt.native.target.style.cursor = elems.length ? 'pointer' : 'default'; },
-        plugins:{ legend:{ position:'bottom', labels:{ color:'#8899aa', padding:10, font:{size:11}, usePointStyle:true, pointStyle:'circle' } },
+        plugins:{ legend:{ position:'bottom', labels:{ color:'#bccfdf', padding:10, font:{size:11}, usePointStyle:true, pointStyle:'circle' } },
           tooltip:{ backgroundColor:'#0f2b3c', titleColor:'#1a9aaa', bodyColor:'#e8edf3', padding:10 } } },
       plugins:[{
         id:'centroDona',
@@ -7588,7 +7641,7 @@ function renderMasSolicitados(rotacion) {
       plugins:{ legend:{display:false},
         tooltip:{ backgroundColor:'#0f2b3c', titleColor:'#1a9aaa', bodyColor:'#e8edf3', titleFont:{size:14}, bodyFont:{size:13}, padding:12,
           callbacks:{ title:function(ctx){ return nombresCompletos[ctx[0].dataIndex]; }, label:function(ctx){ return '  '+ctx.raw.toLocaleString('es-CO')+' und en 12 meses'; } } } },
-      scales:{ x:{ ticks:{color:'#8899aa',font:{size:11}}, grid:{color:'rgba(26,154,170,0.08)'} }, y:{ ticks:{color:'#5a7a8a',font:{size:12}}, grid:{display:false} } }
+      scales:{ x:{ ticks:{color:'#bccfdf',font:{size:11}}, grid:{color:'rgba(26,154,170,0.08)'} }, y:{ ticks:{color:'#a9bfd2',font:{size:12}}, grid:{display:false} } }
     },
     plugins:[{
       id:'valorAlFinalBarraSolicitados',
@@ -7671,7 +7724,7 @@ function renderValorInventario(rotacion) {
         plugins:{ legend:{display:false},
           tooltip:{ backgroundColor:'#0f2b3c', titleColor:'#1a9aaa', bodyColor:'#e8edf3', titleFont:{size:14}, bodyFont:{size:13}, padding:12,
             callbacks:{ title:function(ctx){ return nombresCompletos[ctx[0].dataIndex]; }, label:function(ctx){ return '  $'+ctx.raw.toLocaleString('es-CO'); } } } },
-        scales:{ x:{ ticks:{color:'#8899aa',font:{size:11}}, grid:{color:'rgba(26,154,170,0.08)'} }, y:{ ticks:{color:'#5a7a8a',font:{size:12}}, grid:{display:false} } }
+        scales:{ x:{ ticks:{color:'#bccfdf',font:{size:11}}, grid:{color:'rgba(26,154,170,0.08)'} }, y:{ ticks:{color:'#a9bfd2',font:{size:12}}, grid:{display:false} } }
       },
       plugins:[{
         id:'valorAlFinalBarra',
