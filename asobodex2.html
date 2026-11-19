@@ -369,6 +369,14 @@ body.tema-arena .ltime,body.tema-arena .ssub,body.tema-arena .slbl{color:#5b4a3a
 .bal-bar{height:6px;border-radius:6px;background:var(--bd);margin:11px 0 7px;overflow:hidden}
 .bal-bar i{display:block;height:100%;border-radius:6px;background:var(--gold)}
 .bal-m,.bal-s{font-size:11.5px;color:var(--t2);line-height:1.5}
+#balTKpis{grid-template-columns:repeat(4,1fr)}
+@media(max-width:900px){#balTKpis{display:grid !important;grid-template-columns:1fr 1fr !important;overflow:visible !important}#balTKpis .ad-kpi{min-width:0 !important;width:auto !important}#balTKpis .ad-kpi:last-child{grid-column:auto !important}}
+#balTKpis .k-v{font-size:22px}
+.balt-mat{display:flex;align-items:center;gap:8px;font-size:12.5px;margin-bottom:8px}
+.balt-mat .n{flex:0 0 38%;min-width:0;overflow-wrap:anywhere;font-weight:600}
+.balt-mat .b{flex:1;height:8px;border-radius:8px;background:var(--bd);overflow:hidden}
+.balt-mat .b i{display:block;height:8px;background:var(--gold);border-radius:8px;font-style:normal}
+.balt-mat .v{flex:0 0 auto;color:var(--t2);font-weight:700}
 /* Menú 🎨 (fondo y colores) */
 .menu-aspecto{position:fixed;top:72px;right:16px;z-index:60;width:260px;padding:14px;border-radius:16px;background:var(--vidrio-modal,rgba(13,30,48,.9));-webkit-backdrop-filter:blur(22px) saturate(150%);backdrop-filter:blur(22px) saturate(150%);border:1px solid var(--vidrio-borde,rgba(255,255,255,.14));box-shadow:0 18px 50px rgba(0,0,0,.5)}
 .menu-aspecto .ma-t{font-size:10px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--t2);margin:2px 2px 8px}
@@ -1137,6 +1145,42 @@ body.sin-fondo #toast,body.sin-fondo .ad-tip{background:var(--navy2);backdrop-fi
           <div style="font-size:12px;color:var(--t2);margin-top:2px">Clasificación de cada material según sus salidas de los últimos 12 meses. Clic en una tarjeta para filtrar la tabla.</div>
         </div>
         <button class="btn bgold" onclick="generarInformePDF()">📄 Informe para junta directiva</button>
+      </div>
+
+      <div class="panel" id="balTesPanel" style="margin-bottom:20px">
+        <div class="ph" style="gap:8px;flex-wrap:wrap">
+          <span class="pt">📊 Balance por distrito</span>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <select class="fc" id="balTAnio" onchange="renderBalanceTes()" style="width:auto;padding:6px 10px;font-size:12px" aria-label="Año"></select>
+            <input type="text" class="fc" id="balTBuscar" placeholder="Buscar distrito..." oninput="renderBalanceTes()" style="width:150px;padding:6px 10px;font-size:12px">
+            <select class="fc" id="balTOrden" onchange="renderBalanceTes()" style="width:auto;padding:6px 10px;font-size:12px" aria-label="Ordenar por">
+              <option value="gasto">Más gasto de envío</option>
+              <option value="valor">Más valor enviado</option>
+              <option value="unidades">Más unidades pedidas</option>
+              <option value="pedidos">Más pedidos</option>
+              <option value="cobrar">Más por cobrar</option>
+              <option value="costou">Envío más caro por unidad</option>
+              <option value="nombre">Orden A–Z</option>
+            </select>
+            <button class="btn bsm bgold" onclick="exportarBalanceTes()">⬇ Excel</button>
+          </div>
+        </div>
+        <div class="pb">
+          <div class="ad-nota">Lo que cada distrito ha pedido en el año, el material que realmente salió de bodega (con su valor), cuánto costó llevarlo y lo que está por cobrar. Para comparar distritos y ver en qué meses se gasta más en transporte.</div>
+          <div id="balTKpis" class="ad-kpis"></div>
+          <div class="g2" style="margin-bottom:14px;align-items:stretch">
+            <div class="panel" style="margin:0"><div class="ph"><span class="pt">🚌 Gasto de envío por mes</span></div><div class="pb" style="position:relative;height:230px"><canvas id="chartBalTMes"></canvas></div></div>
+            <div class="panel" style="margin:0"><div class="ph"><span class="pt">🏆 Distritos con más gasto de envío</span></div><div class="pb" style="position:relative;height:230px"><canvas id="chartBalTTop"></canvas></div></div>
+          </div>
+          <div class="g2" style="margin-bottom:14px;align-items:stretch">
+            <div class="panel" style="margin:0"><div class="ph"><span class="pt">📦 Lo más pedido del año</span></div><div class="pb" id="balTMats"></div></div>
+            <div class="panel" style="margin:0"><div class="ph"><span class="pt">⏳ Distritos sin pedir en el año</span></div><div class="pb" id="balTSin"></div></div>
+          </div>
+          <div class="tw"><table>
+            <thead><tr><th>Distrito</th><th>Pedidos</th><th>Unid. pedidas</th><th>Unid. enviadas</th><th>Valor enviado</th><th>Gasto de envío</th><th>Envío por unidad</th><th>% del gasto</th><th>Por cobrar</th><th>Último pedido</th></tr></thead>
+            <tbody id="balTTabla"></tbody>
+          </table></div>
+        </div>
       </div>
 
       <div class="g2" style="margin-bottom:20px;align-items:stretch">
@@ -4191,12 +4235,13 @@ function balanceDatos(anio) {
   var por = {};
   var get = function(nom) {
     var k = claveNombreInv(nom || 'Sin distrito');
-    return por[k] || (por[k] = { nombre:(nom || 'Sin distrito'), pedidos:0, entregados:0, unidades:0, directas:0, gasto:0, cobrar:0, cobrado:0, mats:{}, ultimo:null });
+    return por[k] || (por[k] = { nombre:(nom || 'Sin distrito'), pedidos:0, entregados:0, unidades:0, directas:0, enviadas:0, valor:0, gasto:0, cobrar:0, cobrado:0, mats:{}, ultimo:null, gastoMes:[0,0,0,0,0,0,0,0,0,0,0,0], pedMes:[0,0,0,0,0,0,0,0,0,0,0,0] });
   };
   (STATE.requests || []).forEach(function(r) {
     if(!r.distrito || !r.fecha || r.fecha.getFullYear() !== anio) return;
     var d = get(r.distrito);
     d.pedidos++;
+    d.pedMes[r.fecha.getMonth()]++;
     if(r.estado === 'entregado') d.entregados++;
     if(!d.ultimo || r.fecha > d.ultimo) d.ultimo = r.fecha;
     if(r.estado === 'rechazado') return;
@@ -4207,9 +4252,16 @@ function balanceDatos(anio) {
       d.mats[it.nombre] = (d.mats[it.nombre] || 0) + c;
     });
   });
-  // Envíos que no vinieron de un pedido: distribuciones, envíos ocasionales y despachos directos
+  // Lo que realmente salió de bodega hacia el distrito (con el precio actual del material) y lo que salió sin pedido
+  var precios = {};
+  (STATE.items || []).forEach(function(i){ precios[claveNombreInv(i.nombre)] = i.precio || 0; });
   (STATE.movements || []).forEach(function(m) {
     if(!m.distrito || !m.fecha || m.fecha.getFullYear() !== anio) return;
+    if(m.tipo === 'despacho' || m.tipo === 'distribucion' || m.tipo === 'envio_ocasional') {
+      var dd = get(m.distrito), cc = Number(m.cantidad) || 0;
+      dd.enviadas += cc;
+      dd.valor += cc * (precios[claveNombreInv(m.material)] || 0);
+    }
     var directo = m.tipo === 'distribucion' || m.tipo === 'envio_ocasional' || (m.tipo === 'despacho' && !m.origenPedido);
     if(!directo || (m.nota || '').indexOf('Descuento automático') === 0) return;
     var c = Number(m.cantidad) || 0;
@@ -4217,7 +4269,9 @@ function balanceDatos(anio) {
   });
   (STATE.gastosEnvio || []).forEach(function(g) {
     if(!g.fecha || g.fecha.getFullYear() !== anio) return;
-    get(g.distrito).gasto += Number(g.costo) || 0;
+    var dg = get(g.distrito), cg = Number(g.costo) || 0;
+    dg.gasto += cg;
+    dg.gastoMes[g.fecha.getMonth()] += cg;
   });
   (STATE.cobros || []).forEach(function(c) {
     if(!c.distrito || !c.fecha || c.fecha.getFullYear() !== anio) return;
@@ -4288,6 +4342,119 @@ function renderBalance() {
       '<div class="bal-s">' + (d.ultimo ? 'Último pedido: ' + fmtD(d.ultimo) : 'Sin pedidos en el año') + (d.directas ? ' · ' + num(d.directas) + ' u enviadas sin pedido' : '') + '</div>' +
     '</div>';
   }).join('');
+}
+var _chBalTMes = null, _chBalTTop = null;
+function renderBalanceTes() {
+  var selA = document.getElementById('balTAnio');
+  if(!selA || !document.getElementById('balTTabla')) return;
+  var anios = _balAnios(), llave = anios.join(',');
+  if(selA.getAttribute('data-k') !== llave) {
+    var previo = selA.value;
+    selA.innerHTML = anios.map(function(a){ return '<option value="' + a + '">' + a + '</option>'; }).join('');
+    selA.value = (previo && anios.indexOf(Number(previo)) > -1) ? previo : String(anios[0]);
+    selA.setAttribute('data-k', llave);
+  }
+  var anio = Number(selA.value);
+  var datos = balanceDatos(anio);
+  var plata = function(n){ return '$' + Math.round(n).toLocaleString('es-CO'); };
+  var num = function(n){ return Math.round(n).toLocaleString('es-CO'); };
+  var T = datos.reduce(function(t, d) {
+    t.pedidos += d.pedidos; t.entregados += d.entregados; t.unidades += d.unidades; t.enviadas += d.enviadas; t.valor += d.valor;
+    t.gasto += d.gasto; t.cobrar += d.cobrar; t.cobrado += d.cobrado;
+    for(var i = 0; i < 12; i++) t.mes[i] += d.gastoMes[i];
+    if(d.pedidos) t.activos++;
+    Object.keys(d.mats).forEach(function(k){ t.mats[k] = (t.mats[k] || 0) + d.mats[k]; });
+    return t;
+  }, { pedidos:0, entregados:0, unidades:0, enviadas:0, valor:0, gasto:0, cobrar:0, cobrado:0, mes:[0,0,0,0,0,0,0,0,0,0,0,0], activos:0, mats:{} });
+  var kpi = function(ico, val, lbl, sub, cls) {
+    return '<div class="ad-kpi ' + cls + '"><div class="k-i">' + ico + '</div><div class="k-v">' + val + '</div><div class="k-l">' + lbl + '</div><div class="k-s">' + sub + '</div></div>';
+  };
+  var porPedido = T.pedidos ? T.gasto / T.pedidos : 0, porUnidad = T.enviadas ? T.gasto / T.enviadas : 0;
+  document.getElementById('balTKpis').innerHTML =
+    kpi('📋', num(T.pedidos), 'Pedidos en ' + anio, num(T.entregados) + ' entregados', '') +
+    kpi('📦', num(T.enviadas), 'Unidades enviadas', num(T.unidades) + ' pedidas', 'green') +
+    kpi('💰', plata(T.valor), 'Valor del material enviado', 'con el precio actual', 'gold') +
+    kpi('🚌', plata(T.gasto), 'Gasto de envío', 'transporte del año', 'gold') +
+    kpi('🧾', plata(porPedido), 'Envío por pedido', 'promedio del año', '') +
+    kpi('⚖️', plata(porUnidad), 'Envío por unidad', 'gasto ÷ unidades enviadas', '') +
+    kpi('📍', num(T.activos) + ' de ' + DISTRITOS.length, 'Distritos que han pedido', num(DISTRITOS.length - T.activos) + ' sin pedir', 'green') +
+    kpi('💵', plata(T.cobrar), 'Por cobrar', plata(T.cobrado) + ' ya cobrado', 'red');
+
+  // Gráficas
+  if(typeof Chart !== 'undefined') {
+    var txt = graficaTxt(), rej = 'rgba(128,128,128,.18)';
+    var meses = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+    var cM = document.getElementById('chartBalTMes'), cT = document.getElementById('chartBalTTop');
+    if(_chBalTMes) _chBalTMes.destroy();
+    _chBalTMes = new Chart(cM, { type:'bar', data:{ labels:meses, datasets:[{ label:'Gasto de envío', data:T.mes, backgroundColor:'#c8860a', borderRadius:6 }] },
+      options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{display:false}, tooltip:{callbacks:{label:function(c){ return plata(c.parsed.y); }}} },
+        scales:{ x:{ticks:{color:txt}, grid:{display:false}}, y:{ticks:{color:txt, callback:function(v){ return '$' + (v >= 1000 ? Math.round(v/1000) + 'k' : v); }}, grid:{color:rej}, beginAtZero:true} } } });
+    var top = datos.filter(function(d){ return d.gasto > 0; }).sort(function(a, b){ return b.gasto - a.gasto; }).slice(0, 10);
+    if(_chBalTTop) _chBalTTop.destroy();
+    _chBalTTop = new Chart(cT, { type:'bar', data:{ labels:top.map(function(d){ return d.nombre; }), datasets:[{ label:'Gasto de envío', data:top.map(function(d){ return d.gasto; }), backgroundColor:'#2b2118', borderRadius:6 }] },
+      options:{ indexAxis:'y', responsive:true, maintainAspectRatio:false, plugins:{ legend:{display:false}, tooltip:{callbacks:{label:function(c){ return plata(c.parsed.x); }}} },
+        scales:{ x:{ticks:{color:txt, callback:function(v){ return '$' + (v >= 1000 ? Math.round(v/1000) + 'k' : v); }}, grid:{color:rej}, beginAtZero:true}, y:{ticks:{color:txt, font:{size:10}}, grid:{display:false}} } } });
+  }
+
+  // Lo más pedido
+  var mats = Object.keys(T.mats).map(function(k){ return [k, T.mats[k]]; }).sort(function(a, b){ return b[1] - a[1]; }).slice(0, 8);
+  var maxM = mats.length ? mats[0][1] : 1;
+  document.getElementById('balTMats').innerHTML = mats.length ? mats.map(function(m) {
+    return '<div class="balt-mat"><span class="n">' + escLib(m[0]) + '</span><span class="b"><i style="width:' + Math.max(4, Math.round(m[1] * 100 / maxM)) + '%"></i></span><span class="v">' + num(m[1]) + '</span></div>';
+  }).join('') : '<div class="empty">Aún no hay pedidos en ' + anio + '.</div>';
+
+  // Distritos que no han pedido en el año
+  var pidieron = {};
+  datos.forEach(function(d){ if(d.pedidos) pidieron[claveNombreInv(d.nombre)] = true; });
+  var sin = DISTRITOS.filter(function(n){ return !pidieron[claveNombreInv(n)]; });
+  document.getElementById('balTSin').innerHTML = sin.length
+    ? sin.map(function(n){ return '<span class="rtag" style="border-color:var(--amber);color:var(--amber)">' + escLib(_ZE.nombreVisible ? _ZE.nombreVisible(n) : n) + '</span>'; }).join('')
+    : '<div class="empty">Todos los distritos han pedido en ' + anio + ' 🎉</div>';
+
+  // Tabla
+  var q = claveNombreInv(document.getElementById('balTBuscar').value);
+  var cu = function(d){ return d.enviadas ? d.gasto / d.enviadas : 0; };
+  var cmp = {
+    gasto:function(a, b){ return b.gasto - a.gasto; }, valor:function(a, b){ return b.valor - a.valor; }, unidades:function(a, b){ return b.unidades - a.unidades; },
+    pedidos:function(a, b){ return b.pedidos - a.pedidos; }, cobrar:function(a, b){ return b.cobrar - a.cobrar; }, costou:function(a, b){ return cu(b) - cu(a); },
+    nombre:function(a, b){ return a.nombre.localeCompare(b.nombre); }
+  }[document.getElementById('balTOrden').value];
+  var lista = datos.filter(function(d){ return !q || claveNombreInv(d.nombre).indexOf(q) !== -1; })
+    .sort(function(a, b){ return cmp(a, b) || a.nombre.localeCompare(b.nombre); });
+  document.getElementById('balTTabla').innerHTML = lista.length ? lista.map(function(d) {
+    return '<tr><td><strong>' + escLib(_ZE.nombreVisible ? _ZE.nombreVisible(d.nombre) : d.nombre) + '</strong></td>' +
+      '<td>' + num(d.pedidos) + (d.pedidos ? ' <span style="color:var(--t2);font-size:11px">(' + num(d.entregados) + ' entreg.)</span>' : '') + '</td>' +
+      '<td>' + num(d.unidades) + '</td><td>' + num(d.enviadas) + '</td>' +
+      '<td>' + (d.valor ? plata(d.valor) : '—') + '</td>' +
+      '<td style="color:var(--gold);font-weight:700">' + (d.gasto ? plata(d.gasto) : '—') + '</td>' +
+      '<td>' + (cu(d) ? plata(cu(d)) : '—') + '</td>' +
+      '<td>' + (T.gasto && d.gasto ? (d.gasto * 100 / T.gasto).toFixed(1) + '%' : '—') + '</td>' +
+      '<td>' + (d.cobrar ? plata(d.cobrar) : '—') + '</td>' +
+      '<td>' + (d.ultimo ? fmtD(d.ultimo) : '—') + '</td></tr>';
+  }).join('') : '<tr><td colspan="10"><div class="empty">' + (datos.length ? 'Ningún distrito coincide con la búsqueda.' : 'Aún no hay datos en ' + anio + '.') + '</div></td></tr>';
+}
+function exportarBalanceTes() {
+  if(typeof XLSX === 'undefined') { toast('No cargó la librería de Excel, recarga la página', 'err'); return; }
+  var anio = Number(document.getElementById('balTAnio').value);
+  var datos = balanceDatos(anio).sort(function(a, b){ return a.nombre.localeCompare(b.nombre); });
+  if(!datos.length) { toast('No hay datos para exportar en ' + anio, 'warn'); return; }
+  var meses = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+  var filas = datos.map(function(d) {
+    var f = {
+      'Distrito': d.nombre, 'Pedidos': d.pedidos, 'Pedidos entregados': d.entregados, 'Unidades pedidas': d.unidades, 'Unidades enviadas': d.enviadas,
+      'Unidades enviadas sin pedido': d.directas, 'Valor del material enviado': Math.round(d.valor), 'Gasto de envío': Math.round(d.gasto),
+      'Envío por unidad': d.enviadas ? Math.round(d.gasto / d.enviadas) : 0, 'Por cobrar': Math.round(d.cobrar), 'Ya cobrado': Math.round(d.cobrado),
+      'Lo más pedido': _balTop(d, 3).map(function(m){ return m[0] + ' (' + m[1] + ')'; }).join(' · '),
+      'Último pedido': d.ultimo ? d.ultimo.toISOString().slice(0, 10) : ''
+    };
+    meses.forEach(function(m, i){ f['Envío ' + m] = Math.round(d.gastoMes[i]); });
+    return f;
+  });
+  var ws = XLSX.utils.json_to_sheet(filas);
+  ws['!cols'] = [{wch:24},{wch:9},{wch:12},{wch:14},{wch:14},{wch:16},{wch:16},{wch:14},{wch:14},{wch:12},{wch:12},{wch:50},{wch:13}];
+  var wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Balance ' + anio);
+  XLSX.writeFile(wb, 'balance_tesoreria_' + anio + '.xlsx');
 }
 function exportarBalance() {
   if(typeof XLSX === 'undefined') { toast('No cargó la librería de Excel, recarga la página', 'err'); return; }
@@ -8152,6 +8319,7 @@ function renderTesoreria() {
   renderProyeccionCompra(rotacion);
   renderComportamientoDistrito();
   renderGastosEnvio();
+  renderBalanceTes();
 }
 
 // ── Funcionalidad 2: proyección de compra (solo RÁPIDA y NORMAL) ─────────
