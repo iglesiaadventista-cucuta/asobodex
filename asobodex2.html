@@ -348,6 +348,10 @@ body.tema-arena .b.bgd{background:#f5dca6;color:#6b4004}
 body.tema-arena .b.bgr{background:rgba(43,33,24,.14);color:#2b2118}
 body.tema-arena .tab{color:#3d2f23;font-weight:600}
 body.tema-arena .tab:hover{background:rgba(255,255,255,.7);color:#1f160e}
+body.tema-arena .tab.active,body.tema-arena .tab.active:hover{background:#2b2118;color:#f6efe5;border-color:#2b2118}
+body.tema-arena .ad-ruta.on{stroke:#6b4a2b;stroke-opacity:.75}
+body.tema-arena .ad-ruta.off{stroke:#8a6a45;stroke-opacity:.38}
+body.tema-arena .ad-nodo:hover .ad-nodo-c,body.tema-arena .ad-nodo:focus .ad-nodo-c{stroke:#2b2118}
 body.tema-arena .ltime,body.tema-arena .ssub,body.tema-arena .slbl{color:#5b4a3a}
 .tsub{color:var(--titulo,var(--teal))}
 .alert-warn{color:var(--rojo-txt,var(--red))}
@@ -5402,6 +5406,30 @@ function mapaTip(pre, i, mostrar) {
   tip.style.display = 'block';
 }
 
+// Relieve del tema Arena: curvas de nivel (como un mapa topográfico) alrededor de las zonas montañosas
+// (la cordillera al occidente y al sur de la región) y un poco de luz y sombra. Los llanos del oriente quedan lisos.
+function mapaRelieve(pre, P, k, f) {
+  var picos = [ [-72.70, 7.35, 1.00], [-73.25, 8.15, 0.85], [-72.30, 6.40, 0.95], [-73.10, 7.70, 0.70], [-72.95, 6.85, 0.75], [-73.5, 7.1, 0.6] ];
+  var s = '<defs><radialGradient id="' + pre + 'Luz" cx="40%" cy="38%" r="65%"><stop offset="0" stop-color="#fff8ea" stop-opacity=".55"/><stop offset="1" stop-color="#fff8ea" stop-opacity="0"/></radialGradient>' +
+          '<radialGradient id="' + pre + 'Sombra" cx="50%" cy="50%" r="60%"><stop offset="0" stop-color="#6b4a2b" stop-opacity=".16"/><stop offset="1" stop-color="#6b4a2b" stop-opacity="0"/></radialGradient></defs>';
+  picos.forEach(function(pk, pi) {
+    var c = P([pk[0], pk[1]]);
+    var anillos = Math.round(8 + pk[2] * 5), paso = 5.2 * pk[2], radMax = anillos * paso * 1.2;
+    s += '<circle cx="' + f(c[0] + 6) + '" cy="' + f(c[1] + 7) + '" r="' + f(radMax) + '" fill="url(#' + pre + 'Sombra)"/>' +
+         '<circle cx="' + f(c[0] - 4) + '" cy="' + f(c[1] - 5) + '" r="' + f(radMax * 0.85) + '" fill="url(#' + pre + 'Luz)"/>';
+    for(var i = 1; i <= anillos; i++) {
+      var rad = i * paso, d = '';
+      for(var a = 0; a <= 56; a++) {
+        var ang = a / 56 * Math.PI * 2;
+        var rr = rad * (1 + 0.15 * Math.sin(3 * ang + pi * 1.7 + i * 0.33) + 0.09 * Math.sin(5 * ang + pi * 2.9) + 0.05 * Math.sin(8 * ang + i));
+        d += (a ? 'L' : 'M') + f(c[0] + rr * Math.cos(ang) * 1.18) + ',' + f(c[1] + rr * Math.sin(ang) * 0.82);
+      }
+      var fuerte = i % 4 === 0;
+      s += '<path d="' + d + 'Z" fill="none" stroke="#8a6338" stroke-opacity="' + (fuerte ? '.38' : '.20') + '" stroke-width="' + f((fuerte ? 1.3 : 0.8) * k) + '" stroke-linejoin="round"/>';
+    }
+  });
+  return s;
+}
 function adRenderMapa(ds) { mapaRender('ad', ds); }
 function mapaRender(pre, ds) {
   var M = MAPAS[pre], t = M.t;
@@ -5417,6 +5445,17 @@ function mapaRender(pre, ds) {
   _adVertical = cw < 600;
   if(!M.vista) M.vista = _adVertical ? 'NORTE DE SANTANDER' : 'todo';
   var vista = M.vista;
+  // Paleta: en el tema Arena el mapa es color arena con curvas de nivel (relieve); en los demás, el azul oscuro de siempre.
+  var ARENA = document.body.classList.contains('tema-arena');
+  var pal = ARENA ? {
+    f1:'#f3e8d6', f2:'#dac5a6', puntos:'#8a6a45', depFill:'rgba(120,80,40,.07)', depGlow:'#6b4a2b', depOn:'#6b4a2b',
+    depOffFill:'rgba(120,80,40,.03)', depOff:'#8a6a45', txt:'#2b2118', sub:'#5b4a3a', halo:'#f6efe5', txtB:'#1f160e', depLabel:'#6b4a2b',
+    nodoBorde:'#f6efe5', bod:'#2b2118', gris:'#8a7d6e', rojo:'#b3352a', ambar:'#c47f17', verde:'#1f8a55'
+  } : {
+    f1:'#15506a', f2:'#08141d', puntos:'#1a9aaa', depFill:'rgba(45,212,168,.06)', depGlow:'#2dd4a8', depOn:'#2dd4a8',
+    depOffFill:'rgba(58,143,163,.04)', depOff:'#3A8FA3', txt:'#dbe7ef', sub:'#8fb2c4', halo:'#0a1a26', txtB:'#ffffff', depLabel:'#2dd4a8',
+    nodoBorde:'#0a1a26', bod:'#1a9aaa', gris:'#7f93a3', rojo:'#e74c3c', ambar:'#f5a623', verde:'#2dd4a8'
+  };
 
   var todas = adAgruparZonas(ds);
   var zonas = todas.filter(function(z){ return z.ll && (vista === 'todo' || z.vista === vista); });
@@ -5484,14 +5523,14 @@ function mapaRender(pre, ds) {
     var d = trazo(n);
     if(!d) return;
     if(activo) {
-      contornos += '<path d="' + d + '" fill="rgba(45,212,168,.06)" stroke="#2dd4a8" stroke-opacity=".22" stroke-width="' + f(6 * k) + '" stroke-linejoin="round"/>' +
-                   '<path d="' + d + '" fill="none" stroke="#2dd4a8" stroke-opacity=".85" stroke-width="' + f(1.6 * k) + '" stroke-linejoin="round"/>';
+      contornos += '<path d="' + d + '" fill="' + pal.depFill + '" stroke="' + pal.depGlow + '" stroke-opacity=".22" stroke-width="' + f(6 * k) + '" stroke-linejoin="round"/>' +
+                   '<path d="' + d + '" fill="none" stroke="' + pal.depOn + '" stroke-opacity=".85" stroke-width="' + f(1.6 * k) + '" stroke-linejoin="round"/>';
     } else {
-      contornos += '<path d="' + d + '" fill="rgba(58,143,163,.04)" stroke="#3A8FA3" stroke-opacity=".45" stroke-width="' + f(1.2 * k) + '" stroke-dasharray="' + f(5 * k) + ' ' + f(4 * k) + '" stroke-linejoin="round"/>';
+      contornos += '<path d="' + d + '" fill="' + pal.depOffFill + '" stroke="' + pal.depOff + '" stroke-opacity=".45" stroke-width="' + f(1.2 * k) + '" stroke-dasharray="' + f(5 * k) + ' ' + f(4 * k) + '" stroke-linejoin="round"/>';
     }
   });
   var texto = function(tx, x, y, tam, color, peso, ancla) {
-    return '<text x="' + f(x) + '" y="' + f(y) + '" text-anchor="' + (ancla || 'middle') + '" font-size="' + f(tam * k) + '" fill="' + color + '" font-weight="' + (peso || 600) + '" stroke="#0a1a26" stroke-width="' + f(3 * k) + '" paint-order="stroke" stroke-linejoin="round">' + tx + '</text>';
+    return '<text x="' + f(x) + '" y="' + f(y) + '" text-anchor="' + (ancla || 'middle') + '" font-size="' + f(tam * k) + '" fill="' + color + '" font-weight="' + (peso || 600) + '" stroke="' + pal.halo + '" stroke-width="' + f(3 * k) + '" paint-order="stroke" stroke-linejoin="round">' + tx + '</text>';
   };
   // Nombre del departamento: en la esquina cuando se ve uno solo; en el centro de cada uno en "Todo".
   if(vista === 'todo') {
@@ -5499,10 +5538,10 @@ function mapaRender(pre, ds) {
       var sx = 0, sy = 0, c = 0;
       contor(n, function(q){ sx += q[0]; sy += q[1]; c++; });
       if(!c) return;
-      etiquetasDepto += '<text x="' + f(sx / c) + '" y="' + f(sy / c) + '" text-anchor="middle" font-size="' + f(10 * k) + '" fill="#2dd4a8" opacity=".5" font-weight="700" letter-spacing="' + f(1.5 * k) + '">' + (G.deptoNombre[n] || n).toUpperCase() + '</text>';
+      etiquetasDepto += '<text x="' + f(sx / c) + '" y="' + f(sy / c) + '" text-anchor="middle" font-size="' + f(10 * k) + '" fill="' + pal.depLabel + '" opacity=".5" font-weight="700" letter-spacing="' + f(1.5 * k) + '">' + (G.deptoNombre[n] || n).toUpperCase() + '</text>';
     });
   } else {
-    etiquetasDepto = '<text x="' + f(vx + 10 * k) + '" y="' + f(vy + h - 10 * k) + '" font-size="' + f(11 * k) + '" fill="#2dd4a8" font-weight="700" letter-spacing="' + f(1.5 * k) + '" stroke="#0a1a26" stroke-width="' + f(3 * k) + '" paint-order="stroke">' + (G.deptoNombre[vista] || vista).toUpperCase() + '</text>';
+    etiquetasDepto = '<text x="' + f(vx + 10 * k) + '" y="' + f(vy + h - 10 * k) + '" font-size="' + f(11 * k) + '" fill="' + pal.depLabel + '" font-weight="700" letter-spacing="' + f(1.5 * k) + '" stroke="' + pal.halo + '" stroke-width="' + f(3 * k) + '" paint-order="stroke">' + (G.deptoNombre[vista] || vista).toUpperCase() + '</text>';
   }
 
   var rutas = '', nodos = '', carros = '';
@@ -5516,17 +5555,17 @@ function mapaRender(pre, ds) {
     rutas += '<path id="' + pre + 'Ruta' + i + '" class="ad-ruta ' + (on ? 'on' : 'off') + '" style="stroke-width:' + f(2 * k) + 'px" d="M0,0 Q' + f(qx) + ',' + f(qy) + ' ' + f(x) + ',' + f(y) + '"/>';
 
     var dd = z.ultimo ? Math.floor((ahora - z.ultimo) / 86400000) : null;
-    var color = dd === null ? '#7f93a3' : (dd > 365 ? '#e74c3c' : (dd > 180 ? '#f5a623' : '#2dd4a8'));
+    var color = dd === null ? pal.gris : (dd > 365 ? pal.rojo : (dd > 180 ? pal.ambar : pal.verde));
     var r = (7 + 10 * Math.sqrt(z.periodo / maxP)) * k;
     var ln = escLib(z.nombre), sub = on ? z.periodo.toLocaleString('es-CO') + ' ' + (z.periodo === 1 ? t.un : t.unp) : 'sin envíos';
     var lado = G.lado[z.nombre] || 'b', et;
-    if(lado === 'l') et = texto(ln, x - r - 6 * k, y - 1 * k, 12, '#dbe7ef', 700, 'end') + texto(sub, x - r - 6 * k, y + 11 * k, 10, '#8fb2c4', 600, 'end');
-    else if(lado === 'r') et = texto(ln, x + r + 6 * k, y - 1 * k, 12, '#dbe7ef', 700, 'start') + texto(sub, x + r + 6 * k, y + 11 * k, 10, '#8fb2c4', 600, 'start');
-    else if(lado === 't') et = texto(ln, x, y - r - 15 * k, 12, '#dbe7ef', 700) + texto(sub, x, y - r - 3 * k, 10, '#8fb2c4', 600);
-    else et = texto(ln, x, y + r + 14 * k, 12, '#dbe7ef', 700) + texto(sub, x, y + r + 26 * k, 10, '#8fb2c4', 600);
+    if(lado === 'l') et = texto(ln, x - r - 6 * k, y - 1 * k, 12, pal.txt, 700, 'end') + texto(sub, x - r - 6 * k, y + 11 * k, 10, pal.sub, 600, 'end');
+    else if(lado === 'r') et = texto(ln, x + r + 6 * k, y - 1 * k, 12, pal.txt, 700, 'start') + texto(sub, x + r + 6 * k, y + 11 * k, 10, pal.sub, 600, 'start');
+    else if(lado === 't') et = texto(ln, x, y - r - 15 * k, 12, pal.txt, 700) + texto(sub, x, y - r - 3 * k, 10, pal.sub, 600);
+    else et = texto(ln, x, y + r + 14 * k, 12, pal.txt, 700) + texto(sub, x, y + r + 26 * k, 10, pal.sub, 600);
     nodos += '<g class="ad-nodo" tabindex="0" onmouseenter="' + hMapa('mapaTip', i + ',true') + '" onmouseleave="' + hMapa('mapaTip', i + ',false') + '" onfocus="' + hMapa('mapaTip', i + ',true') + '" onblur="' + hMapa('mapaTip', i + ',false') + '" onclick="' + hMapa('mapaTip', i + ',true') + '">' +
       (on ? '<circle cx="' + f(x) + '" cy="' + f(y) + '" r="' + f(r) + '" fill="' + color + '" opacity=".4"><animate attributeName="r" values="' + f(r) + ';' + f(r + 16 * k) + '" dur="2.6s" begin="' + (i * 0.37).toFixed(2) + 's" repeatCount="indefinite"/><animate attributeName="opacity" values=".45;0" dur="2.6s" begin="' + (i * 0.37).toFixed(2) + 's" repeatCount="indefinite"/></circle>' : '') +
-      '<circle class="ad-nodo-c" cx="' + f(x) + '" cy="' + f(y) + '" r="' + f(r) + '" fill="' + color + '" fill-opacity="' + (on ? '.9' : '.35') + '" stroke="#0a1a26" stroke-width="' + f(2 * k) + '"/>' +
+      '<circle class="ad-nodo-c" cx="' + f(x) + '" cy="' + f(y) + '" r="' + f(r) + '" fill="' + color + '" fill-opacity="' + (on ? '.9' : '.35') + '" stroke="' + pal.nodoBorde + '" stroke-width="' + f(2 * k) + '"/>' +
       et + '</g>';
 
     if(on) {
@@ -5544,20 +5583,21 @@ function mapaRender(pre, ds) {
 
   var fondo =
     '<defs>' +
-      '<radialGradient id="' + pre + 'Fondo" cx="30%" cy="55%" r="85%"><stop offset="0" stop-color="#15506a"/><stop offset="1" stop-color="#08141d"/></radialGradient>' +
-      '<pattern id="' + pre + 'Puntos" width="' + f(16 * k) + '" height="' + f(16 * k) + '" patternUnits="userSpaceOnUse"><circle cx="' + f(2 * k) + '" cy="' + f(2 * k) + '" r="' + f(k) + '" fill="#1a9aaa" opacity=".28"/></pattern>' +
+      '<radialGradient id="' + pre + 'Fondo" cx="30%" cy="55%" r="85%"><stop offset="0" stop-color="' + pal.f1 + '"/><stop offset="1" stop-color="' + pal.f2 + '"/></radialGradient>' +
+      '<pattern id="' + pre + 'Puntos" width="' + f(16 * k) + '" height="' + f(16 * k) + '" patternUnits="userSpaceOnUse"><circle cx="' + f(2 * k) + '" cy="' + f(2 * k) + '" r="' + f(k) + '" fill="' + pal.puntos + '" opacity=".28"/></pattern>' +
     '</defs>' +
     '<rect x="' + f(vx) + '" y="' + f(vy) + '" width="' + f(w) + '" height="' + f(h) + '" fill="url(#' + pre + 'Fondo)"/>' +
-    '<rect x="' + f(vx) + '" y="' + f(vy) + '" width="' + f(w) + '" height="' + f(h) + '" fill="url(#' + pre + 'Puntos)"/>';
+    '<rect x="' + f(vx) + '" y="' + f(vy) + '" width="' + f(w) + '" height="' + f(h) + '" fill="url(#' + pre + 'Puntos)"/>' +
+    (ARENA ? mapaRelieve(pre, P, k, f) : '');
   var etiquetaBodega = _ZE.origen ? _ZE.origen.nombre : 'Bodega · Cúcuta';
   var origen = !conBodega
-    ? '<text x="' + f(vx + 10 * k) + '" y="' + f(vy + 20 * k) + '" font-size="' + f(11 * k) + '" fill="#dbe7ef" font-weight="700" stroke="#0a1a26" stroke-width="' + f(3 * k) + '" paint-order="stroke">📦 Los envíos salen de ' + etiquetaBodega + '</text>'
+    ? '<text x="' + f(vx + 10 * k) + '" y="' + f(vy + 20 * k) + '" font-size="' + f(11 * k) + '" fill="' + pal.txt + '" font-weight="700" stroke="' + pal.halo + '" stroke-width="' + f(3 * k) + '" paint-order="stroke">📦 Los envíos salen de ' + etiquetaBodega + '</text>'
     :
-    '<circle cx="0" cy="0" r="' + f(24 * k) + '" fill="none" stroke="#1a9aaa" stroke-opacity=".55" stroke-dasharray="' + f(3 * k) + ' ' + f(7 * k) + '">' +
+    '<circle cx="0" cy="0" r="' + f(24 * k) + '" fill="none" stroke="' + pal.bod + '" stroke-opacity=".55" stroke-dasharray="' + f(3 * k) + ' ' + f(7 * k) + '">' +
       '<animateTransform attributeName="transform" type="rotate" from="0 0 0" to="360 0 0" dur="14s" repeatCount="indefinite"/></circle>' +
-    '<circle cx="0" cy="0" r="' + f(13 * k) + '" fill="#1a9aaa" stroke="#fff" stroke-width="' + f(1.8 * k) + '"/>' +
+    '<circle cx="0" cy="0" r="' + f(13 * k) + '" fill="' + pal.bod + '" stroke="#fff" stroke-width="' + f(1.8 * k) + '"/>' +
     '<text x="0" y="' + f(4.5 * k) + '" text-anchor="middle" font-size="' + f(13 * k) + '">📦</text>' +
-    texto(etiquetaBodega, 18 * k, 4 * k, 12, '#ffffff', 700, 'start');
+    texto(etiquetaBodega, 18 * k, 4 * k, 12, pal.txtB, 700, 'start');
 
   document.getElementById(pre + 'MapaInfo').textContent = activas + ' de ' + zonas.length + ' destinos con envíos' + (dias ? ' en el período' : '');
   cont.innerHTML =
@@ -5613,7 +5653,7 @@ function renderMapaDash(forzar) {
   if(STATE.user && STATE.user.role === 'auditor') return;
   var mov = STATE.movements || [];
   var cw = Math.min(cont.clientWidth || window.innerWidth || 340, 1100);
-  var sig = [mov.length, mov.length ? mov[0].id : '', _dmDias, MAPAS.dm.vista, cw < 600 ? 'm' : 'd'].join('|');
+  var sig = [mov.length, mov.length ? mov[0].id : '', _dmDias, MAPAS.dm.vista, cw < 600 ? 'm' : 'd', (window.FondoMapa ? window.FondoMapa.temaActual() : '')].join('|');
   // Si no cambió nada no se vuelve a dibujar, así no se reinician los buses cada vez que llega un dato.
   if(!forzar && sig === _dmSig && cont.innerHTML) return;
   _dmSig = sig;
