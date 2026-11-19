@@ -90,6 +90,64 @@ html,body{height:100%;background:var(--navy);color:var(--t1);font-family:var(--f
 .sgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px}
 .scard{background:var(--navy2);border:1px solid var(--bd);border-radius:var(--r2);padding:16px 18px;position:relative;overflow:hidden}
 .scard::after{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:var(--teal)}
+/* ── Menú del auditor: píldora que se desliza entre opciones ── */
+.tab-pill{display:none}
+.topbar.auditmode .tabnav{display:none}
+.topbar.auditmode .tabs{position:relative;justify-content:center;gap:6px;overflow:visible;flex:1}
+.topbar.auditmode .tab{position:relative;z-index:1;padding:9px 18px;font-size:13px;font-weight:600;border:1px solid transparent;border-radius:10px}
+.topbar.auditmode .tab:hover{background:transparent;color:var(--t1)}
+.topbar.auditmode .tab.active{background:transparent;border-color:transparent;color:#fff}
+.topbar.auditmode .tab span{display:inline !important}
+.topbar.auditmode .tab-pill{display:block;position:absolute;z-index:0;left:0;top:0;width:0;height:0;border-radius:10px;pointer-events:none;
+  background:linear-gradient(135deg,#1a9aaa,#2a6f80);box-shadow:0 4px 16px rgba(26,154,170,.4),inset 0 1px 0 rgba(255,255,255,.18);
+  transition:left .3s cubic-bezier(.3,.9,.3,1),width .3s cubic-bezier(.3,.9,.3,1),top .2s,height .2s}
+.topbar.auditmode .tab-pill.sin-anim{transition:none}
+
+/* ── Panel del auditor ── */
+.ad-hero{border-radius:16px;padding:20px 22px;margin-bottom:14px;background:linear-gradient(135deg,rgba(26,154,170,.35),rgba(15,43,60,.9) 70%);border:1px solid var(--bd);position:relative;overflow:hidden}
+.ad-hero::after{content:'🔎';position:absolute;right:18px;top:6px;font-size:76px;opacity:.12}
+.ad-hero-t{font-size:22px;font-weight:800}
+.ad-hero-s{font-size:12px;color:var(--t2);margin-top:2px}
+.ad-hero-s::first-letter{text-transform:uppercase}
+.ad-hero-chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.ad-chipx{font-size:12px;padding:5px 11px;border-radius:20px;background:rgba(255,255,255,.07);border:1px solid var(--bd);cursor:pointer;color:var(--t1);font-family:inherit}
+.ad-chipx:hover{background:rgba(255,255,255,.14)}
+.ad-per{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;align-items:center}
+.ad-per>span{font-size:12px;color:var(--t2);margin-right:2px}
+.ad-per button{font-family:inherit;font-size:12px;padding:6px 13px;border-radius:20px;border:1px solid var(--bd);background:transparent;color:var(--t2);cursor:pointer;transition:all .15s}
+.ad-per button:hover{color:var(--t1);border-color:var(--teal)}
+.ad-per button.on{background:var(--teal);border-color:var(--teal);color:#fff;font-weight:600}
+.ad-kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:14px}
+.ad-kpi{font-family:inherit;text-align:left;color:var(--t1);cursor:pointer;background:var(--navy2);border:1px solid var(--bd);border-radius:14px;padding:14px 16px;position:relative;overflow:hidden;transition:transform .12s,border-color .12s}
+.ad-kpi:hover{transform:translateY(-2px);border-color:var(--teal)}
+.ad-kpi::before{content:'';position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--teal)}
+.ad-kpi.green::before{background:var(--green)}.ad-kpi.gold::before{background:var(--gold)}.ad-kpi.red::before{background:var(--red)}
+.ad-kpi .k-i{font-size:18px}
+.ad-kpi .k-v{font-size:28px;font-weight:800;line-height:1.1;margin-top:4px}
+.ad-kpi .k-l{font-size:11px;color:var(--t2);margin-top:3px;text-transform:uppercase;letter-spacing:.05em}
+.ad-kpi .k-s{font-size:11px;color:var(--t3);margin-top:2px}
+.ad-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px}
+.ad-chart{position:relative;height:290px}
+.ad-vacio{position:absolute;inset:0;display:none;align-items:center;justify-content:center;color:var(--t3);font-size:13px;text-align:center;padding:10px}
+.ad-row{width:100%;font-family:inherit;color:var(--t1);display:flex;align-items:center;gap:10px;justify-content:space-between;text-align:left;background:transparent;border:none;border-bottom:1px solid var(--bd);padding:11px 4px;cursor:pointer}
+.ad-row:last-child{border-bottom:none}
+.ad-row:hover{background:rgba(255,255,255,.04)}
+.ad-row-n{font-size:13px;font-weight:700}
+.ad-row-s{font-size:11px;color:var(--t2);margin-top:2px}
+.ad-chip{font-size:11px;font-weight:700;padding:4px 10px;border-radius:20px;white-space:nowrap}
+.ad-chip.rojo{background:rgba(231,76,60,.15);color:var(--red)}
+.ad-chip.amb{background:rgba(243,156,18,.15);color:var(--amber)}
+.ad-chip.ver{background:rgba(45,212,168,.15);color:var(--green)}
+.ad-chip.gris{background:rgba(255,255,255,.07);color:var(--t2)}
+.ad-nota{font-size:11px;color:var(--t3);margin:0 0 12px;line-height:1.5}
+@media(max-width:900px){.ad-kpis{grid-template-columns:repeat(2,1fr)}.ad-kpi:last-child{grid-column:1/-1}.ad-grid{grid-template-columns:1fr}}
+@media(max-width:768px){
+  .topbar.auditmode .uchip{display:none}
+  .topbar.auditmode .tab{padding:9px 14px;font-size:12px}
+  .ad-hero-t{font-size:18px}
+  .ad-kpi .k-v{font-size:24px}
+  .ad-chart{height:260px}
+}
 .scard.clicable{cursor:pointer;transition:transform .12s,border-color .12s,box-shadow .12s;user-select:none}
 .scard.clicable:hover{transform:translateY(-2px);border-color:var(--teal)}
 .scard.clicable:active{transform:translateY(0)}
@@ -254,6 +312,7 @@ textarea.fc{resize:vertical;min-height:70px}
     <div><div class="tname">AsoBodex</div><div class="tsub">Asociación del Noreste Colombiano</div></div>
     <button class="tabnav" onclick="deslizarTabs(-1)" title="Ver pestañas hacia la izquierda">‹</button>
     <div class="tabs" id="tabs">
+      <span class="tab-pill" id="tabPill"></span>
       <button class="tab active" data-view="dashboard" title="Dashboard">📊 <span>Dashboard</span></button>
       <button class="tab" data-view="inventario" title="Inventario">📦 <span>Inventario</span></button>
       <button class="tab admin-tab" data-view="registrar" title="Registrar">➕ <span>Registrar</span></button>
@@ -267,7 +326,8 @@ textarea.fc{resize:vertical;min-height:70px}
       <button class="tab tesoreria-tab" data-view="tesoreria" title="Indicadores de Bodega" style="display:none">📈 <span>Indicadores de Bodega</span></button>
       <button class="tab fact-tab" data-view="remisiones" title="Remisiones">🧾 <span>Remisiones</span></button>
       <button class="tab dist-tab" data-view="distribucion" title="Distribución">📦 <span>Distribución</span></button>
-      <button class="tab auditor-tab" data-view="auditoria" title="Auditoría de libros" style="display:none">🔎 <span>Auditoría de libros</span></button>
+      <button class="tab auditor-tab" data-view="auditdash" title="Panel de auditoría" style="display:none">📊 <span>Panel</span></button>
+      <button class="tab auditor-tab" data-view="auditoria" title="Auditoría de libros" style="display:none">🔎 <span>Libros</span></button>
       <button class="tab master-only" data-view="libros" title="Libros">📖 <span>Libros</span> <span class="tbadge" id="librosBadge" style="display:none">0</span></button>
       <button class="tab master-only" data-view="pastores" title="Pastores">👥 <span>Pastores</span></button>
       <button class="tab admin-tab" data-view="historial" title="Historial">🕐 <span>Historial</span></button>
@@ -795,6 +855,29 @@ textarea.fc{resize:vertical;min-height:70px}
             </div>
           </div>
         </div>
+      </div>
+    </div>
+
+    <!-- PANEL DEL AUDITOR: resumen con gráficas de movimiento de libros por distrito -->
+    <div class="view" id="view-auditdash">
+      <div class="ad-hero" id="adHero"></div>
+      <div class="ad-per" id="adPeriodo"></div>
+      <div class="ad-kpis" id="adKpis"></div>
+      <div class="ad-grid">
+        <div class="panel"><div class="ph"><span class="pt">🏆 Distritos con más movimiento</span></div>
+          <div class="pb"><div class="ad-chart"><canvas id="adChartTop"></canvas><div class="ad-vacio" id="adChartTop_v">Ningún distrito tiene envíos con fecha en este período</div></div></div></div>
+        <div class="panel"><div class="ph"><span class="pt">📅 Libros enviados por mes</span></div>
+          <div class="pb"><div class="ad-chart"><canvas id="adChartMes"></canvas><div class="ad-vacio" id="adChartMes_v">Aún no hay envíos con fecha registrada</div></div></div></div>
+        <div class="panel"><div class="ph"><span class="pt">🐢 Distritos con menos movimiento</span></div>
+          <div class="pb"><div class="ad-chart"><canvas id="adChartBajo"></canvas><div class="ad-vacio" id="adChartBajo_v">Sin datos</div></div></div></div>
+        <div class="panel"><div class="ph"><span class="pt">📚 Estado de los libros</span></div>
+          <div class="pb"><div class="ad-chart"><canvas id="adChartEstado"></canvas><div class="ad-vacio" id="adChartEstado_v">Sin libros registrados</div></div></div></div>
+      </div>
+      <div class="ad-grid">
+        <div class="panel"><div class="ph"><span class="pt">⏳ Tiempo sin recibir libros</span></div>
+          <div class="pb" id="adInactivos"></div></div>
+        <div class="panel"><div class="ph"><span class="pt">⚠️ Distritos con novedades</span></div>
+          <div class="pb" id="adNovedades"></div></div>
       </div>
     </div>
 
@@ -1709,6 +1792,11 @@ function loginOk(u) {
     setTimeout(function(){ dl.classList.remove('show'); }, 8000); // salvavidas: no dejar el overlay pegado si Firestore no responde
   }
   setTimeout(()=>mostrarBienvenida(u), 300);
+  // Se restablece el menú completo antes de aplicar los roles: si antes había entrado el
+  // auditor (que oculta casi todo), el siguiente usuario no debe heredar pestañas ocultas.
+  document.querySelectorAll('#tabs .tab').forEach(function(el){ el.style.display=''; });
+  document.querySelector('.topbar').classList.toggle('auditmode', u.role==='auditor');
+  var _pl = document.getElementById('tabPill'); if(_pl) _pl.removeAttribute('data-listo');
   document.querySelectorAll('.admin-tab').forEach(el=>el.style.display=isAdmin?'':'none');
   document.querySelectorAll('.admin-el').forEach(el=>el.style.display=isAdmin?'':'none');
   document.querySelectorAll('.reader-tab').forEach(el=>el.style.display=(isReader||isFacturador||isTesorero||isSecretaria)?'':'none');
@@ -1735,7 +1823,7 @@ function loginOk(u) {
   renderAll();
   buildPedidoForm();
   if(isSecretaria) { setTimeout(function(){ showView('biblias'); }, 0); }
-  if(isAuditor) { setTimeout(function(){ showView('auditoria'); }, 0); }
+  if(isAuditor) { setTimeout(function(){ showView('auditdash'); }, 0); }
 }
 function mostrarBienvenida(u) {
   var isMaster = u.role === 'admin';
@@ -1748,7 +1836,8 @@ function mostrarBienvenida(u) {
       '<div style="font-size:18px;font-weight:700;color:var(--teal)">Bienvenido, '+u.nombre+'</div>' +
       '<div style="font-size:12px;color:var(--t2);margin-top:4px">Auditoría de libros de Diáconos</div></div>' +
       '<div style="display:flex;flex-direction:column;gap:8px;font-size:13px">' +
-      mkRoleItem('🔎','Auditoría de libros','Revisa que cada libro (numeración) sea el de su iglesia y cuánto tiempo hace que se envió') +
+      mkRoleItem('📊','Panel','Mira qué distritos más y menos libros reciben, cuáles llevan mucho tiempo sin pedir y dónde hay novedades') +
+      mkRoleItem('🔎','Libros','Revisa que cada libro (numeración) sea el de su iglesia y cuánto tiempo hace que se envió') +
       mkRoleItem('✓','Verificar','Marca ✓ Verificado cuando el libro esté correcto') +
       mkRoleItem('⚠️','Novedades','Si un libro es incorrecto o algo no cuadra, repórtalo — el administrador lo ve en su usuario') +
       '</div>';
@@ -1975,6 +2064,7 @@ function doLogout() {
   var dl = document.getElementById('dataLoading');
   if(dl) dl.classList.remove('show');
   document.getElementById('app').classList.remove('show');
+  document.querySelector('.topbar').classList.remove('auditmode');
   document.getElementById('loginWrap').classList.remove('hidden');
   document.getElementById('lEmail').value = '';
   document.getElementById('lPass').value = '';
@@ -2000,8 +2090,8 @@ function showView(v) {
   if(v === 'tesoreria' && !(isMasterAdmin || (STATE.user && STATE.user.role==='tesorero'))) { return; }
   if(v === 'biblias' && !(STATE.user && STATE.user.role==='secretaria')) { return; }
   if(v === 'distribucionbiblias' && !(STATE.user && STATE.user.role==='secretaria')) { return; }
-  if(v === 'auditoria' && !(STATE.user && STATE.user.role==='auditor')) { return; }
-  if(STATE.user && STATE.user.role==='auditor' && v !== 'auditoria') { return; }
+  if((v === 'auditoria' || v === 'auditdash') && !(STATE.user && STATE.user.role==='auditor')) { return; }
+  if(STATE.user && STATE.user.role==='auditor' && v !== 'auditoria' && v !== 'auditdash') { return; }
   if(v === 'cobros' && !(STATE.user && STATE.user.role==='auxiliar')) { return; }
   document.querySelectorAll('.view').forEach(el=>el.classList.remove('active'));
   document.querySelectorAll('.tab').forEach(el=>el.classList.remove('active'));
@@ -2009,7 +2099,37 @@ function showView(v) {
   document.querySelector(`[data-view="${v}"]`)?.classList.add('active');
   var content = document.querySelector('.content');
   if(content) content.scrollTop = 0;
+  if(v === 'auditdash') renderAuditDash();
+  moverPildora();
 }
+
+// Píldora deslizante del menú del auditor: al cambiar de pestaña primero se estira hasta
+// cubrir la pestaña vieja y la nueva, y enseguida se encoge sobre la nueva (efecto "estela").
+function moverPildora(inmediato) {
+  var barra = document.querySelector('.topbar');
+  var pill = document.getElementById('tabPill');
+  var cont = document.getElementById('tabs');
+  if(!barra || !pill || !cont || !barra.classList.contains('auditmode')) return;
+  var act = cont.querySelector('.tab.active');
+  if(!act || !act.offsetWidth) return;
+  var L = act.offsetLeft, W = act.offsetWidth;
+  pill.style.top = act.offsetTop + 'px';
+  pill.style.height = act.offsetHeight + 'px';
+  if(inmediato || !pill.getAttribute('data-listo')) {
+    pill.classList.add('sin-anim');
+    pill.style.left = L + 'px'; pill.style.width = W + 'px';
+    pill.setAttribute('data-listo', '1');
+    void pill.offsetWidth;
+    pill.classList.remove('sin-anim');
+    return;
+  }
+  var oL = parseFloat(pill.style.left) || L, oW = parseFloat(pill.style.width) || W;
+  var izq = Math.min(oL, L), der = Math.max(oL + oW, L + W);
+  pill.style.left = izq + 'px'; pill.style.width = (der - izq) + 'px';
+  clearTimeout(pill._t);
+  pill._t = setTimeout(function(){ pill.style.left = L + 'px'; pill.style.width = W + 'px'; }, 130);
+}
+window.addEventListener('resize', function(){ moverPildora(true); });
 
 // ── RENDER ───────────────────────────────────────────────────
 function renderAll() { renderDash(); renderInv(); renderDesp(); renderSols(); renderHist(); renderPedidos(); renderMisSolicitudes(); renderLibros(); renderRemisiones(); renderDistribuciones(); renderDistribucionesBiblias(); renderAuditoria(); renderNovedadesLibros(); popSelects(); updBadges(); renderTesoreria(); renderBiblias(); renderCobros(); renderPastores(); }
@@ -4796,6 +4916,7 @@ function tiempoDesde(fecha) {
 }
 
 function renderAuditoria() {
+  renderAuditDash();
   var tbl = document.getElementById('audTbl');
   if(!tbl) return;
   var todos = STATE.librosTodos || [];
@@ -4931,6 +5052,204 @@ function renderAuditoria() {
   tbl.innerHTML = html;
   document.getElementById('audMas').innerHTML = lista.length > _audLimite
     ? '<button class="btn bsm" onclick="audMasFilas()">Mostrar más ('+(lista.length - _audLimite)+' restantes)</button>' : '';
+}
+
+// ═══ PANEL DEL AUDITOR ═══════════════════════════════════════════════════════
+var _adDias = 365;        // período del panel: 30, 90, 365 días o 0 = todo
+var _adVerTodos = false;  // lista "tiempo sin recibir libros": 10 primeros o todos
+var _adCharts = {};
+var AD_PERIODOS = [[30,'30 días'],[90,'90 días'],[365,'12 meses'],[0,'Todo']];
+
+function adPeriodo(d) { _adDias = d; renderAuditDash(); }
+function adVerTodos() { _adVerTodos = !_adVerTodos; renderAuditDash(); }
+
+// Salta a la pantalla de libros con los filtros ya puestos (distrito / estado / filtro extra).
+function audIrDistrito(distrito, filtro, estado) {
+  document.getElementById('audBuscar').value = '';
+  var sd = document.getElementById('audDistrito');
+  sd.value = distrito || '';
+  if(distrito && sd.value !== distrito) sd.value = '';
+  document.getElementById('audEstado').value = estado || '';
+  document.getElementById('audFiltro').value = filtro || '';
+  showView('auditoria');
+  audReset();
+}
+
+// Un registro por distrito con todo lo que el panel necesita contar.
+function adDatos() {
+  var todos = STATE.librosTodos || [];
+  var corte = _adDias ? new Date(Date.now() - _adDias * 86400000) : null;
+  var por = {};
+  todos.forEach(function(l) {
+    var nom = l.distrito || '(sin distrito)';
+    var d = por[nom] || (por[nom] = { nombre:nom, enviados:0, periodo:0, ultimo:null, conFecha:0, pend:0, verif:0, revisables:0, nov:0, alertas:0 });
+    if(l.estado === 'enviado') {
+      d.enviados++;
+      if(l.fechaEntrega) {
+        d.conFecha++;
+        if(!d.ultimo || l.fechaEntrega > d.ultimo) d.ultimo = l.fechaEntrega;
+        if(!corte || l.fechaEntrega >= corte) d.periodo++;
+      } else if(!corte) { d.periodo++; }
+    }
+    if(l.estado === 'por_enviar' || l.estado === 'en_bodega') d.pend++;
+    if(l.estado !== 'siguiente') { d.revisables++; if(l.verificado) d.verif++; }
+    if(l.novedad && !l.novedadResuelta) d.nov++;
+    if(l.revisar) d.alertas++;
+  });
+  return Object.keys(por).map(function(k){ return por[k]; });
+}
+
+function adGrafica(id, cfg, hayDatos) {
+  var cv = document.getElementById(id);
+  var aviso = document.getElementById(id + '_v');
+  if(_adCharts[id]) { _adCharts[id].destroy(); _adCharts[id] = null; }
+  if(!cv) return;
+  cv.style.display = hayDatos ? '' : 'none';
+  if(aviso) aviso.style.display = hayDatos ? 'none' : 'flex';
+  if(!hayDatos || typeof Chart === 'undefined') return;
+  _adCharts[id] = new Chart(cv, cfg);
+}
+
+var AD_TOOLTIP = { backgroundColor:'#0f2b3c', titleColor:'#1a9aaa', bodyColor:'#e8edf3', titleFont:{size:13}, bodyFont:{size:12}, padding:10 };
+
+function adBarrasH(nombres, valores, color, etiqueta, estadoClic, rojoCero) {
+  return {
+    type:'bar',
+    data:{ labels:nombres.map(function(n){ return n.length>17 ? n.substring(0,17)+'…' : n; }),
+           // Con rojoCero, los distritos sin envíos se dibujan con una barrita roja para que se noten.
+           datasets:[{ data:valores, backgroundColor:valores.map(function(v){ return (rojoCero && v === 0) ? '#e74c3c' : color; }),
+                       minBarLength: rojoCero ? 5 : 0, borderRadius:6, borderSkipped:false, maxBarThickness:22 }] },
+    options:{
+      indexAxis:'y', responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{display:false}, tooltip:Object.assign({}, AD_TOOLTIP, { callbacks:{
+        title:function(c){ return nombres[c[0].dataIndex]; },
+        label:function(c){ return '  ' + c.raw + ' ' + etiqueta; } } }) },
+      scales:{ x:{ beginAtZero:true, ticks:{ color:'#8899aa', precision:0 }, grid:{ color:'rgba(26,154,170,0.08)' } },
+               y:{ ticks:{ color:'#c5d3de', font:{size:11} }, grid:{ display:false } } },
+      onClick:function(e, els){ if(els.length) audIrDistrito(nombres[els[0].index], '', estadoClic); },
+      onHover:function(e, els){ if(e.native && e.native.target) e.native.target.style.cursor = els.length ? 'pointer' : 'default'; }
+    }
+  };
+}
+
+function renderAuditDash() {
+  var vista = document.getElementById('view-auditdash');
+  if(!vista || !vista.classList.contains('active')) return;
+  var todos = STATE.librosTodos || [];
+  var ds = adDatos();
+  var ahora = new Date();
+  var dias = function(f){ return Math.floor((ahora - f) / 86400000); };
+
+  var enviados = todos.filter(function(l){ return l.estado === 'enviado'; });
+  var enviadosPeriodo = ds.reduce(function(s, d){ return s + d.periodo; }, 0);
+  var pendientes = todos.filter(function(l){ return l.estado === 'por_enviar' || l.estado === 'en_bodega'; }).length;
+  var revisables = todos.filter(function(l){ return l.estado !== 'siguiente'; }).length;
+  var verificados = todos.filter(function(l){ return l.verificado; }).length;
+  var sinVerificar = revisables - todos.filter(function(l){ return l.verificado && l.estado !== 'siguiente'; }).length;
+  var novAbiertas = todos.filter(function(l){ return l.novedad && !l.novedadResuelta; }).length;
+  var sinPedir6 = ds.filter(function(d){ return d.ultimo && dias(d.ultimo) > 180; }).length;
+  var conFechaTotal = enviados.filter(function(l){ return l.fechaEntrega; }).length;
+
+  // ── Saludo
+  var nombre = (STATE.user && STATE.user.nombre) || 'Auditor';
+  var chip = function(txt, fn){ return '<button type="button" class="ad-chipx" onclick="'+fn+'">'+txt+'</button>'; };
+  document.getElementById('adHero').innerHTML =
+    '<div class="ad-hero-t">Hola, ' + escLib(nombre) + ' 👋</div>' +
+    '<div class="ad-hero-s">' + ahora.toLocaleDateString('es-CO', { weekday:'long', day:'numeric', month:'long', year:'numeric' }) + '</div>' +
+    '<div class="ad-hero-chips">' +
+      chip('🔎 ' + sinVerificar + ' libro' + (sinVerificar===1?'':'s') + ' por verificar', "audIrDistrito('','sinverificar','')") +
+      chip('⚠️ ' + novAbiertas + ' novedad' + (novAbiertas===1?'':'es') + ' abierta' + (novAbiertas===1?'':'s'), "audIrDistrito('','novedad','')") +
+      chip('⏳ ' + sinPedir6 + ' distrito' + (sinPedir6===1?'':'s') + ' sin recibir libros hace +6 meses', "document.getElementById('adInactivos').scrollIntoView({behavior:'smooth',block:'center'})") +
+    '</div>';
+
+  // ── Período
+  document.getElementById('adPeriodo').innerHTML = '<span>Período:</span>' + AD_PERIODOS.map(function(p) {
+    return '<button type="button" class="' + (_adDias === p[0] ? 'on' : '') + '" onclick="adPeriodo(' + p[0] + ')">' + p[1] + '</button>';
+  }).join('');
+
+  // ── Tarjetas (botones)
+  var kpi = function(ico, val, lbl, sub, cls, fn) {
+    return '<button type="button" class="ad-kpi ' + cls + '" onclick="' + fn + '"><div class="k-i">' + ico + '</div><div class="k-v">' + val + '</div><div class="k-l">' + lbl + '</div><div class="k-s">' + sub + '</div></button>';
+  };
+  document.getElementById('adKpis').innerHTML =
+    kpi('📦', enviadosPeriodo, 'Libros enviados', _adDias ? 'en este período' : 'en total', 'green', "audIrDistrito('','','enviado')") +
+    kpi('🚚', pendientes, 'Por enviar', 'pendientes + en bodega', 'gold', "audIrDistrito('','','pendientes')") +
+    kpi('✓', revisables ? Math.round(verificados * 100 / revisables) + '%' : '0%', 'Verificados', verificados + ' de ' + revisables + ' libros', 'green', "audIrDistrito('','verificado','')") +
+    kpi('⚠️', novAbiertas, 'Novedades', 'sin resolver', 'red', "audIrDistrito('','novedad','')") +
+    kpi('⏳', sinPedir6, 'Sin recibir +6 meses', 'distritos', '', "document.getElementById('adInactivos').scrollIntoView({behavior:'smooth',block:'center'})");
+
+  // ── Gráfica: más movimiento
+  var top = ds.filter(function(d){ return d.periodo > 0; }).sort(function(a,b){ return b.periodo - a.periodo; }).slice(0, 8);
+  adGrafica('adChartTop', adBarrasH(top.map(function(d){return d.nombre;}), top.map(function(d){return d.periodo;}), '#2dd4a8', 'libros enviados', 'enviado'), top.length > 0);
+
+  // ── Gráfica: menos movimiento (incluye distritos con cero)
+  var bajo = ds.slice().sort(function(a,b){ return a.periodo - b.periodo || a.nombre.localeCompare(b.nombre); }).slice(0, 8);
+  adGrafica('adChartBajo', adBarrasH(bajo.map(function(d){return d.nombre;}), bajo.map(function(d){return d.periodo;}), '#f5a623', 'libros enviados', 'enviado', true), bajo.length > 0);
+
+  // ── Gráfica: envíos por mes (últimos 12 meses, solo libros con fecha)
+  var meses = [];
+  for(var i = 11; i >= 0; i--) { meses.push(new Date(ahora.getFullYear(), ahora.getMonth() - i, 1)); }
+  var porMes = meses.map(function(m) {
+    return enviados.filter(function(l){ return l.fechaEntrega && l.fechaEntrega.getFullYear() === m.getFullYear() && l.fechaEntrega.getMonth() === m.getMonth(); }).length;
+  });
+  var hayMes = porMes.some(function(n){ return n > 0; });
+  adGrafica('adChartMes', {
+    type:'bar',
+    data:{ labels:meses.map(function(m){ return m.toLocaleDateString('es-CO', { month:'short', year:'2-digit' }); }),
+           datasets:[{ data:porMes, backgroundColor:'#1a9aaa', borderRadius:6, borderSkipped:false, maxBarThickness:28 }] },
+    options:{ responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{display:false}, tooltip:Object.assign({}, AD_TOOLTIP, { callbacks:{ label:function(c){ return '  ' + c.raw + ' libros enviados'; } } }) },
+      scales:{ x:{ ticks:{ color:'#8899aa', font:{size:10} }, grid:{display:false} },
+               y:{ beginAtZero:true, ticks:{ color:'#8899aa', precision:0 }, grid:{ color:'rgba(26,154,170,0.08)' } } } }
+  }, hayMes);
+
+  // ── Gráfica: estado de los libros
+  var cEst = ['enviado','por_enviar','en_bodega','siguiente'].map(function(e){ return todos.filter(function(l){ return l.estado === e; }).length; });
+  adGrafica('adChartEstado', {
+    type:'doughnut',
+    data:{ labels:['Enviados','Por enviar','En bodega','Siguiente libro'], datasets:[{ data:cEst, backgroundColor:['#2dd4a8','#f5a623','#e67e22','#5a7a8a'], borderWidth:0, hoverOffset:6 }] },
+    options:{ responsive:true, maintainAspectRatio:false, cutout:'62%',
+      plugins:{ legend:{ position:'bottom', labels:{ color:'#c5d3de', padding:10, font:{size:11} } }, tooltip:AD_TOOLTIP } }
+  }, todos.length > 0);
+
+  // ── Lista: tiempo sin recibir libros (los más atrasados primero; sin fecha al final)
+  var conUlt = ds.filter(function(d){ return d.ultimo; }).sort(function(a,b){ return a.ultimo - b.ultimo; });
+  var sinUlt = ds.filter(function(d){ return !d.ultimo; }).sort(function(a,b){ return a.nombre.localeCompare(b.nombre); });
+  var filas = conUlt.concat(sinUlt);
+  var verFilas = _adVerTodos ? filas : filas.slice(0, 10);
+  var htmlIn = '<div class="ad-nota">Cuenta desde el último libro enviado con fecha registrada. 🔴 más de 12 meses · 🟠 entre 6 y 12 · 🟢 menos de 6. ' +
+    'Solo ' + conFechaTotal + ' de ' + enviados.length + ' libros enviados tienen fecha; los distritos sin fecha aparecen en gris.</div>';
+  htmlIn += verFilas.map(function(d) {
+    var sub, cls, txt;
+    if(d.ultimo) {
+      var n = dias(d.ultimo);
+      cls = n > 365 ? 'rojo' : (n > 180 ? 'amb' : 'ver');
+      txt = tiempoDesde(d.ultimo).replace('hace ', '');
+      sub = 'Último envío: ' + fmtD(d.ultimo) + ' · ' + d.enviados + ' libro' + (d.enviados===1?'':'s') + ' enviado' + (d.enviados===1?'':'s');
+    } else {
+      cls = 'gris'; txt = 'Sin fecha';
+      sub = d.enviados ? d.enviados + ' enviado' + (d.enviados===1?'':'s') + ', ninguno con fecha registrada' : 'Ningún libro enviado todavía';
+    }
+    return '<button type="button" class="ad-row" data-d="' + escLib(d.nombre) + '" onclick="audIrDistrito(this.dataset.d,\'\',\'\')">' +
+      '<div><div class="ad-row-n">' + escLib(d.nombre) + '</div><div class="ad-row-s">' + sub + '</div></div>' +
+      '<span class="ad-chip ' + cls + '">' + txt + '</span></button>';
+  }).join('');
+  if(filas.length > 10) {
+    htmlIn += '<div style="text-align:center;margin-top:10px"><button type="button" class="btn bsm" onclick="adVerTodos()">' + (_adVerTodos ? 'Ver menos' : 'Ver los ' + filas.length + ' distritos') + '</button></div>';
+  }
+  document.getElementById('adInactivos').innerHTML = filas.length ? htmlIn : '<div class="empty">Sin datos todavía</div>';
+
+  // ── Lista: distritos con novedades o datos por revisar
+  var conNov = ds.filter(function(d){ return d.nov > 0 || d.alertas > 0; }).sort(function(a,b){ return b.nov - a.nov || b.alertas - a.alertas; });
+  document.getElementById('adNovedades').innerHTML = conNov.length
+    ? '<div class="ad-nota">⚠ Novedad: la reportó el auditor y el administrador aún no la resuelve. 🔍 Datos por revisar: libros con numeración dudosa, repetida o que se cruza con otra.</div>' +
+      conNov.map(function(d) {
+        var chips = (d.nov ? '<span class="ad-chip rojo">⚠ ' + d.nov + '</span> ' : '') + (d.alertas ? '<span class="ad-chip amb">🔍 ' + d.alertas + '</span>' : '');
+        return '<button type="button" class="ad-row" data-d="' + escLib(d.nombre) + '" data-f="' + (d.nov ? 'novedad' : 'alerta') + '" onclick="audIrDistrito(this.dataset.d,this.dataset.f,\'\')">' +
+          '<div><div class="ad-row-n">' + escLib(d.nombre) + '</div><div class="ad-row-s">' + d.revisables + ' libros · ' + d.verif + ' verificados</div></div>' +
+          '<div style="display:flex;gap:6px">' + chips + '</div></button>';
+      }).join('')
+    : '<div class="empty">Sin novedades por ahora 🎉</div>';
 }
 
 async function verificarLibro(id, valor) {
