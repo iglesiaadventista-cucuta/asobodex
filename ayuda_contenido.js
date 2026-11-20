@@ -10,7 +10,7 @@ window.AYUDA_CONTENIDO.pastor = {
   contacto: {
     email: 'mensajeria@asonoreste.org',
     asunto: 'Ayuda con el formulario de pedidos',
-    whatsapp: ''          // ← poner aquí el número del administrador (ej. 573001234567) para activar el botón de WhatsApp
+    whatsapp: '573508995093'   // número del administrador (con código de país, sin + ni espacios)
   },
   preguntas: [
     { p: '¿Cómo hago un pedido?',
