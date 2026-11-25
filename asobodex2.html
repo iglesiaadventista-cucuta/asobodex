@@ -5296,12 +5296,14 @@ function _limpiarNombreIgl(s) {
   return String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
 }
 function _claveIglesia(nombre, distrito) {
-  var dTok = {};
-  _limpiarNombreIgl(distrito).split(' ').forEach(function(t) { if(t) dTok[t] = 1; });
+  var dTok = {}, dn = _normDistPub(distrito);
+  _limpiarNombreIgl(dn).split(' ').forEach(function(t) { if(t) dTok[t] = 1; });
+  // el nombre viejo del distrito también cuenta ("Iglesia Jerusalen Pueblo Nuevo" en Puerto Jordán)
+  Object.keys(_DIST_ALIAS).forEach(function(viejo) { if(_DIST_ALIAS[viejo] === dn) viejo.split(' ').forEach(function(t) { dTok[t] = 1; }); });
   var toks = _limpiarNombreIgl(nombre).split(' ').filter(function(t) { return t && t.length > 1 && !_IGL_RELLENO[t] && !/[0-9]/.test(t); });   // sin códigos pegados ("RENACER: 043150")
   var sinDist = toks.filter(function(t) { return !dTok[t] && t !== 'cucuta'; });
   var clave = sinDist.length ? sinDist.join(' ') : '#principal';
-  return _IGL_ALIAS[_limpiarNombreIgl(distrito) + '|' + clave] || clave;
+  return _IGL_ALIAS[dn + '|' + clave] || clave;
 }
 // Casos que el administrador confirmó como la misma iglesia aunque el nombre no se parezca: 'distrito|nombre corto' → nombre completo
 var _IGL_ALIAS = { 'nuevo caranal|betania': 'betania malvinas' };
@@ -5382,9 +5384,14 @@ function _mismaIglesia(a, b, distrito) {
   return !!(a && b) && _clavesParecidas(_claveIglesia(a, kd), _claveIglesia(b, kd));
 }
 var _sigIglPub = '', _timerIglPub = null;
+// Distritos que en los datos viejos tienen dos nombres: 'pueblo nuevo' (Excel hist\u00f3rico) = 'puerto jordan' (lista de pastores)
+var _DIST_ALIAS = { 'pueblo nuevo': 'puerto jordan' };
+var _DIST_NOMBRE = { 'puerto jordan': 'PUERTO JORDAN' };
 function _normDistPub(s) {
-  return String(s || '').replace(' (Solicitud interna)', '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase();
+  var n = String(s || '').replace(' (Solicitud interna)', '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase();
+  return _DIST_ALIAS[n] || n;
 }
+function distritoOficial(d) { return _DIST_NOMBRE[_normDistPub(d)] || d; }
 function publicarIglesiasDiaconos() {
   if(!(STATE.user && STATE.user.role === 'admin') || !window._db || !window._fbOps) return;
   clearTimeout(_timerIglPub);
@@ -5421,7 +5428,7 @@ function renderLibros() {
 
   // Poblar filtro de distritos
   var distritos = [];
-  libros.forEach(function(l) { if(distritos.indexOf(l.distrito)===-1) distritos.push(l.distrito); });
+  libros.forEach(function(l) { var dn = distritoOficial(l.distrito); if(distritos.indexOf(dn)===-1) distritos.push(dn); });
   distritos.sort();
   // Antes la lista solo se rehacía si faltaba el primer distrito, así que un distrito
   // nuevo (ej. Ocaña Central) registrado después nunca aparecía en el filtro.
@@ -5458,7 +5465,7 @@ function renderLibros() {
     regs.sort(function(a,b) { return b.fechaEntrega - a.fechaEntrega; });
     var ultimo = regs[0];
     var iglesia = nombreCanonIglesia(ultimo.iglesia, ultimo.distrito);
-    var distrito = ultimo.distrito;
+    var distrito = distritoOficial(ultimo.distrito);
 
     if(filtDist && distrito !== filtDist) return;
 
@@ -5517,7 +5524,7 @@ function renderLibros() {
       var numEntrega = regs.length - idx;
       var isAdmin = STATE.user && STATE.user.role === 'admin';
       var accionBtn = isAdmin ? '<td><div style="display:flex;gap:4px"><button class="btn bic bsm" onclick="editarCodigoLibro(\''+l.id+'\',\''+( l.codigoIglesia||'').replace(/'/g,'')+'\')" title="Editar código">🏷️</button><button class="btn bic bsm bred" onclick="eliminarLibro(\''+l.id+'\')" title="Eliminar">🗑</button></div></td>' : '';
-      filasHtml += '<tr><td>'+nombreCanonIglesia(l.iglesia, l.distrito)+'</td><td style="font-family:monospace;color:var(--teal)">'+(l.codigoIglesia||'<span style="color:var(--t2)">Sin código</span>')+'</td><td>'+l.distrito+'</td>' +
+      filasHtml += '<tr><td>'+nombreCanonIglesia(l.iglesia, l.distrito)+'</td><td style="font-family:monospace;color:var(--teal)">'+(l.codigoIglesia||'<span style="color:var(--t2)">Sin código</span>')+'</td><td>'+distritoOficial(l.distrito)+'</td>' +
         '<td>'+fmtD(l.fechaEntrega)+(l.motivo?'<div style="font-size:10px;color:var(--amber);margin-top:2px">📝 '+l.motivo+'</div>':'')+'</td>' +
         '<td>'+(idx===0 ? meses+' meses (actual)' : tiempoTxt)+'</td>' +
         '<td><span style="'+estadoClass+';padding:2px 8px;border-radius:6px;font-size:11px">'+(idx===0?estadoTxt:'Anterior')+'</span></td>' +
@@ -6457,7 +6464,7 @@ function autocompletarReenvioLibro() {
   }
 
   var distNorm = distritoNormalizado(distritoElegido);
-  var registros = coinciden.filter(function(l){ return (l.distrito||'').trim().toLowerCase()===distNorm; });
+  var registros = coinciden.filter(function(l){ return _normDistPub(l.distrito)===_normDistPub(distritoElegido); });
   if(registros.length) {
     registros.sort(function(a,b){ return b.fechaEntrega - a.fechaEntrega; });
     var ultimo = registros[0];
