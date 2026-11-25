@@ -1859,8 +1859,23 @@ function toast(msg,type='') {
   t.textContent=msg; t.className=type; t.classList.add('show');
   clearTimeout(t._t); t._t=setTimeout(()=>t.classList.remove('show'),3200);
 }
-function openM(id) { document.getElementById(id).classList.add('show'); }
-function closeM(id) { document.getElementById(id).classList.remove('show'); var c=document.querySelector('.content'); if(c) c.scrollTop=0; window.scrollTo(0,0); }
+// Al abrir una ventana se recuerda dónde iba la pantalla; al cerrarla se vuelve exactamente ahí
+// (antes subía siempre hasta arriba y había que volver a buscar a la persona en la lista).
+var _scrollAntesM = {};
+function openM(id) {
+  var c = document.querySelector('.content');
+  _scrollAntesM[id] = { c: c ? c.scrollTop : 0, w: window.scrollY || 0 };
+  document.getElementById(id).classList.add('show');
+}
+function closeM(id) {
+  document.getElementById(id).classList.remove('show');
+  var p = _scrollAntesM[id];
+  if(!p) return;
+  delete _scrollAntesM[id];
+  var c = document.querySelector('.content');
+  if(c) c.scrollTop = p.c;
+  window.scrollTo(0, p.w);
+}
 
 // ── AUTH ─────────────────────────────────────────────────────
 async function doLogin() {
