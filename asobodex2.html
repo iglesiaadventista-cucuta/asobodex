@@ -5286,6 +5286,62 @@ document.addEventListener('click', function(e) {
 // El formulario no inicia sesión, así que no puede leer libros_diaconos. El administrador publica
 // un resumen en publico/iglesias_diaconos: por distrito, cada iglesia con su último libro y su número.
 // Se vuelve a publicar solo cuando cambia (al abrir el sistema o al registrar un libro).
+// ── Unificación de nombres de iglesia (la misma iglesia escrita de varias formas) ──
+// Se compara sin mayúsculas, tildes ni signos; se quitan palabras de relleno ("Iglesia", "Grupo", "Adventista"),
+// el nombre del distrito dentro del nombre ("Iglesia Peniel Arauquita" = "Peniel") y letras sueltas ("Ocaña N").
+// Una iglesia que se llama igual que su distrito es la iglesia principal del distrito. Además se juntan
+// los nombres que difieren en una sola letra ("Rebacer"/"Renacer", "Shaday"/"Shadday", "Maranata"/"Maranatha").
+var _IGL_RELLENO = { iglesia:1, grupo:1, adventista:1, del:1, de:1, la:1, el:1, los:1, las:1, ds:1, distrito:1, sda:1, septimo:1, dia:1 };
+function _limpiarNombreIgl(s) {
+  return String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+}
+function _claveIglesia(nombre, distrito) {
+  var dTok = {};
+  _limpiarNombreIgl(distrito).split(' ').forEach(function(t) { if(t) dTok[t] = 1; });
+  var toks = _limpiarNombreIgl(nombre).split(' ').filter(function(t) { return t && t.length > 1 && !_IGL_RELLENO[t] && !/[0-9]/.test(t); });   // sin códigos pegados ("RENACER: 043150")
+  var sinDist = toks.filter(function(t) { return !dTok[t] && t !== 'cucuta'; });
+  return sinDist.length ? sinDist.join(' ') : '#principal';
+}
+// Distancia de edición con intercambio de letras vecinas (Mahanaim ~ Mahanain = 1)
+function _distIgl(a, b) {
+  var m = a.length, n = b.length, d = [], i, j;
+  for(i = 0; i <= m; i++) { d[i] = [i]; }
+  for(j = 1; j <= n; j++) { d[0][j] = j; }
+  for(i = 1; i <= m; i++) for(j = 1; j <= n; j++) {
+    d[i][j] = Math.min(d[i-1][j] + 1, d[i][j-1] + 1, d[i-1][j-1] + (a[i-1] === b[j-1] ? 0 : 1));
+    if(i > 1 && j > 1 && a[i-1] === b[j-2] && a[i-2] === b[j-1]) d[i][j] = Math.min(d[i][j], d[i-2][j-2] + 1);
+  }
+  return d[m][n];
+}
+function _clavesParecidas(a, b) {
+  if(a === b) return true;
+  if(a === '#principal' || b === '#principal') return false;
+  var L = Math.min(a.length, b.length);
+  if(L < 5) return false;
+  return _distIgl(a, b) <= (Math.max(a.length, b.length) >= 10 ? 2 : 1);
+}
+// Recibe [{n, f, c, cant}] de UN distrito y devuelve las iglesias ya unidas (más reciente, con su número y el nombre más usado)
+function unificarIglesias(regs, distrito) {
+  var grupos = [];                       // cada grupo: { clave, regs:[] }
+  regs.forEach(function(r) {
+    var k = _claveIglesia(r.n, distrito), g = null;
+    for(var i = 0; i < grupos.length; i++) { if(_clavesParecidas(grupos[i].clave, k)) { g = grupos[i]; break; } }
+    if(!g) { g = { clave: k, regs: [] }; grupos.push(g); }
+    g.regs.push(r);
+  });
+  return grupos.map(function(g) {
+    var f = 0, fc = 0, c = '', porNombre = {};
+    g.regs.forEach(function(r) {
+      if(r.f >= f) f = r.f;
+      if(r.c && r.f >= fc) { fc = r.f; c = r.c; }
+      var x = porNombre[r.n] || (porNombre[r.n] = { q: 0, f: 0 });
+      x.q += (r.cant || 1); x.f = Math.max(x.f, r.f);
+    });
+    var nombre = Object.keys(porNombre).sort(function(a, b) { return (/[0-9]/.test(a) - /[0-9]/.test(b)) || (porNombre[b].q - porNombre[a].q) || (b.length - a.length) || (porNombre[b].f - porNombre[a].f); })[0];
+    return { n: nombre, c: c, f: f, uni: g.regs.length > 1 ? g.regs.map(function(r) { return r.n; }) : null };
+  }).sort(function(a, b) { return _limpiarNombreIgl(a.n) < _limpiarNombreIgl(b.n) ? -1 : 1; });
+}
+
 var _sigIglPub = '', _timerIglPub = null;
 function _normDistPub(s) {
   return String(s || '').replace(' (Solicitud interna)', '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase();
@@ -5301,14 +5357,11 @@ function publicarIglesiasDiaconos() {
         if(!nom || !l.fechaEntrega) return;
         var kd = _normDistPub(l.distrito);
         if(!kd) return;
-        var d = porDist[kd] || (porDist[kd] = {});
-        var ki = nom.toLowerCase(), f = l.fechaEntrega.getTime();
-        var r = d[ki] || (d[ki] = { n: nom, c: '', f: 0, fc: 0 });
-        if(f >= r.f) { r.f = f; r.n = nom; }
-        if(l.codigoIglesia && f >= r.fc) { r.fc = f; r.c = String(l.codigoIglesia); }
+        (porDist[kd] || (porDist[kd] = [])).push({ n: nom, f: l.fechaEntrega.getTime(), c: l.codigoIglesia ? String(l.codigoIglesia) : '', cant: 1 });
       });
+      // Una misma iglesia escrita de varias formas ("Peniel" / "Iglesia Peniel Arauquita") sale una sola vez
       var lista = Object.keys(porDist).sort().map(function(kd) {
-        return { k: kd, i: Object.keys(porDist[kd]).sort().map(function(ki) { var r = porDist[kd][ki]; return { n: r.n, c: r.c, f: r.f }; }) };
+        return { k: kd, i: unificarIglesias(porDist[kd], kd).map(function(r) { return { n: r.n, c: r.c, f: r.f }; }) };
       });
       var firma = JSON.stringify(lista);
       if(firma === _sigIglPub) return;
