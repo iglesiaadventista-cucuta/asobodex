@@ -357,6 +357,25 @@ body.tema-arena .ltime,body.tema-arena .ssub,body.tema-arena .slbl{color:#5b4a3a
 .alert-warn{color:var(--rojo-txt,var(--red))}
 .alert-old{color:var(--ambar-txt,var(--amber))}
 #emailTestBox{background:var(--vidrio,var(--navy2)) !important;border-color:var(--vidrio-borde,var(--bd)) !important;-webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px)}
+/* Calendario de movimientos (Historial) */
+.cal-ley{display:flex;flex-wrap:wrap;gap:6px 14px;margin-bottom:12px;font-size:12px;color:var(--t2)}
+.cal-ley span{display:inline-flex;align-items:center;gap:6px}
+.cal-ley i{width:11px;height:11px;border-radius:50%;display:inline-block}
+.cal-sem,.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:5px}
+.cal-sem span{text-align:center;font-size:11px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.05em;padding-bottom:2px}
+.cal-d{position:relative;min-height:52px;border:1px solid var(--bd);border-radius:10px;background:transparent;color:var(--t1);font:inherit;font-size:13px;font-weight:600;padding:5px 4px 4px;cursor:default;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:4px;min-width:0}
+.cal-d.fuera{opacity:.35}
+.cal-d.hoy{box-shadow:inset 0 0 0 2px var(--teal)}
+.cal-d.con{cursor:pointer;background:var(--teal-light,rgba(43,33,24,.07))}
+.cal-d.con:hover{border-color:var(--teal)}
+.cal-d.sel{background:var(--teal);color:#fff;border-color:var(--teal)}
+.cal-d.sel .cal-n{background:#fff;color:#1f160e}
+.cal-pts{display:flex;gap:3px;flex-wrap:wrap;justify-content:center}
+.cal-pts i{width:8px;height:8px;border-radius:50%;display:block}
+.cal-n{font-size:10px;font-weight:800;line-height:1;background:var(--teal);color:#fff;border-radius:8px;padding:2px 5px}
+.cal-sel{margin-top:12px;font-size:13px;color:var(--t2);display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.cal-sel b{color:var(--t1)}
+@media(max-width:600px){.cal-d{min-height:46px;font-size:12px;padding:4px 2px}.cal-pts i{width:7px;height:7px}.cal-ley{font-size:11px}}
 /* Balance por distrito (pantalla de Cobros) */
 #balanceResumen{grid-template-columns:repeat(4,1fr)}
 @media(max-width:900px){#balanceResumen{display:grid !important;grid-template-columns:1fr 1fr !important;overflow:visible !important}#balanceResumen .ad-kpi{min-width:0 !important;width:auto !important}#balanceResumen .ad-kpi:last-child{grid-column:auto !important}}
@@ -506,7 +525,7 @@ body.sin-fondo #toast,body.sin-fondo .ad-tip{background:var(--navy2);backdrop-fi
 
       <!-- Mapa: a qué distritos se ha enviado más material (todos los usuarios menos el auditor) -->
       <!-- Plegado (cerrado) para que no estorbe: el mapa de fondo ya da el ambiente; este da el dato. -->
-      <details class="panel" id="dmPanel" open style="margin-bottom:14px;overflow:hidden" ontoggle="if(this.open) renderMapaDash(true)">
+      <details class="panel" id="dmPanel" open style="margin-bottom:14px;overflow:hidden" ontoggle="if(this.open &amp;&amp; window.renderMapaDash) renderMapaDash(true)">
         <summary><div class="ph" style="gap:8px;flex-wrap:wrap"><span class="pt">🚌 Envíos en movimiento · a qué distritos se ha enviado más material</span><span style="display:flex;align-items:center;gap:10px"><span id="dmMapaInfo" style="font-size:11px;color:var(--t2)"></span><span class="ph-flecha">▼</span></span></div></summary>
         <div class="ad-barra"><div id="dmPeriodo"></div><div id="dmVistaSel"></div></div>
         <div id="dmMapa"></div>
@@ -871,6 +890,23 @@ body.sin-fondo #toast,body.sin-fondo .ad-tip{background:var(--navy2);backdrop-fi
           </select>
           <button class="btn bgold bsm" onclick="exportarExcel()">⬇ Excel</button>
           <button class="btn bsm" onclick="exportarPDF()">⬇ PDF</button>
+        </div>
+      </div>
+      <div class="panel" id="calHistPanel" style="margin-bottom:14px">
+        <div class="ph" style="gap:8px;flex-wrap:wrap">
+          <span class="pt">📅 Calendario de movimientos</span>
+          <div style="display:flex;align-items:center;gap:6px">
+            <button class="btn bsm" onclick="calHistMover(-1)" aria-label="Mes anterior">‹</button>
+            <div id="calHistTitulo" style="min-width:128px;text-align:center;font-size:13px;font-weight:800;text-transform:capitalize"></div>
+            <button class="btn bsm" onclick="calHistMover(1)" aria-label="Mes siguiente">›</button>
+            <button class="btn bsm" onclick="calHistHoy()">Hoy</button>
+          </div>
+        </div>
+        <div class="pb">
+          <div id="calHistLeyenda" class="cal-ley"></div>
+          <div class="cal-sem"><span>Lun</span><span>Mar</span><span>Mié</span><span>Jue</span><span>Vie</span><span>Sáb</span><span>Dom</span></div>
+          <div id="calHistGrid" class="cal-grid"></div>
+          <div id="calHistSel" class="cal-sel"></div>
         </div>
       </div>
       <div class="panel"><div class="tw">
@@ -3279,6 +3315,7 @@ async function enviarConGuia(btn) {
 
 function renderHist() {
   const q=(document.getElementById('fHBuscar')?.value||'').trim();
+  renderCalHist();
   let m=filtrarMovimientosHistorial();
   document.getElementById('histTbl').innerHTML=m.length?m.map(function(x){
     var esSalida = x.tipo==='despacho' || x.tipo==='distribucion' || x.tipo==='envio_ocasional';
@@ -3297,7 +3334,7 @@ function renderHist() {
       '<td style="color:var(--t2)">'+(x.recibe||'')+'</td>'+
       '<td>'+(x.guiaUrl?'<img src="'+x.guiaUrl+'" style="width:32px;height:32px;object-fit:cover;border-radius:6px;cursor:pointer;border:1px solid var(--bd)" onclick="verFotoCompleta(\''+x.guiaUrl+'\')" title="Ver guía de envío">':'<span style="color:var(--t3)">—</span>')+'</td>'+
       '</tr>';
-  }).join(''):'<tr><td colspan="8" class="empty" style="text-align:center">'+(q?'Sin resultados para "'+q+'"':'Sin movimientos')+'</td></tr>';
+  }).join(''):'<tr><td colspan="8" class="empty" style="text-align:center">'+(q?'Sin resultados para "'+q+'"':(_histDia?'Sin movimientos ese día':'Sin movimientos'))+'</td></tr>';
 }
 
 function renderPedidos() {
@@ -7789,10 +7826,85 @@ async function enviarEnvioOcasional() {
 }
 
 // Aplica el mismo filtro de tipo + búsqueda que usa la tabla de Historial en pantalla
-function filtrarMovimientosHistorial() {
+var _histDia = '';                 // día elegido en el calendario ('YYYY-M-D') o ''
+var _calMes = { y: new Date().getFullYear(), m: new Date().getMonth() };
+var CAL_CATS = {
+  ingreso:      { n:'Ingresos',                color:'#2e9d5b' },
+  pedido:       { n:'Entregas a pastores',     color:'#2f7fd0' },
+  despacho:     { n:'Despachos',               color:'#d04b3f' },
+  distribucion: { n:'Distribuciones',          color:'#c8860a' },
+  ocasional:    { n:'Envíos ocasionales',      color:'#8a5cc4' }
+};
+function calCatMov(x) {
+  if(x.tipo === 'ingreso') return 'ingreso';
+  if(x.tipo === 'despacho') return x.origenPedido === true ? 'pedido' : 'despacho';
+  if(x.tipo === 'distribucion') return 'distribucion';
+  if(x.tipo === 'envio_ocasional') return 'ocasional';
+  return 'otro';
+}
+function calClaveDia(f) { return f.getFullYear() + '-' + (f.getMonth() + 1) + '-' + f.getDate(); }
+function calHistMover(d) {
+  _calMes.m += d;
+  if(_calMes.m < 0) { _calMes.m = 11; _calMes.y--; }
+  if(_calMes.m > 11) { _calMes.m = 0; _calMes.y++; }
+  renderCalHist();
+}
+function calHistHoy() { var h = new Date(); _calMes = { y: h.getFullYear(), m: h.getMonth() }; renderCalHist(); }
+function calHistElegirDia(clave) {
+  _histDia = (_histDia === clave) ? '' : clave;
+  renderHist();
+  if(_histDia && window.innerWidth < 900) { var t = document.getElementById('histTbl'); if(t) t.scrollIntoView({ behavior:'smooth', block:'start' }); }
+}
+function renderCalHist() {
+  var grid = document.getElementById('calHistGrid');
+  if(!grid) return;
+  var MESES = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+  document.getElementById('calHistTitulo').textContent = MESES[_calMes.m] + ' ' + _calMes.y;
+  // Los puntos respetan el tipo y la búsqueda del Historial, pero no el día elegido
+  var porDia = {};
+  filtrarMovimientosHistorial(true).forEach(function(x) {
+    if(!x.fecha) return;
+    var k = calClaveDia(x.fecha), c = calCatMov(x);
+    var d = porDia[k] || (porDia[k] = { n:0, cats:{} });
+    d.n++; d.cats[c] = (d.cats[c] || 0) + 1;
+  });
+  var primero = new Date(_calMes.y, _calMes.m, 1);
+  var ini = (primero.getDay() + 6) % 7;                       // lunes = 0
+  var diasMes = new Date(_calMes.y, _calMes.m + 1, 0).getDate();
+  var hoy = calClaveDia(new Date());
+  var html = '', totalMes = 0, diasConMov = 0, usadas = {};
+  for(var i = 0; i < ini; i++) html += '<div class="cal-d fuera"></div>';
+  for(var d = 1; d <= diasMes; d++) {
+    var clave = _calMes.y + '-' + (_calMes.m + 1) + '-' + d, info = porDia[clave];
+    var cls = 'cal-d' + (info ? ' con' : '') + (clave === hoy ? ' hoy' : '') + (clave === _histDia ? ' sel' : '');
+    if(info) {
+      totalMes += info.n; diasConMov++;
+      var pts = Object.keys(info.cats).map(function(c) { usadas[c] = true; return '<i style="background:' + (CAL_CATS[c] ? CAL_CATS[c].color : '#888') + '"></i>'; }).join('');
+      html += '<button type="button" class="' + cls + '" onclick="calHistElegirDia(\'' + clave + '\')" title="' + info.n + ' movimiento(s)">' + d + '<span class="cal-pts">' + pts + '</span><span class="cal-n">' + info.n + '</span></button>';
+    } else html += '<div class="' + cls + '">' + d + '</div>';
+  }
+  var resto = (ini + diasMes) % 7;
+  if(resto) for(var j = 0; j < 7 - resto; j++) html += '<div class="cal-d fuera"></div>';
+  grid.innerHTML = html;
+  document.getElementById('calHistLeyenda').innerHTML = Object.keys(CAL_CATS).map(function(c) {
+    return '<span><i style="background:' + CAL_CATS[c].color + '"></i>' + CAL_CATS[c].n + '</span>';
+  }).join('');
+  var sel = document.getElementById('calHistSel');
+  if(_histDia) {
+    var p = _histDia.split('-');
+    sel.innerHTML = 'Mostrando solo el <b>' + p[2] + ' de ' + MESES[Number(p[1]) - 1] + ' de ' + p[0] + '</b> <button class="btn bsm" onclick="calHistElegirDia(\'' + _histDia + '\')">✕ Ver todos</button>';
+  } else {
+    sel.innerHTML = totalMes ? 'En este mes hay <b>' + totalMes + '</b> movimiento(s) en <b>' + diasConMov + '</b> día(s). Toca un día marcado para ver solo ese día.' : 'No hay movimientos en este mes.';
+  }
+}
+
+// Aplica el mismo filtro de tipo + búsqueda que usa la tabla de Historial en pantalla
+// (sinDia = true: ignora el día elegido en el calendario, para poder marcar todos los días)
+function filtrarMovimientosHistorial(sinDia) {
   var t = document.getElementById('fHTipo')?.value||'';
   var q = (document.getElementById('fHBuscar')?.value||'').trim().toLowerCase();
   var movs = STATE.movements;
+  if(_histDia && !sinDia) movs = movs.filter(function(x){ return x.fecha && calClaveDia(x.fecha) === _histDia; });
   if(t==='pedido') movs = movs.filter(function(x){ return x.origenPedido===true; });
   else if(t) movs = movs.filter(function(x){ return x.tipo===t; });
   if(q) movs = movs.filter(function(x){
