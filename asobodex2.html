@@ -5300,8 +5300,11 @@ function _claveIglesia(nombre, distrito) {
   _limpiarNombreIgl(distrito).split(' ').forEach(function(t) { if(t) dTok[t] = 1; });
   var toks = _limpiarNombreIgl(nombre).split(' ').filter(function(t) { return t && t.length > 1 && !_IGL_RELLENO[t] && !/[0-9]/.test(t); });   // sin códigos pegados ("RENACER: 043150")
   var sinDist = toks.filter(function(t) { return !dTok[t] && t !== 'cucuta'; });
-  return sinDist.length ? sinDist.join(' ') : '#principal';
+  var clave = sinDist.length ? sinDist.join(' ') : '#principal';
+  return _IGL_ALIAS[_limpiarNombreIgl(distrito) + '|' + clave] || clave;
 }
+// Casos que el administrador confirmó como la misma iglesia aunque el nombre no se parezca: 'distrito|nombre corto' → nombre completo
+var _IGL_ALIAS = { 'nuevo caranal|betania': 'betania malvinas' };
 // Distancia de edición con intercambio de letras vecinas (Mahanaim ~ Mahanain = 1)
 function _distIgl(a, b) {
   var m = a.length, n = b.length, d = [], i, j;
