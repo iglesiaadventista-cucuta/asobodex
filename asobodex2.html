@@ -2259,6 +2259,7 @@ function startListeners(db) {
       });
     });
     renderAll();
+    revisarRefrescoSol();
   }));
 
   // Listener para libros de diáconos
@@ -2901,9 +2902,33 @@ async function rechazarBiblia(pedidoId) {
 function rechazarConMotivo(id) {
   var motivo = prompt('¿Por qué se rechaza este pedido? (opcional, se incluirá en el correo al pastor)');
   if(motivo === null) return; // el admin canceló, no se rechaza nada
+  pedirRefrescoSol(id);
   accionSol(id, 'rechazado', motivo.trim());
-  closeM('mVerSol');
   renderAll();
+}
+// La ventana del pedido ya no se cierra al aprobar, rechazar o vincular un material: se queda abierta y se
+// vuelve a dibujar con el cambio apenas Firestore lo confirma (así no hay que buscar a la persona otra vez).
+var _solRefresco = null;
+function _firmaSol(r) {
+  if(!r) return '';
+  try { return JSON.stringify([r.estado, r.items, r.otros, r.otrosVinculado, r.otrosRechazado, r.otrosMaterialNombre, r.guiaUrl, r.motivoRechazo]); } catch(e) { return String(Math.random()); }
+}
+function pedirRefrescoSol(id) {
+  var r = STATE.requests.find(function(x){ return x.id === id; });
+  _solRefresco = { id: id, firma: _firmaSol(r), t: Date.now() };
+}
+function revisarRefrescoSol() {
+  if(!_solRefresco) return;
+  if(Date.now() - _solRefresco.t > 20000) { _solRefresco = null; return; }
+  var r = STATE.requests.find(function(x){ return x.id === _solRefresco.id; });
+  if(!r || _firmaSol(r) === _solRefresco.firma) return;       // todavía no llegó el cambio de este pedido
+  var id = _solRefresco.id;
+  _solRefresco = null;
+  var m = document.getElementById('mVerSol');
+  if(!m || !m.classList.contains('show')) return;               // la ventana ya se cerró: nada que redibujar
+  var cuerpo = m.querySelector('.modal'), pos = cuerpo ? cuerpo.scrollTop : 0;
+  verDetalleSol(id);
+  if(cuerpo) cuerpo.scrollTop = pos;
 }
 function accionSolBtn(btn) {
   var id = btn.getAttribute('data-id');
@@ -3060,6 +3085,7 @@ async function vincularOtrosMaterial(btn) {
 
   try {
     if(window._db && window._fbOps) {
+      pedirRefrescoSol(pedidoId);
       var st = window._serverTimestamp;
       var nuevaCant = item.cantidad - cantidad;
       await window._fbOps.updateDoc(window._fbOps.doc(window._db,'materiales',item.id), {cantidad: nuevaCant});
@@ -3076,7 +3102,6 @@ async function vincularOtrosMaterial(btn) {
       });
 
       toast('✓ "'+r.otros+'" vinculado a '+item.nombre+' y descontado del inventario');
-      closeM('mVerSol');
     } else {
       toast('Sin conexión a Firebase','err');
     }
@@ -3170,12 +3195,12 @@ async function aprobarConItems(btn) {
 
   try {
     if(window._db && window._fbOps) {
+      pedirRefrescoSol(id);
       await window._fbOps.updateDoc(window._fbOps.doc(window._db,'pedidos',id), updateData);
       var msg = rechazados.length ? 'Aprobado parcialmente. Rechazados: ' + rechazados.join(', ') : 'Pedido aprobado completamente';
       toast(msg);
       notificarEmail('pedido_aprobado', {distrito:r.distrito, correo:r.correo||r.email, rechazadosDetalle:rechazadosDetalle});
       notificarCobroAuxiliar(Object.assign({}, r, {items: itemsActualizados}));
-      closeM('mVerSol');
     }
   } catch(e) {
     toast('Error: '+e.message,'err');
