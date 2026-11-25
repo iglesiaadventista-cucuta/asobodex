@@ -237,7 +237,7 @@ html,body{font-size:16px}
 <script src="fondo_mapa.js?v=20261120i"></script>
 <script>document.addEventListener('DOMContentLoaded', function(){ if(window.FondoMapa) FondoMapa.iniciar({ forzar: 'arena' }); });</script>
 <script src="ayuda_bot.js?v=20261120c"></script>
-<script src="ayuda_contenido.js?v=20261120c"></script>
+<script src="ayuda_contenido.js?v=20261125a"></script>
 </head>
 <body>
 
@@ -860,6 +860,7 @@ window.addEventListener('DOMContentLoaded', function() {
   if(s) s.addEventListener('change', programarSeguimiento);
   actualizarSeguimiento();
   actualizarBalanceDistrito();   // mapa inicial, antes de elegir distrito
+  cargarIglesiasPub();           // iglesias de cada distrito, para el talonario de diáconos
   // Chat de ayuda (preguntas frecuentes del formulario)
   if(window.AyudaBot && window.AYUDA_CONTENIDO && window.AYUDA_CONTENIDO.pastor) { AyudaBot.iniciar(window.AYUDA_CONTENIDO.pastor); }
 });
@@ -994,7 +995,7 @@ function enviarNotificacionEmail(pastor, correo, distrito, items, otros) {
 const PASTORES = [{nombre:'Aaron Rodolfo Chacon Davila',correo:'aaron.chacon@asonoreste.org'},{nombre:'Alberto Monroy',correo:'alberto.monroy@asonoreste.org'},{nombre:'Alonso Gonzalez',correo:'alonso.gonzalez@asonoreste.org'},{nombre:'Andres Micaan',correo:'andres.micaan@asonoreste.org'},{nombre:'Anyelo Ruiz Lopez',correo:'anyelo.ruiz@asonoreste.org'},{nombre:'Braham Parada',correo:'braham.parada@asonoreste.org'},{nombre:'Cristian Piamba',correo:'cristian.piamba@asonoreste.org'},{nombre:'Daniel Grandas',correo:'daniel.grandas@asonoreste.org'},{nombre:'Daniel Quintero',correo:'daniel.quintero@asonoreste.org'},{nombre:'David Perez',correo:'david.perez@asonoreste.org'},{nombre:'Deison Leon',correo:'deison.leon@asonoreste.org'},{nombre:'Deivy Duran',correo:'deivy.duran@asonoreste.org'},{nombre:'Edwin Velandia',correo:'edwin.velandia@asonoreste.org'},{nombre:'Edwing Adrian Blanco Martinez',correo:'edwing.blanco@asonoreste.org'},{nombre:'Eibar Jose Villamizar Lozada',correo:'eibar.villamizar@asonoreste.org'},{nombre:'Elexis Delgado',correo:'elexis.delgado@asonoreste.org'},{nombre:'Fabian Alcaraz',correo:'fabian.alcaraz@asonoreste.org'},{nombre:'Felix Diaz',correo:'felix.diaz@asonoreste.org'},{nombre:'Ferney Maldonado',correo:'ferney.maldonado@asonoreste.org'},{nombre:'Gerson Mesa',correo:'gerson.mesa@asonoreste.org'},{nombre:'Gleyffer Zapata',correo:'gleyffer.zapata@asonoreste.org'},{nombre:'Henry Villamizar',correo:'henry.villamizar@asonoreste.org'},{nombre:'Ismael Abril',correo:'ismael.abril@asonoreste.org'},{nombre:'Ismael Herreño',correo:'ismael.herreno@asonoreste.org'},{nombre:'Ivan Rincon',correo:'ivan.rincon@asonoreste.org'},{nombre:'Jaime Perez',correo:'jaime.perez@asonoreste.org'},{nombre:'Jarlys Ospina',correo:'jarlys.ospina@asonoreste.org'},{nombre:'Jeferson Rodriguez',correo:'jeferson.rodriguez@asonoreste.org'},{nombre:'Jesus Crespo',correo:'jesus.crespo@asonoreste.org'},{nombre:'Jolman Mujica',correo:'jolman.mujica@asonoreste.org'},{nombre:'Jonathan Rey Cuevas',correo:'jonathan.rey@asonoreste.org'},{nombre:'Jonathan Roa',correo:'jonathan.roa@asonoreste.org'},{nombre:'Jorge Garcia',correo:'jorge.garcia@asonoreste.org'},{nombre:'Jorge Luis Sierra Alvis',correo:'jorge.sierra@asonoreste.org'},{nombre:'Jose Manuel Romero',correo:'jose.romero@asonoreste.org'},{nombre:'Julian Agudelo',correo:'julian.agudelo@asonoreste.org'},{nombre:'Luis Rendon',correo:'luis.rendon@asonoreste.org'},{nombre:'Manuel Beleño',correo:'manuel.beleno@asonoreste.org'},{nombre:'Manuel Cadena',correo:'manuel.cadena@asonoreste.org'},{nombre:'Marco Medina',correo:'marcos.medina@asonoreste.org'},{nombre:'Mauricio Antonio Ruiz Cordero',correo:'mauricio.ruiz@asonoreste.org'},{nombre:'Nelson Carreño',correo:'nelson.carreno@asonoreste.org'},{nombre:'Rafael Peña',correo:'rafael.pena@asonoreste.org'},{nombre:'Samuel Marin',correo:'samuel.marin@asonoreste.org'},{nombre:'Teodomiro Carvajal',correo:'teodomiro.carvajal@asonoreste.org'},{nombre:'Yamith Ledesma',correo:'yamith.ledesma@asonoreste.org'},{nombre:'Yanpier Garcia',correo:'yanpier.garcia@asonoreste.org'},{nombre:'Yeison Chaverra',correo:'yeison.chaverra@asonoreste.org'},{nombre:'Yoneider Uriel Barajas Buitrago',correo:'yoneider.barajas@asonoreste.org'},{nombre:'Zeudiel Hernandez',correo:'zeudiel.hernandez@asonoreste.org'}];
 const MATS = [
   {id:'m1', nombre:'Talonario de Diáconos', tipo:'diacono', min:1, max:null,
-   regla:'Indica el nombre de la iglesia y, si lo sabes, escribe solo el número que aparece en el talonario de cada libro (sin letras). Si tienes el talonario anterior, adjunta la foto aquí mismo — ya no es necesario enviarla por WhatsApp.'},
+   regla:'Elige de la lista la iglesia de cada libro (te mostramos hace cuántos meses se le envió el último). Si tu iglesia no aparece, escoge «Otra iglesia» y escribe el nombre. Si lo sabes, escribe solo el número del talonario (sin letras). Si tienes el talonario anterior, adjunta la foto aquí mismo — ya no es necesario enviarla por WhatsApp.'},
   {id:'m2', nombre:'Envío Mensual de Fondos Distritales', tipo:'normal', min:1, max:10},
   {id:'m3', nombre:'Arqueo de Caja', tipo:'libre', min:1, max:null, regla:'Tiene un valor de <strong>$3.000 c/u</strong>. Puedes pedir los que necesites.'},
   {id:'m4', nombre:'Orden de Culto', tipo:'normal', min:1, max:10},
@@ -1138,7 +1139,143 @@ function validarQty(id) {
   if(m.tipo==='diacono') actualizarCamposIglesia(id, v);
 }
 
+// ── Iglesias del distrito (lista publicada por el administrador) ─────────────
+// Si el distrito tiene iglesias registradas, cada libro de diáconos se elige de una lista
+// (con los meses desde su último libro) en vez de escribir el nombre a mano — así no se crean
+// iglesias duplicadas por errores de escritura. Si no hay lista, queda el campo de texto de siempre.
+var IGLESIAS_PUB = null;
+function _normDistForm(s) {
+  return String(s || '').replace(' (Solicitud interna)', '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase();
+}
+function _escH(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;'); }
+function iglesiasDelDistrito(dist) {
+  if(!IGLESIAS_PUB || !dist) return [];
+  var k = _normDistForm(dist);
+  var d = IGLESIAS_PUB.find(function(x) { return x.k === k; });
+  return d ? d.i : [];
+}
+function _mesesDesde(f) { return f ? Math.floor((Date.now() - f) / (86400000 * 30.44)) : null; }
+function _textoMeses(f) {
+  var m = _mesesDesde(f);
+  if(m === null) return '';
+  return m < 1 ? 'último libro: este mes' : 'último libro hace ' + m + (m === 1 ? ' mes' : ' meses');
+}
+async function cargarIglesiasPub() {
+  try {
+    const { initializeApp, getApps } = await import("https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js");
+    const { getFirestore, doc, getDoc } = await import("https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js");
+    const apps  = getApps();
+    const fbapp = apps.length ? apps[0] : initializeApp(FIREBASE_CONFIG);
+    const snap  = await getDoc(doc(getFirestore(fbapp), 'publico', 'iglesias_diaconos'));
+    if(snap.exists() && Array.isArray(snap.data().d)) IGLESIAS_PUB = snap.data().d;
+    console.log('✓ Iglesias por distrito cargadas:', IGLESIAS_PUB ? IGLESIAS_PUB.length : 0);
+    // Si el pastor ya llegó al paso de materiales, se cambian los campos de texto por la lista (sin perder lo escrito)
+    MATS.filter(function(m) { return m.tipo === 'diacono'; }).forEach(function(m) {
+      if(document.getElementById('iglesias_' + m.id)) {
+        var q = parseInt((document.getElementById('qty_' + m.id) || {}).value) || m.min;
+        actualizarCamposIglesia(m.id, q);
+      }
+    });
+  } catch(e) {
+    console.warn('No se pudo cargar la lista de iglesias:', e.message);
+  }
+}
+
+function elegirIglesiaLibro(id, i, restaurar) {
+  var s = document.getElementById('sel_' + id + '_' + i), ig = document.getElementById('igl_' + id + '_' + i);
+  var co = document.getElementById('cod_' + id + '_' + i), h = document.getElementById('hint_' + id + '_' + i);
+  if(!s || !ig) return;
+  var lista = iglesiasDelDistrito(document.getElementById('pDistrito').value);
+  if(s.value === 'otra') {
+    ig.style.display = '';
+    if(!restaurar) { ig.value = ''; if(co) co.value = ''; }
+    if(h) h.innerHTML = '';
+  } else if(s.value === '') {
+    ig.style.display = 'none'; ig.value = '';
+    if(!restaurar && co) co.value = '';
+    if(h) h.innerHTML = '';
+  } else {
+    var r = lista[parseInt(s.value, 10)];
+    if(r) {
+      ig.style.display = 'none'; ig.value = r.n;
+      if(co && (!restaurar || !co.value)) co.value = r.c || '';
+      var m = _mesesDesde(r.f), txt = '';
+      if(m !== null && m < 9) txt = '<span style="color:var(--amber)">⚠️ A esta iglesia ya se le envió un libro ' + (m < 1 ? 'este mes' : 'hace ' + m + (m === 1 ? ' mes' : ' meses')) + '. Pídelo solo si de verdad lo necesita.</span>';
+      else if(m !== null) txt = '<span style="color:var(--green)">✓ Último libro hace ' + m + ' meses.</span>';
+      if(r.c) txt += (txt ? '<br>' : '') + '<span style="color:var(--t2)">Número del talonario anterior: <b>' + _escH(r.c) + '</b> (se llenó solo, puedes corregirlo).</span>';
+      if(h) h.innerHTML = txt;
+    }
+  }
+  refrescarOpcionesIglesias(id);
+}
+
+// Una iglesia ya elegida en otro libro del mismo pedido no se puede repetir
+function refrescarOpcionesIglesias(id) {
+  var usadas = {};
+  for(var i = 1; i <= 50; i++) {
+    var s = document.getElementById('sel_' + id + '_' + i);
+    if(!s) break;
+    if(s.value !== '' && s.value !== 'otra') usadas[s.value] = i;
+  }
+  for(var j = 1; j <= 50; j++) {
+    var sj = document.getElementById('sel_' + id + '_' + j);
+    if(!sj) break;
+    for(var o = 0; o < sj.options.length; o++) {
+      var v = sj.options[o].value;
+      sj.options[o].disabled = (v !== '' && v !== 'otra' && usadas[v] !== undefined && usadas[v] !== j);
+    }
+  }
+}
+
 function actualizarCamposIglesia(id, cantidad) {
+  var lista = iglesiasDelDistrito(document.getElementById('pDistrito').value);
+  if(!lista.length) { _actualizarCamposIglesiaTexto(id, cantidad); return; }
+  var cont = document.getElementById('iglesias_' + id);
+  if(!cont) return;
+  // Guardar lo que ya había (elección, nombre escrito y número) antes de reconstruir
+  var prev = [];
+  for(var i = 1; i <= 50; i++) {
+    var ig0 = document.getElementById('igl_' + id + '_' + i);
+    if(!ig0) break;
+    var s0 = document.getElementById('sel_' + id + '_' + i), c0 = document.getElementById('cod_' + id + '_' + i);
+    var sel = s0 ? s0.value : '';
+    if(!s0 && ig0.value.trim()) {   // venía del campo de texto: se busca el nombre en la lista
+      var nn = ig0.value.trim().toLowerCase();
+      var ix = lista.findIndex(function(r) { return r.n.trim().toLowerCase() === nn; });
+      sel = ix >= 0 ? String(ix) : 'otra';
+    }
+    prev.push({ sel: sel, igl: ig0.value, cod: c0 ? c0.value : '' });
+  }
+  var opts = '<option value="">— Elige la iglesia —</option>' + lista.map(function(r, k) {
+    var t = _textoMeses(r.f);
+    return '<option value="' + k + '">' + _escH(r.n) + (t ? ' — ' + t : '') + '</option>';
+  }).join('') + '<option value="otra">➕ Otra iglesia (no está en la lista)</option>';
+  var html = '<div class="note-teal" style="margin:0 0 8px">Elige la iglesia exacta de cada libro, de la lista de tu distrito.</div>' +
+    '<label style="font-size:11px;font-weight:600;color:var(--t2);text-transform:uppercase;letter-spacing:.06em;display:block;margin-bottom:5px">Datos de cada libro — ' + cantidad + ' libro(s)</label>';
+  for(var n = 1; n <= cantidad; n++) {
+    var p = prev[n - 1] || { sel: '', igl: '', cod: '' };
+    html += '<div style="background:var(--navy4);border:1px solid var(--bd);border-radius:8px;padding:10px;margin-bottom:8px">' +
+      '<div style="font-size:10px;font-weight:700;color:var(--teal);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Libro ' + n + '</div>' +
+      '<select class="fc" id="sel_' + id + '_' + n + '" onclick="event.stopPropagation()" onchange="elegirIglesiaLibro(\'' + id + '\',' + n + ')" style="margin-bottom:6px">' + opts + '</select>' +
+      '<input type="text" class="fc" id="igl_' + id + '_' + n + '" placeholder="Escribe el nombre de la iglesia" onclick="event.stopPropagation()" style="display:none;margin-bottom:6px" value="' + _escH(p.igl) + '">' +
+      '<div id="hint_' + id + '_' + n + '" style="font-size:12px;line-height:1.5;margin-bottom:6px"></div>' +
+      '<input type="text" class="fc" id="cod_' + id + '_' + n + '" placeholder="Número del talonario (opcional)" onclick="event.stopPropagation()" style="margin-bottom:6px" value="' + _escH(p.cod) + '">' +
+      '<label style="font-size:10px;font-weight:600;color:var(--t2);text-transform:uppercase;letter-spacing:.06em;display:block;margin-bottom:5px">Foto del talonario anterior (opcional)</label>' +
+      '<input type="file" accept="image/*" class="fc" id="foto_' + id + '_' + n + '" style="padding:8px" onclick="event.stopPropagation()">' +
+    '</div>';
+  }
+  cont.innerHTML = html;
+  for(var k2 = 1; k2 <= cantidad; k2++) {
+    var pp = prev[k2 - 1];
+    if(pp && pp.sel !== '') {
+      document.getElementById('sel_' + id + '_' + k2).value = pp.sel;
+      elegirIglesiaLibro(id, k2, true);
+    }
+  }
+  refrescarOpcionesIglesias(id);
+}
+
+function _actualizarCamposIglesiaTexto(id, cantidad) {
   var cont = document.getElementById('iglesias_'+id);
   if(!cont) return;
   // Guardar valores existentes (nombre de iglesia y código) antes de reconstruir
@@ -1191,7 +1328,7 @@ function irPaso3() {
       for(var ig=1; ig<=qty; ig++) {
         var iglInput = document.getElementById('igl_'+m.id+'_'+ig);
         if(!iglInput || !iglInput.value.trim()) {
-          toast('⚠️ Indica el nombre de la iglesia '+ig+' para: '+m.nombre,'warn'); return;
+          toast('⚠️ Elige o escribe la iglesia del libro '+ig+' ('+m.nombre+')','warn'); return;
         }
       }
     }

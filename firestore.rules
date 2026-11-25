@@ -189,6 +189,14 @@ service cloud.firestore {
       allow write: if esAdmin();
     }
 
+    // ── publico: resúmenes que el administrador publica para formularios sin sesión.
+    // Hoy: iglesias_diaconos = por distrito, cada iglesia con la fecha de su último libro y su número,
+    // para que el pastor elija la iglesia de una lista en vez de escribirla. Solo el admin escribe.
+    match /publico/{id} {
+      allow read: if true;
+      allow write: if esAdmin();
+    }
+
     // ── periodos_cerrados: solo master/tesorero pueden cerrar un período.
     // Una vez creado, no se actualiza ni se borra desde la app (si algún
     // día hace falta reabrir un mes, se hace manualmente desde la Consola).

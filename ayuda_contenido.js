@@ -44,7 +44,7 @@ window.AYUDA_CONTENIDO.pastor = {
       k: 'talonario talonarios diacono diaconos libro libros iglesia numero foto codigo anterior',
       r: 'Cada libro es <b>para una iglesia</b>:<ol>' +
          '<li>Toca <b>Talonario de Diáconos</b> y pon cuántos libros necesitas.</li>' +
-         '<li>Por cada libro escribe el <b>nombre de la iglesia</b> (obligatorio).</li>' +
+         '<li>Por cada libro <b>elige la iglesia de la lista</b> de tu distrito: ahí ves hace cuántos meses se le envió el último libro. Si la tuya no aparece, escoge <b>«Otra iglesia»</b> y escribe el nombre.</li>' +
          '<li>Si lo sabes, escribe el <b>número del talonario anterior</b> (solo el número, sin letras).</li>' +
          '<li>Si lo tienes a la mano, adjunta la <b>foto del talonario anterior</b> ahí mismo — ya no hace falta mandarla por WhatsApp.</li></ol>' },
 

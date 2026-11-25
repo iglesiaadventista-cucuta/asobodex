@@ -2282,6 +2282,7 @@ function startListeners(db) {
     });
     STATE.libros = STATE.librosTodos.filter(function(l){ return l.estado === 'enviado' && l.fechaEntrega; });
     renderAll();
+    publicarIglesiasDiaconos();
   }));
 
   // Listener para remisiones
@@ -5280,6 +5281,43 @@ document.addEventListener('click', function(e) {
     var r = document.getElementById('cbMatResults'); if(r) r.style.display='none';
   }
 });
+
+// ── LISTA PÚBLICA DE IGLESIAS (para el formulario del pastor) ────────────────
+// El formulario no inicia sesión, así que no puede leer libros_diaconos. El administrador publica
+// un resumen en publico/iglesias_diaconos: por distrito, cada iglesia con su último libro y su número.
+// Se vuelve a publicar solo cuando cambia (al abrir el sistema o al registrar un libro).
+var _sigIglPub = '', _timerIglPub = null;
+function _normDistPub(s) {
+  return String(s || '').replace(' (Solicitud interna)', '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase();
+}
+function publicarIglesiasDiaconos() {
+  if(!(STATE.user && STATE.user.role === 'admin') || !window._db || !window._fbOps) return;
+  clearTimeout(_timerIglPub);
+  _timerIglPub = setTimeout(async function() {
+    try {
+      var porDist = {};
+      (STATE.libros || []).forEach(function(l) {
+        var nom = (l.iglesia || '').trim();
+        if(!nom || !l.fechaEntrega) return;
+        var kd = _normDistPub(l.distrito);
+        if(!kd) return;
+        var d = porDist[kd] || (porDist[kd] = {});
+        var ki = nom.toLowerCase(), f = l.fechaEntrega.getTime();
+        var r = d[ki] || (d[ki] = { n: nom, c: '', f: 0, fc: 0 });
+        if(f >= r.f) { r.f = f; r.n = nom; }
+        if(l.codigoIglesia && f >= r.fc) { r.fc = f; r.c = String(l.codigoIglesia); }
+      });
+      var lista = Object.keys(porDist).sort().map(function(kd) {
+        return { k: kd, i: Object.keys(porDist[kd]).sort().map(function(ki) { var r = porDist[kd][ki]; return { n: r.n, c: r.c, f: r.f }; }) };
+      });
+      var firma = JSON.stringify(lista);
+      if(firma === _sigIglPub) return;
+      await window._fbOps.setDoc(window._fbOps.doc(window._db, 'publico', 'iglesias_diaconos'), { d: lista, actualizado: Date.now() });
+      _sigIglPub = firma;
+      console.log('✓ Lista de iglesias publicada para el formulario:', lista.length, 'distritos');
+    } catch(e) { console.warn('No se pudo publicar la lista de iglesias (¿reglas de Firestore sin actualizar?):', e.message); }
+  }, 4000);
+}
 
 // ── LIBROS DE DIÁCONOS ──────────────────────────────────────
 
