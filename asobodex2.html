@@ -5338,10 +5338,46 @@ function unificarIglesias(regs, distrito) {
       x.q += (r.cant || 1); x.f = Math.max(x.f, r.f);
     });
     var nombre = Object.keys(porNombre).sort(function(a, b) { return (/[0-9]/.test(a) - /[0-9]/.test(b)) || (porNombre[b].q - porNombre[a].q) || (b.length - a.length) || (porNombre[b].f - porNombre[a].f); })[0];
-    return { n: nombre, c: c, f: f, uni: g.regs.length > 1 ? g.regs.map(function(r) { return r.n; }) : null };
+    return { n: nombre, c: c, f: f, nombres: g.regs.map(function(r) { return r.n; }), uni: g.regs.length > 1 ? g.regs.map(function(r) { return r.n; }) : null };
   }).sort(function(a, b) { return _limpiarNombreIgl(a.n) < _limpiarNombreIgl(b.n) ? -1 : 1; });
 }
 
+// Nombre "oficial" de una iglesia dentro de su distrito (sin tocar lo guardado). Una iglesia con el mismo nombre
+// en OTRO distrito es otra congregación: todo se compara siempre dentro del mismo distrito.
+var _canonIglCache = { ref: null, mapa: {}, claves: {} };
+function _mapaCanonIgl() {
+  var libros = STATE.libros || [];
+  if(_canonIglCache.ref === libros) return _canonIglCache;
+  var porDist = {};
+  libros.forEach(function(l) {
+    var n = (l.iglesia || '').trim();
+    if(!n) return;
+    (porDist[_normDistPub(l.distrito)] || (porDist[_normDistPub(l.distrito)] = [])).push({ n: n, f: l.fechaEntrega ? l.fechaEntrega.getTime() : 0, c: '', cant: 1 });
+  });
+  var mapa = {}, claves = {};
+  Object.keys(porDist).forEach(function(kd) {
+    claves[kd] = [];
+    unificarIglesias(porDist[kd], kd).forEach(function(r) {
+      claves[kd].push({ k: _claveIglesia(r.n, kd), n: r.n });
+      r.nombres.forEach(function(nom) { mapa[kd + '|' + nom] = r.n; });
+    });
+  });
+  _canonIglCache = { ref: libros, mapa: mapa, claves: claves };
+  return _canonIglCache;
+}
+function nombreCanonIglesia(nombre, distrito) {
+  var n = (nombre || '').trim();
+  if(!n) return n;
+  var kd = _normDistPub(distrito), c = _mapaCanonIgl();
+  if(c.mapa[kd + '|' + n]) return c.mapa[kd + '|' + n];
+  var k = _claveIglesia(n, kd), lista = c.claves[kd] || [];
+  for(var i = 0; i < lista.length; i++) { if(_clavesParecidas(lista[i].k, k)) return lista[i].n; }
+  return n;
+}
+function _mismaIglesia(a, b, distrito) {
+  var kd = _normDistPub(distrito);
+  return !!(a && b) && _clavesParecidas(_claveIglesia(a, kd), _claveIglesia(b, kd));
+}
 var _sigIglPub = '', _timerIglPub = null;
 function _normDistPub(s) {
   return String(s || '').replace(' (Solicitud interna)', '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase();
@@ -5403,7 +5439,7 @@ function renderLibros() {
   // Agrupar por iglesia+distrito para obtener último libro
   var iglesias = {};
   libros.forEach(function(l) {
-    var key = l.iglesia + '|' + l.distrito;
+    var key = _normDistPub(l.distrito) + '|' + nombreCanonIglesia(l.iglesia, l.distrito);
     if(!iglesias[key]) iglesias[key] = [];
     iglesias[key].push(l);
   });
@@ -5418,7 +5454,7 @@ function renderLibros() {
     var regs = iglesias[key];
     regs.sort(function(a,b) { return b.fechaEntrega - a.fechaEntrega; });
     var ultimo = regs[0];
-    var iglesia = ultimo.iglesia;
+    var iglesia = nombreCanonIglesia(ultimo.iglesia, ultimo.distrito);
     var distrito = ultimo.distrito;
 
     if(filtDist && distrito !== filtDist) return;
@@ -5478,7 +5514,7 @@ function renderLibros() {
       var numEntrega = regs.length - idx;
       var isAdmin = STATE.user && STATE.user.role === 'admin';
       var accionBtn = isAdmin ? '<td><div style="display:flex;gap:4px"><button class="btn bic bsm" onclick="editarCodigoLibro(\''+l.id+'\',\''+( l.codigoIglesia||'').replace(/'/g,'')+'\')" title="Editar código">🏷️</button><button class="btn bic bsm bred" onclick="eliminarLibro(\''+l.id+'\')" title="Eliminar">🗑</button></div></td>' : '';
-      filasHtml += '<tr><td>'+l.iglesia+'</td><td style="font-family:monospace;color:var(--teal)">'+(l.codigoIglesia||'<span style="color:var(--t2)">Sin código</span>')+'</td><td>'+l.distrito+'</td>' +
+      filasHtml += '<tr><td>'+nombreCanonIglesia(l.iglesia, l.distrito)+'</td><td style="font-family:monospace;color:var(--teal)">'+(l.codigoIglesia||'<span style="color:var(--t2)">Sin código</span>')+'</td><td>'+l.distrito+'</td>' +
         '<td>'+fmtD(l.fechaEntrega)+(l.motivo?'<div style="font-size:10px;color:var(--amber);margin-top:2px">📝 '+l.motivo+'</div>':'')+'</td>' +
         '<td>'+(idx===0 ? meses+' meses (actual)' : tiempoTxt)+'</td>' +
         '<td><span style="'+estadoClass+';padding:2px 8px;border-radius:6px;font-size:11px">'+(idx===0?estadoTxt:'Anterior')+'</span></td>' +
@@ -5516,9 +5552,10 @@ function buscarCodigoIglesiaExistente(iglesia, distrito) {
   var nombreNorm = iglesia.trim().toLowerCase();
   var distritoNorm = distritoNormalizado(distrito);
   var libros = (STATE.libros || []).filter(function(l){
-    return l.codigoIglesia && (!distritoNorm || (l.distrito||'').trim().toLowerCase()===distritoNorm);
+    return l.codigoIglesia && (!distritoNorm || _normDistPub(l.distrito)===_normDistPub(distrito));
   });
   var match = libros.find(function(l){ return (l.iglesia||'').trim().toLowerCase()===nombreNorm; });
+  if(!match) match = libros.find(function(l){ return _mismaIglesia(l.iglesia, iglesia, distrito || l.distrito); });
   if(!match) {
     // Coincidencia parcial (ej. "Iglesia Alfa y Omega" vs "ALFA Y OMEGA")
     match = libros.find(function(l){
@@ -5540,9 +5577,9 @@ function libroReciente(iglesia, distrito) {
   var distritoNorm = distritoNormalizado(distrito);
   var libros = (STATE.libros||[]).filter(function(l){
     var n = (l.iglesia||'').trim().toLowerCase();
-    var nombreMatch = n && (n===nombreNorm || n.indexOf(nombreNorm)!==-1 || nombreNorm.indexOf(n)!==-1);
+    var nombreMatch = n && (n===nombreNorm || n.indexOf(nombreNorm)!==-1 || nombreNorm.indexOf(n)!==-1 || _mismaIglesia(l.iglesia, iglesia, distrito || l.distrito));
     if(!nombreMatch) return false;
-    return !distritoNorm || (l.distrito||'').trim().toLowerCase()===distritoNorm;
+    return !distritoNorm || _normDistPub(l.distrito)===_normDistPub(distrito);
   });
   if(!libros.length) return null;
   libros.sort(function(a,b){ return b.fechaEntrega - a.fechaEntrega; });
@@ -5558,6 +5595,7 @@ async function registrarLibroDiacono(iglesia, distrito, codigoIglesia, motivo) {
   try {
     var st = window._serverTimestamp;
     var codigoFinal = normalizarCodigoLibro(codigoIglesia);
+    iglesia = nombreCanonIglesia(iglesia, distrito);   // no crea una iglesia nueva por escribirla distinto
     await window._fbOps.addDoc(window._fbOps.collection(window._db,'libros_diaconos'), {
       iglesia: iglesia,
       distrito: distrito,
@@ -6400,7 +6438,7 @@ function autocompletarReenvioLibro() {
   var nombreNorm = nombre.toLowerCase();
   // Una misma iglesia puede existir en varios distritos: son congregaciones distintas,
   // así que solo se asume el distrito si hay uno solo; si hay varios, lo elige el admin.
-  var coinciden = (STATE.libros||[]).filter(function(l){ return (l.iglesia||'').trim().toLowerCase()===nombreNorm; });
+  var coinciden = (STATE.libros||[]).filter(function(l){ return (l.iglesia||'').trim().toLowerCase()===nombreNorm || _mismaIglesia(l.iglesia, nombre, l.distrito); });
   var distritosCoinciden = [];
   coinciden.forEach(function(l){ if(l.distrito && distritosCoinciden.indexOf(l.distrito)===-1) distritosCoinciden.push(l.distrito); });
   info.style.display = 'block';
