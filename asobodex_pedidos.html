@@ -457,10 +457,15 @@ async function cargarFotosMateriales() {
     const fbapp = apps.length ? apps[0] : initializeApp(FIREBASE_CONFIG);
     const db    = getFirestore(fbapp);
     const snap  = await getDocs(collection(db, 'materiales'));
+    // Primero se enlaza por nombre; luego, lo que el administrador marcó a mano ("es el material X del formulario") manda sobre el nombre
+    var enlazados = [];
     snap.forEach(function(d) {
       var data = d.data();
-      if(data.foto) FOTOS_MATERIALES[claveMaterial(data.nombre)] = data.foto;
+      if(!data.foto) return;
+      if(data.formMat) enlazados.push(data);
+      else if(!FOTOS_MATERIALES[claveMaterial(data.nombre)]) FOTOS_MATERIALES[claveMaterial(data.nombre)] = data.foto;
     });
+    enlazados.forEach(function(data) { FOTOS_MATERIALES[claveMaterial(data.formMat)] = data.foto; });
     console.log('✓ Fotos de materiales cargadas:', Object.keys(FOTOS_MATERIALES).length);
     // Si el pastor ya había avanzado al paso 2 (poco probable, pero por si la carga tarda)
     if(document.getElementById('matList') && document.getElementById('matList').innerHTML) buildMats();

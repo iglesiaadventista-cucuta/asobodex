@@ -604,6 +604,10 @@ body.sin-fondo #toast,body.sin-fondo .ad-tip{background:var(--navy2);backdrop-fi
               <input type="file" accept="image/*" class="fc" id="rFoto" style="padding:8px" onchange="previsualizarFoto(this,'rFotoPreview')">
               <div id="rFotoPreview" style="margin-top:8px"></div>
             </div>
+            <div class="fg"><label>¿Es un material del formulario de pastores?</label>
+    <select class="fc" id="rFormMat"><option value="">— No, solo inventario —</option><option value="Talonario de Diáconos">Talonario de Diáconos</option><option value="Envío Mensual de Fondos Distritales">Envío Mensual de Fondos Distritales</option><option value="Arqueo de Caja">Arqueo de Caja</option><option value="Orden de Culto">Orden de Culto</option><option value="Resumen Mensual de Fondos">Resumen Mensual de Fondos</option><option value="Talonario de Caja Menor">Talonario de Caja Menor</option><option value="Talonario de Fondos Confiados">Talonario de Fondos Confiados</option><option value="Sobres de Diezmos">Sobres de Diezmos</option><option value="Fe de Jesús">Fe de Jesús</option><option value="Quiero Vivir Sano">Quiero Vivir Sano</option><option value="Joven a Joven">Joven a Joven</option><option value="Hogar y Familia">Hogar y Familia</option><option value="Tiras de Bautismo">Tiras de Bautismo</option><option value="Certificados de Bautismo">Certificados de Bautismo</option><option value="Material de Salud">Material de Salud</option><option value="Yo Creo">Yo Creo</option><option value="Sobres de Diezmos de Niños">Sobres de Diezmos de Niños</option><option value="Biblias">Biblias</option></select>
+    <div style="font-size:11px;color:var(--t2);margin-top:6px">Si eliges uno, la foto de este material se muestra en el formulario de pastores — aunque el nombre del inventario sea distinto.</div>
+  </div>
             <div class="fg"><label>Notas adicionales</label><textarea class="fc" id="rNota" placeholder="Información adicional sobre este material..."></textarea></div>
             <button class="btn bpri" style="width:100%" onclick="registrarMaterial()">✓ Registrar material</button>
           </div></div>
@@ -1496,6 +1500,10 @@ body.sin-fondo #toast,body.sin-fondo .ad-tip{background:var(--navy2);backdrop-fi
     <input type="file" accept="image/*" class="fc" id="eFoto" style="padding:8px" onchange="previsualizarFoto(this,'eFotoPreview')">
     <div id="eFotoPreview" style="margin-top:8px"></div>
     <div style="font-size:11px;color:var(--t2);margin-top:6px">Ayuda a reconocer el material rápido al despachar o buscarlo — clic en la foto para verla en grande, o sube una nueva para cambiarla.</div>
+  </div>
+  <div class="fg"><label>¿Es un material del formulario de pastores?</label>
+    <select class="fc" id="eFormMat"><option value="">— No, solo inventario —</option><option value="Talonario de Diáconos">Talonario de Diáconos</option><option value="Envío Mensual de Fondos Distritales">Envío Mensual de Fondos Distritales</option><option value="Arqueo de Caja">Arqueo de Caja</option><option value="Orden de Culto">Orden de Culto</option><option value="Resumen Mensual de Fondos">Resumen Mensual de Fondos</option><option value="Talonario de Caja Menor">Talonario de Caja Menor</option><option value="Talonario de Fondos Confiados">Talonario de Fondos Confiados</option><option value="Sobres de Diezmos">Sobres de Diezmos</option><option value="Fe de Jesús">Fe de Jesús</option><option value="Quiero Vivir Sano">Quiero Vivir Sano</option><option value="Joven a Joven">Joven a Joven</option><option value="Hogar y Familia">Hogar y Familia</option><option value="Tiras de Bautismo">Tiras de Bautismo</option><option value="Certificados de Bautismo">Certificados de Bautismo</option><option value="Material de Salud">Material de Salud</option><option value="Yo Creo">Yo Creo</option><option value="Sobres de Diezmos de Niños">Sobres de Diezmos de Niños</option><option value="Biblias">Biblias</option></select>
+    <div style="font-size:11px;color:var(--t2);margin-top:6px">Si eliges uno, la foto de este material se muestra en el formulario de pastores — aunque el nombre del inventario sea distinto.</div>
   </div>
   <div class="fg"><label>Departamento</label><select class="fc" id="eDep"><option value="Mayordomía">Mayordomía</option>
 <option value="Evangelismo">Evangelismo</option>
@@ -3516,6 +3524,8 @@ async function registrarMaterial() {
         nota:nota, fechaIngreso:st(), creadoEn:st()
       };
       if(precio>0) datosMaterial.precio = precio;
+      var fm = document.getElementById('rFormMat').value;
+      if(fm) datosMaterial.formMat = fm;
       if(fotoInput && fotoInput.files[0]) {
         toast('Subiendo foto...');
         datosMaterial.foto = await subirFotoImgbb(fotoInput.files[0]);
@@ -3531,6 +3541,7 @@ async function registrarMaterial() {
       toast('Material registrado: '+n);
       ['rNom','rCant','rMin','rPrecio','rFoto','rNota'].forEach(function(x){ document.getElementById(x).value=''; });
       document.getElementById('rFotoPreview').innerHTML='';
+      document.getElementById('rFormMat').value='';
       document.getElementById('rDept').value='';
     } else {
       toast('Sin conexion a Firebase','err');
@@ -7441,6 +7452,7 @@ function openEditBtn(btn) {
   document.getElementById('eDep').value = item.departamento||'';
   document.getElementById('ePrecio').value = item.precio||0;
   document.getElementById('eDestacado').checked = item.destacado||false;
+  document.getElementById('eFormMat').value = item.formMat||'';
   document.getElementById('eFoto').value = '';
   document.getElementById('eFotoPreview').innerHTML = '';
   document.getElementById('eFotoEliminar').value = '0';
@@ -7480,7 +7492,7 @@ async function saveEdit() {
 
   try {
     if(window._db && window._fbOps) {
-      var datos = { nombre:nom, cantidad:cant, minimo:min, departamento:dep, precio:precio, destacado:dest };
+      var datos = { nombre:nom, cantidad:cant, minimo:min, departamento:dep, precio:precio, destacado:dest, formMat: document.getElementById('eFormMat').value };
       if(fotoInput && fotoInput.files[0]) {
         toast('Subiendo foto...');
         datos.foto = await subirFotoImgbb(fotoInput.files[0]);
